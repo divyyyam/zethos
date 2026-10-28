@@ -1,0 +1,127 @@
+{
+  "$schema": "https://turborepo.com/schema.json",
+  "envMode": "strict",
+  "globalEnv": ["NODE_ENV"],
+  "globalDependencies": ["biome.json", "packages/tsconfig/*.json"],
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**"]
+    },
+    "web#build": {
+      "dependsOn": ["^build"],
+      "outputs": [".next/**", "!.next/cache/**"],
+      "env": [
+        "NEXT_PUBLIC_CHAIN_ID",
+        "NEXT_PUBLIC_ENGINE_URL",
+        "NEXT_PUBLIC_VAULT_ADDRESS",
+        "NEXT_PUBLIC_WALLETCONNECT_ID"
+      ],
+      "inputs": ["$TURBO_DEFAULT$", ".env*"]
+    },
+    "contracts#build": {
+      "outputs": ["out/**", "cache/**"],
+      "env": ["FOUNDRY_PROFILE"],
+      "passThroughEnv": ["FOUNDRY_DIR", "SVM_HOME"]
+    },
+    "@zethos/shared#build": {
+      "dependsOn": ["^build", "codegen"],
+      "outputs": ["dist/**"],
+      "inputs": ["$TURBO_DEFAULT$", "!src/generated.ts"]
+    },
+    "codegen": {
+      "dependsOn": ["contracts#build"],
+      "outputs": ["src/generated.ts"],
+      "inputs": ["$TURBO_DEFAULT$", "!src/generated.ts"],
+      "env": ["FOUNDRY_PROFILE"],
+      "passThroughEnv": ["FOUNDRY_DIR", "SVM_HOME"]
+    },
+    "dev": {
+      "dependsOn": ["^build"],
+      "cache": false,
+      "persistent": true
+    },
+    "engine#dev": {
+      "dependsOn": ["^build"],
+      "cache": false,
+      "persistent": true,
+      "passThroughEnv": [
+        "HSK_RPC_URL",
+        "CHAIN_ID",
+        "VAULT_ADDRESS",
+        "QUOTE_SIGNER_KEY",
+        "EXECUTOR_KEY",
+        "OPERATOR_ADDRESS",
+        "GEMINI_API_KEY",
+        "GEMINI_MODEL",
+        "DB_PATH",
+        "ENGINE_MODE",
+        "ARB_ENABLED",
+        "EXCHANGE_API_KEY",
+        "EXCHANGE_API_SECRET",
+        "PORT",
+        "CORS_ORIGIN"
+      ]
+    },
+    "web#dev": {
+      "dependsOn": ["^build"],
+      "cache": false,
+      "persistent": true,
+      "env": [
+        "NEXT_PUBLIC_CHAIN_ID",
+        "NEXT_PUBLIC_ENGINE_URL",
+        "NEXT_PUBLIC_VAULT_ADDRESS",
+        "NEXT_PUBLIC_WALLETCONNECT_ID"
+      ]
+    },
+    "test": {
+      "dependsOn": ["^build"],
+      "outputs": []
+    },
+    "contracts#test": {
+      "dependsOn": ["build"],
+      "outputs": [],
+      "env": ["FOUNDRY_PROFILE"],
+      "passThroughEnv": ["FOUNDRY_DIR", "SVM_HOME"]
+    },
+    "test:fork": {
+      "dependsOn": ["build"],
+      "cache": false,
+      "outputs": [],
+      "env": ["FOUNDRY_PROFILE"],
+      "passThroughEnv": ["FOUNDRY_DIR", "SVM_HOME"]
+    },
+    "lint": {
+      "outputs": []
+    },
+    "typecheck": {
+      "dependsOn": ["^build"],
+      "outputs": []
+    },
+    "@zethos/shared#typecheck": {
+      "dependsOn": ["codegen"],
+      "outputs": []
+    },
+    "web#typecheck": {
+      "dependsOn": ["^build"],
+      "outputs": [],
+      "env": [
+        "NEXT_PUBLIC_CHAIN_ID",
+        "NEXT_PUBLIC_ENGINE_URL",
+        "NEXT_PUBLIC_VAULT_ADDRESS",
+        "NEXT_PUBLIC_WALLETCONNECT_ID"
+      ],
+      "inputs": ["$TURBO_DEFAULT$", ".env*"]
+    },
+    "contracts#typecheck": {
+      "dependsOn": ["build"],
+      "outputs": [],
+      "env": ["FOUNDRY_PROFILE"],
+      "passThroughEnv": ["FOUNDRY_DIR", "SVM_HOME"]
+    },
+    "contracts#lint": {
+      "outputs": [],
+      "env": ["FOUNDRY_PROFILE"]
+    }
+  }
+}

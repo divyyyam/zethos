@@ -1,0 +1,8 @@
+{
+  "extends": "@zethos/tsconfig/base.json",
+  "compilerOptions": {
+    "types": ["bun"],
+    "noEmit": true
+  },
+  "include": ["src/**/*.ts", "test/**/*.ts"]
+}

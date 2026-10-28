@@ -1,0 +1,17 @@
+node_modules/
+.next/
+out/
+cache/
+dist/
+.turbo/
+.env*
+!.env.example
+*.db
+*.db-wal
+*.db-shm
+*.tsbuildinfo
+broadcast/
+# Local specifications supplied separately; intentionally excluded from Git.
+/docs/
+# Soldeer fetches the pinned Foundry dependency declared in foundry.toml.
+/packages/contracts/dependencies/

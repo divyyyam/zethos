@@ -1,0 +1,30 @@
+{
+  "name": "zethos",
+  "version": "0.0.0",
+  "private": true,
+  "packageManager": "bun@1.4.2",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "lint": "biome check . && turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "format": "biome check --write . && bun run --cwd packages/contracts fmt",
+    "codegen": "turbo run codegen",
+    "contracts:install": "bun run --cwd packages/contracts install:deps",
+    "contracts:test": "turbo run test --filter=contracts",
+    "contracts:fork": "turbo run test:fork --filter=contracts",
+    "deploy:testnet": "bun run --cwd packages/contracts deploy:testnet",
+    "deploy:mainnet": "bun run --cwd packages/contracts deploy:mainnet",
+    "postinstall": "bun run contracts:install"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.6.3",
+    "turbo": "2.11.10",
+    "typescript": "6.0.3"
+  }
+}

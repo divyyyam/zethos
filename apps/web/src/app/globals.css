@@ -1,0 +1,21 @@
+@import "tailwindcss";
+
+:root {
+  color-scheme: light dark;
+  font-family: system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Tailwind v4 dark: follows prefers-color-scheme by default (docs/ui.md section 3). */
+body {
+  margin: 0;
+  background: #fafafa;
+  color: #171717;
+}
+
+@media (prefers-color-scheme: dark) {
+  body {
+    background: #0a0a0a;
+    color: #ededed;
+  }
+}

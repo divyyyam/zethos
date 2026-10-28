@@ -1,0 +1,37 @@
+{
+  "pairs": ["HSK/USDT", "ETH/USDT"],
+  "spread": {
+    "base": {
+      "HSK/USDT": 0.002,
+      "ETH/USDT": 0.002
+    },
+    "kSigma": 2.0,
+    "kInventory": 0.0015,
+    "min": 0.0005
+  },
+  "quote": {
+    "ttlSec": 30
+  },
+  "feeds": {
+    "staleMs": 5000,
+    "maxDisagreement": 0.005
+  },
+  "arb": {
+    "marginBps": 10,
+    "tickMs": 5000
+  },
+  "risk": {
+    "maxDrawdownPct": 0.05,
+    "feedOutagePauseSec": 60,
+    "markoutAlarm": -0.02
+  },
+  "tuner": {
+    "windowFills": 20,
+    "widenBelow": -0.001,
+    "narrowAbove": 0.002,
+    "step": 0.0005
+  },
+  "inventory": {
+    "targetShare": 0.5
+  }
+}
