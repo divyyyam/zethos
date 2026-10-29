@@ -227,6 +227,8 @@ export const landing = {
 
   footer: {
     navLabel: "Footer navigation",
+    status: "Agent quoting on HashKey testnet",
+    backToTop: "Back to top",
     links: [
       { label: "Product", href: "/app" },
       { label: "Docs", href: "https://github.com/divyyyam/zethos/tree/main/docs" },

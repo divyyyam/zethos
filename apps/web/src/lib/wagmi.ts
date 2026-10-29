@@ -1,4 +1,5 @@
 import { hskMainnet, hskTestnet } from "@zethos/shared";
+import type { Chain } from "viem";
 import { createConfig, http } from "wagmi";
 import { injected, walletConnect } from "wagmi/connectors";
 
@@ -6,10 +7,11 @@ const chainId = process.env.NEXT_PUBLIC_CHAIN_ID || "177";
 if (chainId !== "177" && chainId !== "133")
   throw new Error("NEXT_PUBLIC_CHAIN_ID must be 177 or 133");
 export const targetChain = chainId === "133" ? hskTestnet : hskMainnet;
+const chains: readonly [Chain] = [targetChain];
 const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_ID;
 
 export const wagmiConfig = createConfig({
-  chains: [targetChain],
+  chains,
   connectors: [
     injected({ shimDisconnect: true }),
     ...(projectId

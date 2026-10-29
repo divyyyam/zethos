@@ -92,7 +92,10 @@ export function Hero({ scenery }: { scenery: Scenery }) {
         </motion.div>
 
         {/* Clouds sit above the landscape: the painted sky is opaque white. */}
-        <motion.div className="pointer-events-none absolute inset-0" style={{ y: cloudsY }}>
+        <motion.div
+          className="pointer-events-none absolute inset-0 will-change-transform"
+          style={{ y: cloudsY }}
+        >
           <DriftingCloud
             src={scenery.cloud1}
             tone="peach"
@@ -118,7 +121,7 @@ export function Hero({ scenery }: { scenery: Scenery }) {
         />
 
         <motion.div
-          className="absolute inset-x-0 top-[24%] z-10 px-5 md:top-[26%]"
+          className="absolute inset-x-0 top-[24%] z-10 px-5 will-change-[transform,opacity] md:top-[26%]"
           style={{ y: copyY, opacity: copyOpacity }}
         >
           <div className="mx-auto flex max-w-[1200px] flex-col items-center text-center">

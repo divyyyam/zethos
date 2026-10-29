@@ -29,7 +29,7 @@ function OutcomeCard({ side, featured }: { side: Side; featured: boolean }) {
         {side.rows.map((row) => (
           <div key={row.label} className="flex items-baseline justify-between gap-4 py-3.5">
             <dt className={ui.body}>{row.label}</dt>
-            <dd className="text-right font-body text-sm font-medium text-ink tabular-nums md:text-[15px]">
+            <dd className="text-right font-body text-sm font-medium whitespace-nowrap text-ink tabular-nums md:text-[15px]">
               {row.value}
             </dd>
           </div>

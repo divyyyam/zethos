@@ -54,7 +54,7 @@ export function Cta({ scenery }: { scenery: Scenery }) {
 
       <div className="relative h-[720px] overflow-hidden md:h-[min(100vh,900px)] md:min-h-[760px]">
         <motion.div
-          className="absolute inset-0 pin:translate-y-[var(--scene-y)] pin:scale-[1.08]"
+          className="absolute inset-0 will-change-transform pin:translate-y-[var(--scene-y)] pin:scale-[1.08]"
           style={{ "--scene-y": sceneY } as MotionStyle}
         >
           <SceneryImage
@@ -73,7 +73,7 @@ export function Cta({ scenery }: { scenery: Scenery }) {
         />
 
         <motion.div
-          className="absolute inset-x-5 top-[4%] mx-auto max-w-[820px] pin:translate-y-[var(--panel-y)] md:top-[6%]"
+          className="absolute inset-x-5 top-[4%] mx-auto max-w-[820px] will-change-transform pin:translate-y-[var(--panel-y)] md:top-[6%]"
           style={{ "--panel-y": panelY } as MotionStyle}
         >
           <GlassTiles

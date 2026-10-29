@@ -9,6 +9,7 @@
   ],
   "scripts": {
     "dev": "turbo run dev",
+    "ui": "cd apps/web && bun run dev",
     "build": "turbo run build",
     "test": "turbo run test",
     "lint": "biome check . && turbo run lint",

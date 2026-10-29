@@ -13,6 +13,7 @@ import {
   createContext,
   type ReactNode,
   type RefObject,
+  useCallback,
   useContext,
   useEffect,
   useRef,
@@ -25,6 +26,8 @@ interface ScrollState {
   /** 1 when the visitor prefers reduced motion, else 0. A motion value so derived values react. */
   reduced: MotionValue<number>;
   lenis: RefObject<Lenis | null>;
+  /** Register an element-measuring callback; all run together in one batched read. */
+  onLayout: (measure: () => void) => () => void;
 }
 
 const ScrollContext = createContext<ScrollState | null>(null);
@@ -40,6 +43,33 @@ export function ScrollProvider({ children }: { children: ReactNode }) {
   const scrollY = useMotionValue(0);
   const reduced = useMotionValue(0);
   const lenis = useRef<Lenis | null>(null);
+  const measurers = useRef(new Set<() => void>());
+
+  // One observer for the whole page. Any size change re-measures every registered element in a
+  // single frame.read batch: all layout reads happen together, before motion writes any styles.
+  useEffect(() => {
+    const runAll = () => {
+      for (const measure of measurers.current) measure();
+    };
+    const schedule = () => frame.read(runAll);
+    const observer = new ResizeObserver(schedule);
+    observer.observe(document.body);
+    window.addEventListener("resize", schedule);
+    void document.fonts?.ready.then(schedule);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", schedule);
+      cancelFrame(runAll);
+    };
+  }, []);
+
+  const onLayout = useCallback((measure: () => void) => {
+    measurers.current.add(measure);
+    frame.read(measure);
+    return () => {
+      measurers.current.delete(measure);
+    };
+  }, []);
 
   useEffect(() => {
     reduced.set(prefersReduced ? 1 : 0);
@@ -63,7 +93,9 @@ export function ScrollProvider({ children }: { children: ReactNode }) {
   }, [prefersReduced, reduced, scrollY]);
 
   return (
-    <ScrollContext.Provider value={{ scrollY, reduced, lenis }}>{children}</ScrollContext.Provider>
+    <ScrollContext.Provider value={{ scrollY, reduced, lenis, onLayout }}>
+      {children}
+    </ScrollContext.Provider>
   );
 }
 
@@ -103,35 +135,27 @@ export function useScrollRange(
   range: ScrollRange,
   reducedValue = 1,
 ): MotionValue<number> {
-  const { scrollY, reduced } = useLandingScroll();
+  const { scrollY, reduced, onLayout } = useLandingScroll();
   const metrics = useRef<ScrollMetrics | null>(null);
   const rangeRef = useRef(range);
   rangeRef.current = range;
   const layout = useMotionValue(0);
 
-  useEffect(() => {
-    const el = target.current;
-    if (!el) return;
-    const measure = () => {
-      const rect = el.getBoundingClientRect();
-      metrics.current = {
-        top: rect.top + window.scrollY,
-        height: el.offsetHeight,
-        vh: window.innerHeight,
-      };
-      layout.set(layout.get() + 1);
-    };
-    measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(document.body);
-    observer.observe(el);
-    window.addEventListener("resize", measure);
-    void document.fonts?.ready.then(measure);
-    return () => {
-      observer.disconnect();
-      window.removeEventListener("resize", measure);
-    };
-  }, [target, layout]);
+  useEffect(
+    () =>
+      onLayout(() => {
+        const el = target.current;
+        if (!el) return;
+        const rect = el.getBoundingClientRect();
+        metrics.current = {
+          top: rect.top + window.scrollY,
+          height: el.offsetHeight,
+          vh: window.innerHeight,
+        };
+        layout.set(layout.get() + 1);
+      }),
+    [target, layout, onLayout],
+  );
 
   return useTransform([scrollY, reduced, layout], ([y, isReduced]) => {
     if (isReduced) return reducedValue;

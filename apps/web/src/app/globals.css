@@ -69,7 +69,7 @@ body:has([data-landing]) {
 }
 
 [data-landing] {
-  --footer-h: 400px;
+  --footer-h: 560px;
   font-family: var(--font-body);
   font-variant-numeric: normal;
   -webkit-font-smoothing: antialiased;
@@ -92,7 +92,7 @@ body:has([data-landing]) {
 
 @media (min-width: 768px) {
   [data-landing] {
-    --footer-h: 300px;
+    --footer-h: 520px;
   }
 }
 
@@ -253,45 +253,6 @@ body:has([data-landing]) {
     opacity: 1 !important;
     /* biome-ignore lint/complexity/noImportantStyles: reduced motion must override inline motion values. */
     transform: none !important;
-  }
-}
-
-/* ---------------------------------------------------------------------------------------------
- * How it works: an accordion of three panels driven by `--f` (this panel's openness, 0–1) and
- * `--F` (openness of all panels before it), set per frame from scroll. Collapsed panels are
- * `--c` wide; the open one takes the rest. Only transform, clip-path and opacity change.
- * ------------------------------------------------------------------------------------------- */
-
-@media (prefers-reduced-motion: no-preference) and (min-height: 600px) and (min-width: 768px) {
-  .steps-track {
-    --c: 9cqw;
-    --span: calc(100cqw - 3 * var(--c));
-    --open: calc(var(--c) + var(--span));
-    position: absolute;
-    inset: 0;
-    container-type: size;
-  }
-
-  .step-panel {
-    position: absolute;
-    inset-block: 0;
-    left: 0;
-    width: var(--open);
-    border-left: 1px solid var(--color-hairline);
-    transform: translate3d(calc(var(--i) * var(--c) + var(--span) * var(--F, 0)), 0, 0);
-    clip-path: inset(0 calc(var(--span) * (1 - var(--f, 0))) 0 0);
-    will-change: transform, clip-path;
-  }
-
-  .step-text {
-    opacity: var(--a, 0);
-    transform: translate3d(0, calc((1 - var(--a, 0)) * 28px), 0);
-  }
-}
-
-@media (prefers-reduced-motion: no-preference) and (min-height: 600px) and (min-width: 1200px) {
-  .steps-track {
-    --c: 7cqw;
   }
 }
 

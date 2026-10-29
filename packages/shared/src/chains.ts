@@ -1,7 +1,8 @@
-import { defineChain } from "viem";
+import { type Chain, defineChain } from "viem";
 
 // Native HSK has 18 decimals. ERC-20 decimals must be read on-chain.
-export const hskMainnet = defineChain({
+// Explicit annotations keep declaration emit portable (TS2883) while preserving literal ids.
+export const hskMainnet: Chain & { id: 177 } = defineChain({
   id: 177,
   name: "HSK Chain",
   nativeCurrency: { name: "HSK", symbol: "HSK", decimals: 18 },
@@ -9,7 +10,7 @@ export const hskMainnet = defineChain({
   blockExplorers: { default: { name: "Blockscout", url: "https://hsk.blockscout.com" } },
 });
 
-export const hskTestnet = defineChain({
+export const hskTestnet: Chain & { id: 133 } = defineChain({
   id: 133,
   name: "HSK Chain Testnet",
   nativeCurrency: { name: "HSK", symbol: "HSK", decimals: 18 },

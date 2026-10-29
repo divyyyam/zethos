@@ -1,0 +1,7 @@
+version = 2
+
+[[dependencies]]
+name = "openzeppelin-contracts"
+version = "5.7.0"
+git = "https://github.com/OpenZeppelin/openzeppelin-contracts.git"
+rev = "cab19933c33c2ad1d4c7a84864a3601dddfd16f3"

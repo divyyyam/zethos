@@ -64,12 +64,12 @@ export function Proof({ stats, scenery }: { stats: EngineStats; scenery: Scenery
         {/* Pines sit behind the cards, peeking up between the 2nd and 3rd and down into the glass band. */}
         <motion.div
           style={{ "--pine-y": pineY } as MotionStyle}
-          className="pointer-events-none absolute -top-28 left-1/2 aspect-[400/480] h-[520px] -translate-x-1/2 [mask-image:linear-gradient(to_bottom,#000_80%,transparent)] pin:translate-y-[var(--pine-y)] md:-top-36 md:h-[560px]"
+          className="pointer-events-none absolute -top-28 left-1/2 aspect-[400/480] will-change-transform h-[520px] -translate-x-1/2 [mask-image:linear-gradient(to_bottom,#000_80%,transparent)] pin:translate-y-[var(--pine-y)] md:-top-36 md:h-[560px]"
         >
           <SceneryImage
             src={scenery.pines}
             fit="contain"
-            sizes="400px"
+            sizes="(min-width: 768px) 470px, 440px"
             className="h-full w-full"
             fallback={<PinesFallback className="h-full w-full" />}
           />

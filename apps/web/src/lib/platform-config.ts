@@ -23,7 +23,7 @@ export interface PlatformToken {
   color: "mint" | "lavender" | "sky";
 }
 
-export const platformTokens: readonly PlatformToken[] = [
+export const platformTokens: readonly [PlatformToken, PlatformToken, PlatformToken] = [
   {
     symbol: "USDT",
     name: "Tether USD",
@@ -54,7 +54,7 @@ export const platformTokens: readonly PlatformToken[] = [
 ];
 
 export function tokenBySymbol(symbol: TokenSymbol): PlatformToken {
-  return platformTokens.find((token) => token.symbol === symbol) ?? platformTokens[0]!;
+  return platformTokens.find((token) => token.symbol === symbol) ?? platformTokens[0];
 }
 
 export function shortAddress(address: string, size = 4) {

@@ -1,11 +1,6 @@
 "use client";
 
-import {
-  type MotionValue,
-  motionValue,
-  useSpring,
-  useTransform,
-} from "motion/react";
+import { type MotionValue, motionValue, useSpring, useTransform } from "motion/react";
 import { useEffect } from "react";
 import { useFinePointerDesktop, useReducedMotionPref } from "./use-media-query";
 

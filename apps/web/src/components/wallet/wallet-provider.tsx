@@ -18,6 +18,7 @@ import {
   Smartphone,
   Wallet,
 } from "lucide-react";
+import Image from "next/image";
 import encodeQR from "qr";
 import {
   createContext,
@@ -473,7 +474,13 @@ export function WalletProvider({ children }: { children: ReactNode }) {
                           >
                             <span className="p-wallet-logo">
                               {connector.icon ? (
-                                <img src={connector.icon} alt="" width={28} height={28} />
+                                <Image
+                                  unoptimized
+                                  src={connector.icon}
+                                  alt=""
+                                  width={28}
+                                  height={28}
+                                />
                               ) : (
                                 <Wallet size={23} aria-hidden />
                               )}
@@ -488,7 +495,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
                         const contents = (
                           <>
                             <span className="p-wallet-logo">
-                              <img src={brand.icon} alt="" width={28} height={28} />
+                              <Image unoptimized src={brand.icon} alt="" width={28} height={28} />
                             </span>
                             <span>{brand.name}</span>
                             {connector ? (
@@ -530,7 +537,8 @@ export function WalletProvider({ children }: { children: ReactNode }) {
                       {qr ? (
                         <>
                           <div className="p-pairing-qr">
-                            <img
+                            <Image
+                              unoptimized
                               src={qr}
                               alt="Scan this QR code in your wallet to pair with Zethos"
                               width={220}
