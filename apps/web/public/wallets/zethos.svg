@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" fill="none"><title>Zethos</title>
+  <rect width="128" height="128" rx="32" fill="#efecfd"/>
+  <g transform="translate(24 24) scale(2.5)" fill="#2f2a5c" stroke="#2f2a5c" stroke-width="3" stroke-linejoin="round">
+    <path d="M11 5.5H28.5L22.5 13.5H5Z"/>
+    <path d="M9.5 18.5H27L21 26.5H3.5Z"/>
+  </g>
+</svg>

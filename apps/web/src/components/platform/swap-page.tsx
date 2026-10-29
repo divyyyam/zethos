@@ -177,14 +177,14 @@ export function SwapPageContent() {
       return {
         raw,
         error:
-          raw > balance.data.value
+          !sample && raw > balance.data.value
             ? `Your ${from.symbol} balance is lower than this amount.`
             : null,
       };
     } catch {
       return { raw: 0n, error: "Enter a valid token amount." };
     }
-  }, [balance.data, debouncedAmount, amountValue, from.symbol]);
+  }, [balance.data, debouncedAmount, amountValue, from.symbol, sample]);
   const request: QuoteRequest | null =
     account.address &&
     from.address &&
@@ -275,7 +275,8 @@ export function SwapPageContent() {
   else if (wrongNetwork) action = "Switch to HashKey Chain";
   else if (!validAmount) action = "Enter an amount";
   else if (status.data?.paused) action = "Vault is paused";
-  else if (inputValidation.error) action = `Not enough ${from.symbol}`;
+  else if (inputValidation.error)
+    action = inputValidation.raw > 0n ? `Not enough ${from.symbol}` : "Check the amount";
   else if (sample) action = "View swap preview";
   else if (!from.address || !to.address) action = "This pair isn’t available yet";
   else if (balance.isPending || outputBalance.isPending) action = "Reading your balances…";

@@ -12,13 +12,14 @@ import type {
   StatsResponse,
 } from "./types";
 
+const invalidRequestMessage = "We couldn’t price this request. Check the pair and amount.";
 const messages: Record<string, string> = {
   paused: "The vault is paused. You can still explore available pairs.",
   pair_halted: "Prices for this pair are temporarily unavailable.",
   vault_capacity: "This amount is above the vault’s current capacity. Try a smaller amount.",
   insufficient_reference_depth: "This amount is too large to price reliably. Try a smaller swap.",
   rate_limited: "A few too many requests. Give it a moment and try again.",
-  invalid_request: "We couldn’t price this request. Check the pair and amount.",
+  invalid_request: invalidRequestMessage,
 };
 export class EngineError extends Error {
   constructor(
@@ -43,11 +44,16 @@ export function finite(value: unknown): number {
     throw new EngineError("invalid_response", "The service returned an invalid number.");
   return value;
 }
-function raw(value: unknown): string {
+function raw(value: unknown, bits: 64 | 256 = 256): string {
   const result = typeof value === "object" && value ? object(value).raw : value;
-  if (typeof result !== "string" || !/^\d+$/.test(result))
+  if (
+    typeof result !== "string" ||
+    !/^\d+$/.test(result) ||
+    result.length > 78 ||
+    BigInt(result) >= 1n << BigInt(bits)
+  )
     throw new EngineError("invalid_response", "The service returned an invalid token amount.");
-  return result;
+  return BigInt(result).toString();
 }
 export async function engineRequest(path: string, init: RequestInit = {}): Promise<unknown> {
   if (!platformConfig.engineUrl)
@@ -93,6 +99,12 @@ export async function engineRequest(path: string, init: RequestInit = {}): Promi
 
 export const engine = {
   async quote(request: QuoteRequest, signal?: AbortSignal): Promise<QuoteResponse> {
+    if (
+      ![request.taker, request.tokenIn, request.tokenOut].every((address) => isAddress(address)) ||
+      request.tokenIn.toLowerCase() === request.tokenOut.toLowerCase() ||
+      BigInt(raw(request.amountIn)) === 0n
+    )
+      throw new EngineError("invalid_request", invalidRequestMessage);
     const data = object(
       await engineRequest("/quote", {
         method: "POST",
@@ -100,15 +112,19 @@ export const engine = {
         ...(signal ? { signal } : {}),
       }),
     );
-    if (data.route === "hskswap")
+    if (data.route === "hskswap") {
+      const hskswapOut = raw(data.hskswapOut);
+      if (BigInt(hskswapOut) === 0n)
+        throw new EngineError("invalid_response", "No output was returned for the pool route.");
       return {
         route: "hskswap",
-        hskswapOut: raw(data.hskswapOut),
+        hskswapOut,
         reason:
           typeof data.reason === "string"
             ? data.reason
             : "The pool has the better price for this swap.",
       };
+    }
     if (data.route !== "conduit")
       throw new EngineError("invalid_response", "No valid route was returned.");
     const quote = object(data.quote);
@@ -128,13 +144,14 @@ export const engine = {
       amountIn: raw(quote.amountIn),
       amountOut: raw(quote.amountOut),
       nonce: raw(quote.nonce),
-      issuedAt: raw(quote.issuedAt),
-      expiry: raw(quote.expiry),
+      issuedAt: raw(quote.issuedAt, 64),
+      expiry: raw(quote.expiry, 64),
     } as SignedQuote;
     if (
-      parsed.amountIn !== request.amountIn ||
+      parsed.amountIn !== raw(request.amountIn) ||
       BigInt(parsed.amountOut) <= 0n ||
-      BigInt(parsed.expiry) <= BigInt(parsed.issuedAt)
+      BigInt(parsed.expiry) <= BigInt(parsed.issuedAt) ||
+      BigInt(parsed.expiry) - BigInt(parsed.issuedAt) > 120n
     )
       throw new EngineError(
         "invalid_quote",
@@ -148,7 +165,11 @@ export const engine = {
       throw new EngineError("invalid_quote", "The quote is missing a valid signature.");
     const expiresAt = finite(data.expiresAt);
     const expirySeconds = expiresAt > 1e12 ? Math.floor(expiresAt / 1000) : expiresAt;
-    if (expirySeconds !== Number(parsed.expiry) || expirySeconds <= Date.now() / 1000)
+    if (
+      !Number.isSafeInteger(expirySeconds) ||
+      expirySeconds !== Number(parsed.expiry) ||
+      expirySeconds <= Date.now() / 1000
+    )
       throw new EngineError(
         "expired_quote",
         "That price has expired. Getting a fresh quote will fix it.",
@@ -156,14 +177,28 @@ export const engine = {
     const conduitOut = raw(data.conduitOut);
     if (conduitOut !== parsed.amountOut)
       throw new EngineError("invalid_quote", "The quoted output and display amount do not match.");
+    const hskswapOut = raw(data.hskswapOut);
+    const spotOut = raw(data.spotOut);
+    const savingPct = finite(data.savingPct);
+    if (
+      BigInt(hskswapOut) === 0n ||
+      BigInt(spotOut) === 0n ||
+      BigInt(conduitOut) < BigInt(hskswapOut) ||
+      BigInt(conduitOut) < BigInt(spotOut) ||
+      savingPct < 0
+    )
+      throw new EngineError(
+        "invalid_quote",
+        "This quote doesn’t meet the price protection. Request a fresh price.",
+      );
     return {
       route: "conduit",
       quote: parsed,
       signature: data.signature,
       conduitOut,
-      hskswapOut: raw(data.hskswapOut),
-      spotOut: raw(data.spotOut),
-      savingPct: finite(data.savingPct),
+      hskswapOut,
+      spotOut,
+      savingPct,
       expiresAt: expirySeconds,
     };
   },

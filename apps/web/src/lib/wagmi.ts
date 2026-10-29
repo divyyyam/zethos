@@ -9,6 +9,9 @@ if (chainId !== "177" && chainId !== "133")
 export const targetChain = chainId === "133" ? hskTestnet : hskMainnet;
 const chains: readonly [Chain] = [targetChain];
 const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_ID;
+const siteUrl =
+  process.env.NEXT_PUBLIC_SITE_URL ||
+  (typeof window === "undefined" ? "http://localhost:3000" : window.location.origin);
 
 export const wagmiConfig = createConfig({
   chains,
@@ -22,8 +25,8 @@ export const wagmiConfig = createConfig({
             metadata: {
               name: "Zethos",
               description: "Exchange prices. On-chain swaps.",
-              url: process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000",
-              icons: [],
+              url: siteUrl,
+              icons: [`${siteUrl.replace(/\/$/, "")}/wallets/zethos.svg`],
             },
           }),
         ]

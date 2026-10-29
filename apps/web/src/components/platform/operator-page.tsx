@@ -224,7 +224,9 @@ export function OperatorPageContent() {
                   ? "Checking the vault’s current owner…"
                   : owner.isError
                     ? "We couldn’t verify ownership right now. Check the vault’s network and try again."
-                    : "Your wallet is verified as the owner. Sign a message to start your operator session."}
+                    : !platformConfig.engineUrl
+                      ? "Your owner wallet is verified. Operator sign-in opens when the live service is connected."
+                      : "Your wallet is verified as the owner. Sign a message to start your operator session."}
         </p>
         {account.address && (
           <div className="p-access-wallet">
@@ -472,7 +474,7 @@ function OperatorDashboard({
             type="button"
             className="p-icon-button"
             onClick={onExit}
-            aria-label={preview ? "Exit workspace preview" : "End operator session"}
+            aria-label={preview ? "Exit workspace preview" : "Lock operator workspace"}
           >
             <ArrowLeft size={17} />
           </button>

@@ -3254,6 +3254,9 @@ body:has([data-platform]) {
   .p-amount-entry output {
     font-size: 30px;
   }
+  .p-amount-entry output {
+    font-size: 26px;
+  }
   .p-operator-mid {
     grid-template-columns: 1fr;
   }

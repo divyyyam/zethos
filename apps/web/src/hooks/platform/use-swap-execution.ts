@@ -3,15 +3,21 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { zethosVaultAbi } from "@zethos/shared";
 import { useRef, useState } from "react";
-import { type Abi, erc20Abi, type Hash } from "viem";
+import { type Abi, erc20Abi, type Hash, parseAbi } from "viem";
 import { usePublicClient } from "wagmi";
 import { getAccount, getWalletClient } from "wagmi/actions";
 import { useToast } from "../../components/platform/primitives";
 import type { VaultQuote } from "../../lib/engine/types";
+import { toContractQuote, verifyQuoteSignature } from "../../lib/engine/verify-quote";
 import { platformConfig } from "../../lib/platform-config";
 import { wagmiConfig } from "../../lib/wagmi";
 
 const vaultAbi: Abi = zethosVaultAbi;
+const quoteChecksAbi = parseAbi([
+  "function quoteSigner() view returns (address)",
+  "function maxTtl() view returns (uint32)",
+  "function isNonceUsed(address signer, uint256 nonce) view returns (bool)",
+]);
 export const settlementReady = Boolean(
   platformConfig.vaultAddress &&
     vaultAbi.some((entry) => entry.type === "function" && entry.name === "fill"),
@@ -62,11 +68,14 @@ export function useSwapExecution() {
     try {
       if (!settlementReady || !platformConfig.vaultAddress || !client)
         throw new Error("Live settlement is not available yet.");
+      const connectorUid = getAccount(wagmiConfig).connector?.uid;
       const assertAccount = () => {
         const account = getAccount(wagmiConfig);
         if (
           !account.address ||
-          account.address.toLowerCase() !== response.quote.taker.toLowerCase()
+          account.address.toLowerCase() !== response.quote.taker.toLowerCase() ||
+          !connectorUid ||
+          account.connector?.uid !== connectorUid
         )
           throw new Error("Your wallet changed. Get a new quote before continuing.");
         if (account.chainId !== platformConfig.chain.id)
@@ -84,15 +93,43 @@ export function useSwapExecution() {
       const bytecode = await client.getBytecode({ address: platformConfig.vaultAddress });
       if (!bytecode || bytecode === "0x")
         throw new Error("The vault is not deployed on this network yet.");
+      const [signer, maxTtl] = await Promise.all([
+        client.readContract({
+          address: platformConfig.vaultAddress,
+          abi: quoteChecksAbi,
+          functionName: "quoteSigner",
+        }),
+        client.readContract({
+          address: platformConfig.vaultAddress,
+          abi: quoteChecksAbi,
+          functionName: "maxTtl",
+        }),
+      ]);
+      const quote = toContractQuote(response.quote);
+      if (
+        quote.expiry - quote.issuedAt > BigInt(maxTtl) ||
+        !(await verifyQuoteSignature({
+          quote: response.quote,
+          signature: response.signature,
+          signer,
+          vault: platformConfig.vaultAddress,
+          chainId: platformConfig.chain.id,
+        }))
+      )
+        throw new Error(
+          "The vault couldn’t verify this quote. Refresh the price before continuing.",
+        );
+      const nonceUsed = await client.readContract({
+        address: platformConfig.vaultAddress,
+        abi: quoteChecksAbi,
+        functionName: "isNonceUsed",
+        args: [signer, quote.nonce],
+      });
+      if (nonceUsed)
+        throw new Error("This quote has already been used. Refresh the price before continuing.");
+      assertAccount();
+      assertFresh();
       const wallet = await getWalletClient(wagmiConfig, { chainId: platformConfig.chain.id });
-      const quote = {
-        ...response.quote,
-        amountIn: BigInt(response.quote.amountIn),
-        amountOut: BigInt(response.quote.amountOut),
-        nonce: BigInt(response.quote.nonce),
-        issuedAt: BigInt(response.quote.issuedAt),
-        expiry: BigInt(response.quote.expiry),
-      };
       const allowance = await client.readContract({
         address: quote.tokenIn,
         abi: erc20Abi,

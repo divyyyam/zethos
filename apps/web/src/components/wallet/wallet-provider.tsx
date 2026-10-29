@@ -26,6 +26,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useId,
   useMemo,
   useRef,
   useState,
@@ -99,6 +100,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const [uri, setUri] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const attempt = useRef(0);
+  const tabsId = useId();
   const pairing = useRef<PairingProvider | null>(null);
   const cleanupPairing = useRef<(() => void) | null>(null);
   const account = useAccount();
@@ -209,6 +211,9 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       });
     } catch (cause) {
       if (current === attempt.current) {
+        cleanupPairing.current?.();
+        cleanupPairing.current = null;
+        pairing.current = null;
         setError(walletError(cause));
         setPending(null);
         setUri(null);
@@ -220,7 +225,18 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const changeNetwork = async () => {
     setError(null);
     try {
-      await switchChainAsync({ chainId: platformConfig.chain.id });
+      try {
+        await switchChainAsync({ chainId: platformConfig.chain.id });
+      } catch (cause) {
+        // EIP-3085 does not require wallets to switch immediately after adding a chain.
+        // Wagmi v2 reports this specific case as a rejection; retry the now-known chain.
+        if (
+          cause instanceof Error &&
+          cause.message.includes("User rejected switch after adding network")
+        ) {
+          await switchChainAsync({ chainId: platformConfig.chain.id });
+        } else throw cause;
+      }
       notify({
         title: "You’re on the right network",
         description: platformConfig.chain.name,
@@ -228,7 +244,11 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       });
       setNetworkOpen(false);
     } catch (cause) {
-      setError(walletError(cause));
+      setError(
+        /rejected|denied|4001/i.test(cause instanceof Error ? cause.message : String(cause))
+          ? "The network hasn’t changed. Try again, or select HashKey Chain in your wallet."
+          : "Your wallet couldn’t change networks. Open it and try again.",
+      );
     }
   };
   const copyAddress = async () => {
@@ -432,10 +452,31 @@ export function WalletProvider({ children }: { children: ReactNode }) {
                     at home.
                   </h2>
                   <p className="p-wallet-sub">Connect your wallet to continue on HashKey Chain.</p>
-                  <div className="p-wallet-tabs" role="tablist" aria-label="Connection method">
+                  <div
+                    className="p-wallet-tabs"
+                    role="tablist"
+                    aria-label="Connection method"
+                    onKeyDown={(event) => {
+                      if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+                      event.preventDefault();
+                      const next =
+                        event.key === "Home"
+                          ? "wallets"
+                          : event.key === "End"
+                            ? "mobile"
+                            : tab === "wallets"
+                              ? "mobile"
+                              : "wallets";
+                      setTab(next);
+                      document.getElementById(`${tabsId}-${next}`)?.focus();
+                    }}
+                  >
                     <button
                       type="button"
                       role="tab"
+                      id={`${tabsId}-wallets`}
+                      aria-controls={`${tabsId}-panel`}
+                      tabIndex={tab === "wallets" ? 0 : -1}
                       aria-selected={tab === "wallets"}
                       onClick={() => {
                         setTab("wallets");
@@ -448,6 +489,9 @@ export function WalletProvider({ children }: { children: ReactNode }) {
                     <button
                       type="button"
                       role="tab"
+                      id={`${tabsId}-mobile`}
+                      aria-controls={`${tabsId}-panel`}
+                      tabIndex={tab === "mobile" ? 0 : -1}
                       aria-selected={tab === "mobile"}
                       onClick={() => {
                         setTab("mobile");
@@ -459,7 +503,12 @@ export function WalletProvider({ children }: { children: ReactNode }) {
                     </button>
                   </div>
                   {tab === "wallets" ? (
-                    <div className="p-wallet-list">
+                    <div
+                      className="p-wallet-list"
+                      role="tabpanel"
+                      id={`${tabsId}-panel`}
+                      aria-labelledby={`${tabsId}-wallets`}
+                    >
                       {available
                         .filter(
                           (connector) =>
@@ -533,7 +582,12 @@ export function WalletProvider({ children }: { children: ReactNode }) {
                       })}
                     </div>
                   ) : (
-                    <div className="p-mobile-pairing">
+                    <div
+                      className="p-mobile-pairing"
+                      role="tabpanel"
+                      id={`${tabsId}-panel`}
+                      aria-labelledby={`${tabsId}-mobile`}
+                    >
                       {qr ? (
                         <>
                           <div className="p-pairing-qr">
