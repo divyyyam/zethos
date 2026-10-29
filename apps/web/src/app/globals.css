@@ -1,4 +1,39 @@
 @import "tailwindcss";
+@import "lenis/dist/lenis.css";
+
+/* Scroll-pinned choreography only where it can play well: motion allowed and a tall enough viewport. */
+@custom-variant pin (@media (prefers-reduced-motion: no-preference) and (min-height: 600px));
+@custom-variant pin-wide (
+  @media (prefers-reduced-motion: no-preference) and (min-height: 600px) and (min-width: 768px)
+);
+
+@theme {
+  --color-canvas: #ffffff;
+  --color-canvas-soft: #f8f7fc;
+  --color-ink: #16142a;
+  --color-ink-muted: #545170;
+  --color-hairline: #ebe9f3;
+
+  /* Accent ramp: iris for text and focus, iris-deep for primary actions. */
+  --color-iris: #5b4fd1;
+  --color-iris-deep: #2f2a5c;
+  --color-periwinkle: #8b82e6;
+  --color-wisteria: #b4aaf2;
+
+  /* Pastel surfaces. All carry ink text at well above AA contrast. */
+  --color-lavender: #dcd6fb;
+  --color-lilac: #efecfd;
+  --color-peach: #fde3d4;
+  --color-rose: #fadde6;
+  --color-sky: #dcecfc;
+  --color-mint: #d6f1e5;
+  --color-butter: #fbf0c6;
+
+  --font-display: var(--font-instrument), ui-sans-serif, system-ui, sans-serif;
+  --font-body: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+
+  --ease-soft: cubic-bezier(0.22, 1, 0.36, 1);
+}
 
 :root {
   color-scheme: light dark;
@@ -17,5 +52,270 @@ body {
   body {
     background: #0a0a0a;
     color: #ededed;
+  }
+}
+
+/* ---------------------------------------------------------------------------------------------
+ * Landing page. Single light theme regardless of the OS colour scheme.
+ * ------------------------------------------------------------------------------------------- */
+
+html:has([data-landing]) {
+  color-scheme: light;
+}
+
+body:has([data-landing]) {
+  background: var(--color-canvas);
+  color: var(--color-ink);
+}
+
+[data-landing] {
+  --footer-h: 400px;
+  font-family: var(--font-body);
+  font-variant-numeric: normal;
+  -webkit-font-smoothing: antialiased;
+  isolation: isolate;
+}
+
+[data-landing] ::selection {
+  background: var(--color-lavender);
+  color: var(--color-ink);
+}
+
+[data-landing] button,
+[data-landing] a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+[data-landing] button {
+  cursor: pointer;
+}
+
+@media (min-width: 768px) {
+  [data-landing] {
+    --footer-h: 300px;
+  }
+}
+
+[data-landing] :focus-visible {
+  outline: 2px solid var(--color-iris);
+  outline-offset: 3px;
+  border-radius: 9999px;
+}
+
+/* Frosted glass tile / panel. */
+.glass {
+  background: rgb(255 255 255 / 0.28);
+  border: 1px solid rgb(255 255 255 / 0.5);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.65),
+    inset 0 -1px 0 rgb(255 255 255 / 0.12);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  backdrop-filter: blur(20px) saturate(140%);
+}
+
+/* Ticket stub: semicircular notches punched out of the left and right edges with a real mask. */
+.ticket {
+  --notch: 14px;
+  -webkit-mask:
+    radial-gradient(circle var(--notch) at 0 50%, #0000 98%, #000) left / 51% 100% no-repeat,
+    radial-gradient(circle var(--notch) at 100% 50%, #0000 98%, #000) right / 51% 100% no-repeat;
+  mask:
+    radial-gradient(circle var(--notch) at 0 50%, #0000 98%, #000) left / 51% 100% no-repeat,
+    radial-gradient(circle var(--notch) at 100% 50%, #0000 98%, #000) right / 51% 100% no-repeat;
+}
+
+/* ---------------------------------------------------------------------------------------------
+ * Ambient motion. Pure CSS so it runs on the compositor and starts at first paint, before
+ * hydration. Everything here is skipped for prefers-reduced-motion.
+ * ------------------------------------------------------------------------------------------- */
+
+@keyframes hero-card {
+  from {
+    clip-path: inset(2.6vh 2.6vw round 32px);
+  }
+  to {
+    clip-path: inset(0 round 0px);
+  }
+}
+
+@keyframes hero-zoom {
+  from {
+    scale: 1.14;
+  }
+  to {
+    scale: 1;
+  }
+}
+
+@keyframes word-in {
+  from {
+    opacity: 0;
+    translate: 0 0.42em;
+    filter: blur(10px);
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+    filter: blur(0);
+  }
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    translate: 0 18px;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+
+@keyframes cloud-in {
+  from {
+    opacity: 0;
+    scale: 0.92;
+  }
+  to {
+    opacity: 1;
+    scale: 1;
+  }
+}
+
+@keyframes cloud-drift {
+  from {
+    translate: calc(var(--dist, 100px) * -1) 0;
+  }
+  to {
+    translate: var(--dist, 100px) 0;
+  }
+}
+
+@keyframes cloud-bob {
+  from {
+    transform: translate3d(0, -7px, 0);
+  }
+  to {
+    transform: translate3d(0, 9px, 0);
+  }
+}
+
+@keyframes tile-breathe {
+  from {
+    opacity: 0.3;
+  }
+  to {
+    opacity: 0.9;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .hero-card {
+    animation: hero-card 1.6s var(--ease-soft) 0.15s both;
+  }
+
+  .hero-zoom {
+    animation: hero-zoom 2.4s var(--ease-soft) both;
+  }
+
+  .hero-word {
+    animation: word-in 1.1s var(--ease-soft) both;
+    animation-delay: calc(0.55s + var(--i, 0) * 75ms);
+  }
+
+  .intro-fade {
+    animation: fade-up 1s var(--ease-soft) both;
+    animation-delay: var(--delay, 1s);
+  }
+
+  .intro-cloud {
+    animation: cloud-in 1.8s var(--ease-soft) both;
+    animation-delay: var(--delay, 0.4s);
+  }
+
+  .cloud-drift {
+    animation: cloud-drift var(--dur, 72s) ease-in-out var(--offset, 0s) infinite alternate;
+  }
+
+  .cloud-bob {
+    animation: cloud-bob calc(var(--dur, 72s) / 5) ease-in-out var(--offset, 0s) infinite alternate;
+  }
+
+  .tile-breathe {
+    animation: tile-breathe var(--dur, 3s) ease-in-out var(--offset, 0s) infinite alternate;
+  }
+}
+
+/* Scroll-scrubbed words: fully visible when motion is reduced or JS never runs the scrub. */
+@media (prefers-reduced-motion: reduce) {
+  .scrub {
+    /* biome-ignore lint/complexity/noImportantStyles: reduced motion must override inline motion values. */
+    opacity: 1 !important;
+    /* biome-ignore lint/complexity/noImportantStyles: reduced motion must override inline motion values. */
+    transform: none !important;
+  }
+}
+
+/* ---------------------------------------------------------------------------------------------
+ * How it works: an accordion of three panels driven by `--f` (this panel's openness, 0–1) and
+ * `--F` (openness of all panels before it), set per frame from scroll. Collapsed panels are
+ * `--c` wide; the open one takes the rest. Only transform, clip-path and opacity change.
+ * ------------------------------------------------------------------------------------------- */
+
+@media (prefers-reduced-motion: no-preference) and (min-height: 600px) and (min-width: 768px) {
+  .steps-track {
+    --c: 9cqw;
+    --span: calc(100cqw - 3 * var(--c));
+    --open: calc(var(--c) + var(--span));
+    position: absolute;
+    inset: 0;
+    container-type: size;
+  }
+
+  .step-panel {
+    position: absolute;
+    inset-block: 0;
+    left: 0;
+    width: var(--open);
+    border-left: 1px solid var(--color-hairline);
+    transform: translate3d(calc(var(--i) * var(--c) + var(--span) * var(--F, 0)), 0, 0);
+    clip-path: inset(0 calc(var(--span) * (1 - var(--f, 0))) 0 0);
+    will-change: transform, clip-path;
+  }
+
+  .step-text {
+    opacity: var(--a, 0);
+    transform: translate3d(0, calc((1 - var(--a, 0)) * 28px), 0);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) and (min-height: 600px) and (min-width: 1200px) {
+  .steps-track {
+    --c: 7cqw;
+  }
+}
+
+/* Integration strip marquee on mobile. */
+@keyframes marquee {
+  to {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+.marquee-track {
+  animation: marquee 32s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-landing] *,
+  [data-landing] *::before,
+  [data-landing] *::after {
+    scroll-behavior: auto;
+    animation: none;
+    transition: none;
+  }
+
+  .marquee-track {
+    animation: none;
   }
 }
