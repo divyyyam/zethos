@@ -1,0 +1,5 @@
+{
+  "extends": "@zethos/tsconfig/base.json",
+  "compilerOptions": { "types": ["bun"], "lib": ["ES2023", "DOM", "DOM.Iterable"], "noEmit": true },
+  "include": ["src/**/*.ts", "test/**/*.ts"]
+}

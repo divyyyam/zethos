@@ -1,0 +1,4 @@
+{"type":"book","ts":0,"pair":"HSK/USDT","venue":"hashkey-global","book":{"bids":[[0.09999,1000000]],"asks":[[0.10001,1000000]]}}
+{"type":"book","ts":0,"pair":"HSK/USDT","venue":"gate","book":{"bids":[[0.09999,1000000]],"asks":[[0.10001,1000000]]}}
+{"type":"book","ts":0,"pair":"ETH/USDT","venue":"binance","book":{"bids":[[2999.7,50]],"asks":[[3000.3,50]]}}
+{"type":"book","ts":0,"pair":"ETH/USDT","venue":"okx","book":{"bids":[[2999.7,50]],"asks":[[3000.3,50]]}}

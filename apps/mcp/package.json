@@ -1,0 +1,26 @@
+{
+  "name": "@zethos/mcp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "bun src/index.ts",
+    "start:http": "bun src/index.ts --transport http",
+    "build": "tsc -p tsconfig.build.json",
+    "test": "bun test test",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check ."
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.32.2",
+    "@zethos/sdk": "workspace:*",
+    "@zethos/shared": "workspace:*",
+    "viem": "2.57.13",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@types/bun": "1.4.2",
+    "@zethos/tsconfig": "workspace:*",
+    "typescript": "6.0.3"
+  }
+}
