@@ -29,14 +29,46 @@
   --color-mint: #d6f1e5;
   --color-butter: #fbf0c6;
 
-  --font-display: var(--font-instrument), ui-sans-serif, system-ui, sans-serif;
-  --font-body: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-ui), ui-sans-serif, system-ui, sans-serif;
+  --font-body: var(--font-ui), ui-sans-serif, system-ui, sans-serif;
   --font-accent: var(--font-editorial), Georgia, serif;
+  --font-serif: var(--font-editorial), Georgia, serif;
+  --font-mono: var(--font-data), ui-monospace, monospace;
 
   --ease-soft: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-expo: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* The landing's spacing scale: every gap on the page is one of these or a 4/8px step (16, 24).
+   Fluid with the content column, so rhythm scales with type instead of with window height.
+   Compensated values keep the visible gap equal to `section` where a window's own margin or the
+   fixed nav already contributes part of it. */
+@theme {
+  --spacing-section: max(80px, calc(var(--cw) * 0.1));
+  --spacing-head: max(48px, calc(var(--cw) * 0.05));
+  --spacing-block: max(32px, calc(var(--cw) * 0.03));
+  --spacing-inset: max(20px, calc(var(--cw) * 0.025));
+  --spacing-edge: 16px;
+  --spacing-chrome: 80px; /* 64px nav + edge */
+  --spacing-after-window: calc(var(--spacing-section) - var(--spacing-edge));
+  --spacing-before-window: calc(var(--spacing-section) - var(--spacing-chrome));
+}
+
+/* The landing's ink follows the time of day. These resolve per phase on [data-landing]. */
+@theme inline {
+  --color-fg: var(--fg);
+  --color-fg-soft: var(--fg-soft);
+  --color-fg-faint: var(--fg-faint);
+  --color-line: var(--line);
+  --color-inverse: var(--inverse);
 }
 
 :root {
+  /* The content column: 1300px as the anchor. Fills smaller screens less a gutter, holds at 1300
+     up to 1920, then grows with the display. Type derives from it, not from the viewport. */
+  --gutter: clamp(16px, 2vw, 32px);
+  --cw: min(100vw - 2 * var(--gutter), max(1300px, 67.7vw));
+  --edge: calc((100vw - var(--cw)) / 2);
   color-scheme: light dark;
   font-family: system-ui, sans-serif;
   font-variant-numeric: tabular-nums;
@@ -57,36 +89,72 @@ body {
 }
 
 /* ---------------------------------------------------------------------------------------------
- * Landing page. Single light theme regardless of the OS colour scheme.
+ * Landing page. White paper by default: dark ink, always readable. A single fixed WebGL world sits
+ * behind the page and is only seen through framed `.world-window` openings, whose time of day
+ * advances with the scroll.
  * ------------------------------------------------------------------------------------------- */
 
 html:has([data-landing]) {
   color-scheme: light;
+  background: #ffffff;
+  /* The page scrolls by wheel, touch and keyboard as usual; only the bar itself is hidden. */
+  scrollbar-width: none;
+}
+html:has([data-landing])::-webkit-scrollbar {
+  display: none;
 }
 
 body:has([data-landing]) {
-  background: var(--color-canvas);
+  background: transparent;
   color: var(--color-ink);
 }
 
 [data-landing] {
-  --font-display: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
-  --footer-h: 560px;
+  --fg: #14113a;
+  --fg-soft: rgb(20 17 58 / 0.74);
+  --fg-faint: rgb(20 17 58 / 0.6);
+  --line: rgb(20 17 58 / 0.14);
+  --inverse: #ffffff;
+  position: relative;
+  color: var(--fg);
   font-family: var(--font-body);
+  font-size: max(17px, calc(var(--cw) * 0.012));
+  line-height: 1.5;
   font-variant-numeric: normal;
+  font-kerning: normal;
+  font-feature-settings: "liga", "calt";
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  text-wrap: pretty;
   isolation: isolate;
+  overflow-x: clip;
+}
+
+/* Copy set directly on the world: light ink with a soft halo so it holds over any part of the sky. */
+.ink-light {
+  --fg: #ffffff;
+  --fg-soft: rgb(255 255 255 / 0.9);
+  --fg-faint: rgb(255 255 255 / 0.76);
+  --line: rgb(255 255 255 / 0.3);
+  --inverse: #14113a;
+  color: var(--fg);
+  text-shadow: 0 1px 24px rgb(5 5 27 / 0.5);
+}
+.ink-light .bg-fg {
+  text-shadow: none;
 }
 
 [data-landing] em {
-  font-family: var(--font-accent);
-  font-weight: 400;
-  letter-spacing: -0.025em;
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-weight: 300;
+  /* Newsreader's italic runs tighter than its roman; give the accent back a little air. */
+  letter-spacing: -0.022em;
 }
 
 [data-landing] ::selection {
-  background: var(--color-lavender);
-  color: var(--color-ink);
+  background: var(--color-iris);
+  color: #ffffff;
 }
 
 [data-landing] button,
@@ -98,184 +166,262 @@ body:has([data-landing]) {
   cursor: pointer;
 }
 
-@media (min-width: 768px) {
-  [data-landing] {
-    --footer-h: 520px;
-  }
-}
-
 [data-landing] :focus-visible {
   outline: 2px solid var(--color-iris);
-  outline-offset: 3px;
-  border-radius: 9999px;
+  outline-offset: 4px;
+  border-radius: 4px;
 }
 
-/* Frosted glass tile / panel. */
-.glass {
-  background: rgb(255 255 255 / 0.28);
-  border: 1px solid rgb(255 255 255 / 0.5);
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.65),
-    inset 0 -1px 0 rgb(255 255 255 / 0.12);
-  -webkit-backdrop-filter: blur(20px) saturate(140%);
-  backdrop-filter: blur(20px) saturate(140%);
+/* ---------- Type system. One serif voice for display, one sans for everything that informs. ---- */
+
+.display {
+  font-family: var(--font-serif);
+  font-optical-sizing: auto;
+  font-weight: 300;
+  letter-spacing: -0.034em;
+  line-height: 0.98;
+  text-wrap: balance;
+  font-feature-settings: "liga", "dlig", "kern";
+}
+.t-hero {
+  font-size: max(3.1rem, calc(var(--cw) * 0.087));
+}
+.t-section {
+  font-size: max(2.75rem, calc(var(--cw) * 0.064));
+}
+.t-statement {
+  font-size: max(2.1rem, calc(var(--cw) * 0.046));
+  line-height: 1.08;
+  letter-spacing: -0.028em;
+}
+.t-title {
+  font-family: var(--font-serif);
+  font-optical-sizing: auto;
+  font-weight: 300;
+  font-size: max(1.75rem, calc(var(--cw) * 0.029));
+  line-height: 1.08;
+  letter-spacing: -0.024em;
+  text-wrap: balance;
+}
+/* Figures: lining and tabular so columns align and counters never jitter. */
+.num {
+  font-family: var(--font-serif);
+  font-optical-sizing: auto;
+  font-weight: 300;
+  font-variant-numeric: lining-nums tabular-nums;
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+.num-sm {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+.eyebrow {
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: -0.008em;
+  line-height: 1.3;
+}
+.lead {
+  font-size: max(1.0625rem, calc(var(--cw) * 0.0142));
+  line-height: 1.45;
+  letter-spacing: -0.012em;
 }
 
-/* Ticket stub: semicircular notches punched out of the left and right edges with a real mask. */
-.ticket {
-  --notch: 14px;
-  -webkit-mask:
-    radial-gradient(circle var(--notch) at 0 50%, #0000 98%, #000) left / 51% 100% no-repeat,
-    radial-gradient(circle var(--notch) at 100% 50%, #0000 98%, #000) right / 51% 100% no-repeat;
-  mask:
-    radial-gradient(circle var(--notch) at 0 50%, #0000 98%, #000) left / 51% 100% no-repeat,
-    radial-gradient(circle var(--notch) at 100% 50%, #0000 98%, #000) right / 51% 100% no-repeat;
+/* Every section's content sits on the shared column. Nav and footer stay full width. */
+.sect {
+  padding-inline: var(--edge);
 }
 
-/* ---------------------------------------------------------------------------------------------
- * Ambient motion. Pure CSS so it runs on the compositor and starts at first paint, before
- * hydration. Everything here is skipped for prefers-reduced-motion.
- * ------------------------------------------------------------------------------------------- */
+/* An opening in the paper: the ring paints white over everything in the section but the frame. */
+.world-window {
+  position: relative;
+  border-radius: clamp(18px, 2vw, 32px);
+  box-shadow: 0 0 0 100vmax #ffffff;
+}
 
-@keyframes hero-card {
-  from {
-    clip-path: inset(2.6vh 2.6vw round 32px);
-  }
+/* Engraved plates carry their own near-white paper; multiply melts it into the page. */
+.plate {
+  mix-blend-mode: multiply;
+  user-select: none;
+}
+
+/* World canvas and what stands in for it. */
+.world-canvas {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  width: 100%;
+  height: 100lvh;
+  opacity: 0;
+  transition: opacity 0.6s linear;
+}
+.world-canvas[data-ready] {
+  opacity: 1;
+}
+.world-fallback {
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  height: 100lvh;
+  transition: opacity 0.9s linear;
+}
+.world-fallback-day {
+  background: linear-gradient(to bottom, #a9a6ee, #e9d5f3 55%, #ffe2ca);
+}
+.world-fallback-night {
+  background: linear-gradient(to bottom, #05051b, #1a1646);
+  opacity: 0;
+}
+[data-phase="night"] .world-fallback-night {
+  opacity: 1;
+}
+
+/* Boot curtain: pure CSS, so it plays before hydration and can never strand a no-JS visitor. */
+@property --boot {
+  syntax: "<integer>";
+  inherits: false;
+  initial-value: 0;
+}
+@keyframes boot-count {
   to {
-    clip-path: inset(0 round 0px);
+    --boot: 100;
   }
 }
-
-@keyframes hero-zoom {
-  from {
-    scale: 1.14;
-  }
+@keyframes boot-lift {
   to {
-    scale: 1;
+    clip-path: inset(0 0 100% 0);
+    visibility: hidden;
   }
 }
-
-@keyframes word-in {
-  from {
+@keyframes boot-fade {
+  to {
     opacity: 0;
-    translate: 0 0.42em;
-    filter: blur(10px);
-  }
-  to {
-    opacity: 1;
-    translate: 0 0;
-    filter: blur(0);
+    translate: 0 -24px;
   }
 }
+.boot {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: none;
+  place-items: center;
+  background: #ffffff;
+  color: #14113a;
+  clip-path: inset(0);
+  pointer-events: none;
+}
+.boot-count {
+  counter-reset: boot var(--boot);
+}
+.boot-count::after {
+  content: counter(boot);
+}
 
+@keyframes line-rise {
+  from {
+    translate: 0 108%;
+    rotate: 2.5deg;
+  }
+  to {
+    translate: 0 0;
+    rotate: 0deg;
+  }
+}
 @keyframes fade-up {
   from {
     opacity: 0;
-    translate: 0 18px;
+    translate: 0 16px;
   }
   to {
     opacity: 1;
     translate: 0 0;
   }
 }
-
-@keyframes cloud-in {
-  from {
-    opacity: 0;
-    scale: 0.92;
-  }
-  to {
-    opacity: 1;
-    scale: 1;
-  }
-}
-
-@keyframes cloud-drift {
-  from {
-    translate: calc(var(--dist, 100px) * -1) 0;
-  }
-  to {
-    translate: var(--dist, 100px) 0;
-  }
-}
-
-@keyframes cloud-bob {
-  from {
-    transform: translate3d(0, -7px, 0);
-  }
-  to {
-    transform: translate3d(0, 9px, 0);
-  }
-}
-
-@keyframes tile-breathe {
-  from {
-    opacity: 0.3;
-  }
-  to {
-    opacity: 0.9;
-  }
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .hero-card {
-    animation: hero-card 1.6s var(--ease-soft) 0.15s both;
-  }
-
-  .hero-zoom {
-    animation: hero-zoom 2.4s var(--ease-soft) both;
-  }
-
-  .hero-word {
-    animation: word-in 1.1s var(--ease-soft) both;
-    animation-delay: calc(0.55s + var(--i, 0) * 75ms);
-  }
-
-  .intro-fade {
-    animation: fade-up 1s var(--ease-soft) both;
-    animation-delay: var(--delay, 1s);
-  }
-
-  .intro-cloud {
-    animation: cloud-in 1.8s var(--ease-soft) both;
-    animation-delay: var(--delay, 0.4s);
-  }
-
-  .cloud-drift {
-    animation: cloud-drift var(--dur, 72s) ease-in-out var(--offset, 0s) infinite alternate;
-  }
-
-  .cloud-bob {
-    animation: cloud-bob calc(var(--dur, 72s) / 5) ease-in-out var(--offset, 0s) infinite alternate;
-  }
-
-  .tile-breathe {
-    animation: tile-breathe var(--dur, 3s) ease-in-out var(--offset, 0s) infinite alternate;
-  }
-}
-
-/* Scroll-scrubbed words: fully visible when motion is reduced or JS never runs the scrub. */
-@media (prefers-reduced-motion: reduce) {
-  .scrub {
-    /* biome-ignore lint/complexity/noImportantStyles: reduced motion must override inline motion values. */
-    opacity: 1 !important;
-    /* biome-ignore lint/complexity/noImportantStyles: reduced motion must override inline motion values. */
-    transform: none !important;
-  }
-}
-
-/* Integration strip marquee on mobile. */
 @keyframes marquee {
   to {
     transform: translate3d(-50%, 0, 0);
   }
 }
-
-.marquee-track {
-  animation: marquee 32s linear infinite;
+@keyframes spin-slow {
+  to {
+    rotate: 360deg;
+  }
+}
+@keyframes cue-drop {
+  0% {
+    transform: scaleY(0);
+    transform-origin: top;
+  }
+  45% {
+    transform: scaleY(1);
+    transform-origin: top;
+  }
+  55% {
+    transform: scaleY(1);
+    transform-origin: bottom;
+  }
+  100% {
+    transform: scaleY(0);
+    transform-origin: bottom;
+  }
+}
+@keyframes pulse-dot {
+  50% {
+    opacity: 0.35;
+  }
 }
 
+/* Headline lines rise out of a clip; the mask padding keeps serif descenders from being cut. */
+.line-mask {
+  display: block;
+  overflow: clip;
+  padding-block: 0.08em 0.14em;
+  margin-block: -0.08em -0.14em;
+}
+.line-mask > * {
+  display: block;
+  transform-origin: 0 100%;
+}
+
+.marquee-track {
+  animation: marquee 34s linear infinite;
+}
+.cue-line {
+  animation: cue-drop 2.4s var(--ease-soft) infinite;
+}
+.pulse-dot {
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .boot {
+    display: grid;
+    animation: boot-lift 0.9s var(--ease-expo) 1.25s forwards;
+  }
+  .boot-count {
+    animation: boot-count 1.15s cubic-bezier(0.5, 0, 0.2, 1) forwards;
+  }
+  .boot-inner {
+    animation: boot-fade 0.4s ease-in 1.15s forwards;
+  }
+  .hero-line {
+    animation: line-rise 1.3s var(--ease-expo) both;
+    animation-delay: calc(1.35s + var(--i, 0) * 110ms);
+  }
+  .intro-fade {
+    animation: fade-up 1s var(--ease-soft) both;
+    animation-delay: var(--delay, 1.8s);
+  }
+}
+
+/* Scrubbed words stay readable when motion is reduced or the scrub never runs. */
 @media (prefers-reduced-motion: reduce) {
+  .scrub {
+    /* biome-ignore lint/complexity/noImportantStyles: reduced motion must override inline motion values. */
+    opacity: 1 !important;
+  }
+  [data-landing],
   [data-landing] *,
   [data-landing] *::before,
   [data-landing] *::after {
@@ -283,8 +429,150 @@ body:has([data-landing]) {
     animation: none;
     transition: none;
   }
+}
 
-  .marquee-track {
-    animation: none;
+/* Ticket stub: real punched notches on both edges of the perforation. */
+.ticket-stub {
+  --notch: 11px;
+  --at: var(--stub-y, 72%);
+  -webkit-mask:
+    radial-gradient(circle var(--notch) at 0 var(--at), #0000 98%, #000) left / 51% 100% no-repeat,
+    radial-gradient(circle var(--notch) at 100% var(--at), #0000 98%, #000) right / 51% 100%
+    no-repeat;
+  mask:
+    radial-gradient(circle var(--notch) at 0 var(--at), #0000 98%, #000) left / 51% 100% no-repeat,
+    radial-gradient(circle var(--notch) at 100% var(--at), #0000 98%, #000) right / 51% 100%
+    no-repeat;
+}
+
+/* Custom range control for the compare section. */
+.size-slider {
+  appearance: none;
+  width: 100%;
+  height: 44px;
+  background: transparent;
+  cursor: ew-resize;
+  touch-action: pan-y;
+}
+.size-slider::-webkit-slider-runnable-track {
+  height: 2px;
+  background: linear-gradient(to right, var(--fg) var(--fill, 50%), var(--line) var(--fill, 50%));
+}
+.size-slider::-moz-range-track {
+  height: 2px;
+  background: var(--line);
+}
+.size-slider::-moz-range-progress {
+  height: 2px;
+  background: var(--fg);
+}
+.size-slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 30px;
+  height: 30px;
+  margin-top: -14px;
+  border-radius: 9999px;
+  border: 0;
+  background: var(--fg);
+  box-shadow:
+    0 0 0 7px color-mix(in srgb, var(--fg) 18%, transparent),
+    0 8px 28px rgb(0 0 0 / 0.35);
+  transition: box-shadow 0.25s var(--ease-soft);
+}
+.size-slider::-moz-range-thumb {
+  width: 30px;
+  height: 30px;
+  border-radius: 9999px;
+  border: 0;
+  background: var(--fg);
+  box-shadow: 0 0 0 7px color-mix(in srgb, var(--fg) 18%, transparent);
+}
+.size-slider:hover::-webkit-slider-thumb,
+.size-slider:active::-webkit-slider-thumb {
+  box-shadow:
+    0 0 0 12px color-mix(in srgb, var(--fg) 22%, transparent),
+    0 8px 28px rgb(0 0 0 / 0.35);
+}
+
+/* "The match": the logo's two order flows race in, lock with a jolt, take a glint, carry through. */
+@keyframes logo-top {
+  0% {
+    transform: translateX(44px) scaleX(1.9);
+  }
+  26% {
+    transform: translateX(0) scaleX(1);
+  }
+  82% {
+    transform: translateX(0) scaleX(1);
+  }
+  100% {
+    transform: translateX(-44px) scaleX(1.9);
+  }
+}
+@keyframes logo-bottom {
+  0% {
+    transform: translateX(-44px) scaleX(1.9);
+  }
+  26% {
+    transform: translateX(0) scaleX(1);
+  }
+  82% {
+    transform: translateX(0) scaleX(1);
+  }
+  100% {
+    transform: translateX(44px) scaleX(1.9);
+  }
+}
+@keyframes logo-jolt {
+  0%,
+  25% {
+    transform: scale(1);
+  }
+  31% {
+    transform: scale(1.13);
+  }
+  42%,
+  100% {
+    transform: scale(1);
+  }
+}
+@keyframes logo-glint {
+  0%,
+  46% {
+    transform: translateX(0) skewX(-16deg);
+  }
+  70%,
+  100% {
+    transform: translateX(52px) skewX(-16deg);
+  }
+}
+.logo-bar-top,
+.logo-bar-bottom,
+.logo-jolt {
+  transform-box: view-box;
+  transform-origin: 50% 50%;
+}
+.logo-glint {
+  fill: var(--color-periwinkle);
+  stroke: none;
+  transform-box: view-box;
+  transform: translateX(0) skewX(-16deg);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .logo-live .logo-bar-top,
+  .group:hover .logo-hover .logo-bar-top {
+    animation: logo-top 3.2s cubic-bezier(0.3, 0, 0.1, 1) infinite;
+  }
+  .logo-live .logo-bar-bottom,
+  .group:hover .logo-hover .logo-bar-bottom {
+    animation: logo-bottom 3.2s cubic-bezier(0.3, 0, 0.1, 1) infinite;
+  }
+  .logo-live .logo-jolt,
+  .group:hover .logo-hover .logo-jolt {
+    animation: logo-jolt 3.2s linear infinite;
+  }
+  .logo-live .logo-glint,
+  .group:hover .logo-hover .logo-glint {
+    animation: logo-glint 3.2s linear infinite;
   }
 }

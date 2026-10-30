@@ -1,22 +1,17 @@
 "use client";
 
-import { ArrowDown, BadgeCheck, BookOpenCheck, Hourglass, ShieldCheck } from "lucide-react";
-import { motion, useInView, useTransform } from "motion/react";
+import { motion, useInView, useMotionValue, useSpring, useTransform } from "motion/react";
+import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
+import { art } from "../../content/art";
 import { landing } from "../../content/landing";
-import { useReducedMotionPref } from "../../hooks/use-media-query";
-import { Reveal, SectionHeader } from "./primitives";
+import { useFinePointerDesktop, useReducedMotionPref } from "../../hooks/use-media-query";
+import { Reveal, RiseHeading } from "./primitives";
 import { useScrollRange } from "./scroll";
-import { ui } from "./ui";
 
-const CALLOUT_STYLES = [
-  { Icon: BadgeCheck, tint: "bg-lavender" },
-  { Icon: BookOpenCheck, tint: "bg-sky" },
-  { Icon: Hourglass, tint: "bg-peach" },
-  { Icon: ShieldCheck, tint: "bg-mint" },
-] as const;
+const HEX = "0123456789abcdef";
+const TILT = { stiffness: 140, damping: 18, mass: 0.6 };
 
-/** Seconds left on the mock quote: counts down while visible, then refreshes like a real quote. */
 function useCountdown(total: number, active: boolean) {
   const [left, setLeft] = useState(total);
   useEffect(() => {
@@ -27,155 +22,208 @@ function useCountdown(total: number, active: boolean) {
   return left;
 }
 
-function ExpiryRing({ left, total }: { left: number; total: number }) {
+/** Hex that resolves character by character, like a signature being produced. */
+function Signature({ value, run }: { value: string; run: boolean }) {
+  const reduced = useReducedMotionPref();
+  const [text, setText] = useState(value);
+  useEffect(() => {
+    if (!run || reduced) return;
+    let frame = 0;
+    const id = window.setInterval(() => {
+      frame += 1;
+      const settled = Math.floor(frame / 2);
+      setText(
+        [...value]
+          .map((c, i) =>
+            i < settled || i < 2 ? c : (HEX[Math.floor(Math.random() * 16)] as string),
+          )
+          .join(""),
+      );
+      if (settled >= value.length) window.clearInterval(id);
+    }, 36);
+    return () => window.clearInterval(id);
+  }, [run, reduced, value]);
+  return <>{text}</>;
+}
+
+function Ring({ left, total }: { left: number; total: number }) {
   const r = 15;
   const c = 2 * Math.PI * r;
   return (
     <svg aria-hidden viewBox="0 0 36 36" className="size-9 -rotate-90">
-      <circle cx="18" cy="18" r={r} fill="none" stroke="var(--color-lilac)" strokeWidth="3.5" />
       <circle
         cx="18"
         cy="18"
         r={r}
         fill="none"
-        stroke="var(--color-iris)"
-        strokeWidth="3.5"
+        stroke="#14113a"
+        strokeOpacity="0.14"
+        strokeWidth="2"
+      />
+      <circle
+        cx="18"
+        cy="18"
+        r={r}
+        fill="none"
+        stroke="#5b4fd1"
+        strokeWidth="2"
         strokeLinecap="round"
         strokeDasharray={c}
         strokeDashoffset={c * (1 - left / total)}
-        className="transition-[stroke-dashoffset] duration-1000 ease-linear motion-reduce:transition-none"
+        className="transition-[stroke-dashoffset] duration-1000 ease-linear"
       />
     </svg>
   );
 }
 
+/** A physical object: tilts toward the pointer, catches light across its foil, swings in on scroll. */
 function Ticket() {
   const { ticket } = landing.quote;
   const ref = useRef<HTMLDivElement>(null);
   const inView = useInView(ref, { amount: 0.4 });
+  const once = useInView(ref, { amount: 0.5, once: true });
   const reduced = useReducedMotionPref();
+  const desktop = useFinePointerDesktop();
   const left = useCountdown(ticket.expiresSeconds, inView && !reduced);
 
+  const scroll = useScrollRange(ref, (m) => [m.top - m.vh, m.top - m.vh * 0.18]);
+  const swing = useTransform(scroll, [0, 1], [34, 0]);
+  const lift = useTransform(scroll, [0, 1], [110, 0]);
+  const px = useMotionValue(0);
+  const py = useMotionValue(0);
+  const rx = useSpring(useTransform(py, [-0.5, 0.5], [9, -9]), TILT);
+  const ry = useSpring(useTransform(px, [-0.5, 0.5], [-13, 13]), TILT);
+  const rotateX = useTransform([rx, swing], ([a, b]) => (a as number) + (b as number));
+  const foilX = useTransform(px, [-0.5, 0.5], ["0%", "100%"]);
+  const foilY = useTransform(py, [-0.5, 0.5], ["0%", "100%"]);
+
   return (
-    <div
-      ref={ref}
-      className="relative w-full max-w-[400px] rounded-[24px] border border-hairline bg-canvas p-3 shadow-[0_40px_100px_-50px_rgb(47_42_92/0.45)]"
-    >
-      <div className="flex items-center justify-between px-3 pt-2 pb-3">
-        <span className="font-display text-lg font-medium tracking-[-0.02em] text-ink">
-          {ticket.title}
-        </span>
-        <span className="flex items-center gap-1.5 rounded-full bg-mint px-2.5 py-1 font-body text-[11px] font-medium text-ink">
-          <span aria-hidden className="size-1.5 rounded-full bg-[#2f9e6f]" />
-          Live
-        </span>
-      </div>
-
-      <div className="rounded-2xl bg-canvas-soft p-4">
-        <p className="font-body text-xs text-ink-muted">{ticket.payLabel}</p>
-        <p className="mt-1 flex items-baseline justify-between font-display text-[28px] font-medium tracking-[-0.03em] text-ink tabular-nums">
-          {ticket.pay}
-          <span className="font-body text-sm font-medium text-ink-muted">{ticket.payToken}</span>
-        </p>
-      </div>
-      <div className="relative z-10 -my-3 flex justify-center">
-        <span className="flex size-9 items-center justify-center rounded-full border-4 border-canvas bg-lilac text-iris">
-          <ArrowDown aria-hidden className="size-4" />
-        </span>
-      </div>
-      <div className="rounded-2xl bg-lavender p-4">
-        <p className="font-body text-xs text-ink-muted">{ticket.receiveLabel}</p>
-        <p className="mt-1 flex items-baseline justify-between font-display text-[28px] font-medium tracking-[-0.03em] text-ink tabular-nums">
-          {ticket.receive}
-          <span className="font-body text-sm font-medium text-ink-muted">
-            {ticket.receiveToken}
-          </span>
-        </p>
-      </div>
-
-      <dl className="mt-2 px-3">
-        {ticket.rows.map((row) => (
-          <div
-            key={row.label}
-            className="flex justify-between gap-4 border-b border-hairline py-2.5"
-          >
-            <dt className="font-body text-[13px] text-ink-muted">{row.label}</dt>
-            <dd className="font-body text-[13px] font-medium text-ink tabular-nums">{row.value}</dd>
+    <div className="[perspective:1400px]">
+      <motion.div
+        ref={ref}
+        style={{ rotateX, rotateY: ry, y: lift }}
+        className="relative w-[min(88vw,410px)] transform-gpu"
+        data-cursor="hover"
+        onPointerMove={(e) => {
+          if (!desktop || reduced || e.pointerType !== "mouse") return;
+          const r = e.currentTarget.getBoundingClientRect();
+          px.set((e.clientX - r.left) / r.width - 0.5);
+          py.set((e.clientY - r.top) / r.height - 0.5);
+        }}
+        onPointerLeave={() => {
+          px.set(0);
+          py.set(0);
+        }}
+      >
+        <div className="ticket-stub relative overflow-hidden rounded-[22px] bg-[#fbfaff] text-[#14113a] shadow-[0_60px_120px_-30px_rgb(5_5_27/0.8)] [--stub-y:75.5%]">
+          <motion.div
+            aria-hidden
+            className="pointer-events-none absolute inset-0 z-10 mix-blend-multiply opacity-40"
+            style={{
+              backgroundImage:
+                "linear-gradient(115deg, #ffd6c2 0%, #e4dcff 28%, #c8ecff 52%, #ffdcec 78%, #fff1c9 100%)",
+              backgroundSize: "260% 260%",
+              backgroundPositionX: foilX,
+              backgroundPositionY: foilY,
+            }}
+          />
+          <div className="relative p-6">
+            <div className="flex items-center justify-between">
+              <span className="t-title !text-[30px]">{ticket.title}</span>
+              <span className="rounded-full border border-[#14113a]/25 px-2.5 py-1 text-[13px] font-medium">
+                {ticket.badge}
+              </span>
+            </div>
+            <div className="mt-6">
+              <p className="text-sm text-[#14113a]/75">{ticket.payLabel}</p>
+              <p className="mt-2 flex items-baseline justify-between num text-[40px]">
+                {ticket.pay}
+                <span className="font-sans text-sm tracking-normal">{ticket.payToken}</span>
+              </p>
+            </div>
+            <div className="mt-6 border-t border-[#14113a]/15 pt-6">
+              <p className="text-sm text-[#14113a]/75">{ticket.receiveLabel}</p>
+              <p className="mt-2 flex items-baseline justify-between num text-[40px]">
+                {ticket.receive}
+                <span className="font-sans text-sm tracking-normal">{ticket.receiveToken}</span>
+              </p>
+            </div>
+            <dl className="mt-6 space-y-2.5 border-t border-[#14113a]/15 pt-6">
+              {ticket.rows.map((row) => (
+                <div key={row.label} className="flex justify-between text-[14px]">
+                  <dt className="text-[#14113a]/80">{row.label}</dt>
+                  <dd className="num-sm font-medium">{row.value}</dd>
+                </div>
+              ))}
+            </dl>
           </div>
-        ))}
-      </dl>
-
-      <div className="flex items-center gap-3 px-3 pt-3 pb-2">
-        <ExpiryRing left={left} total={ticket.expiresSeconds} />
-        <p className="font-body text-[13px] text-ink-muted">
-          {ticket.expiresLabel} <span className="font-medium text-ink tabular-nums">{left}s</span>
-        </p>
-      </div>
+          <div aria-hidden className="mx-6 border-t-2 border-dashed border-[#14113a]/20" />
+          <div className="relative flex items-center justify-between gap-4 p-6 pt-6">
+            <div className="min-w-0">
+              <p className="text-sm text-[#14113a]/75">{ticket.signedLabel}</p>
+              <p className="mt-2 truncate font-mono text-xs tabular-nums">
+                <Signature value={ticket.signature} run={once} />
+              </p>
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              <Ring left={left} total={ticket.expiresSeconds} />
+              <span className="num-sm text-sm font-medium">{left}s</span>
+              <span className="sr-only">{ticket.expiresLabel}</span>
+            </div>
+          </div>
+        </div>
+      </motion.div>
     </div>
   );
 }
 
-function Callout({ index, align }: { index: number; align: "left" | "right" }) {
-  const callout = landing.quote.callouts[index];
-  const style = CALLOUT_STYLES[index];
-  if (!callout || !style) return null;
-  const { Icon, tint } = style;
+function Callout({ index, title, body }: { index: number; title: string; body: string }) {
   return (
-    <Reveal
-      index={index}
-      className={`flex gap-4 lg:max-w-[300px] ${align === "left" ? "lg:ml-auto lg:flex-row-reverse lg:text-right" : ""}`}
-    >
-      <span className={`${ui.iconChip} ${tint}`}>
-        <Icon aria-hidden className="size-5 text-iris-deep" />
-      </span>
-      <div>
-        <h3 className={ui.itemTitle}>{callout.title}</h3>
-        <p className={`mt-1 ${ui.body}`}>{callout.body}</p>
-      </div>
+    <Reveal index={index} className="border-t border-line pt-6">
+      <h3 className="t-title text-fg">{title}</h3>
+      <p className="mt-3 text-fg-soft">{body}</p>
     </Reveal>
   );
 }
 
-/** A mock quote ticket with callouts explaining what makes it trustworthy. */
 export function QuoteAnatomy() {
-  const { quote } = landing;
-  const ref = useRef<HTMLElement>(null);
-  // The ticket tips up into place as the section scrolls in.
-  const progress = useScrollRange(ref, (m) => [m.top - m.vh * 0.9, m.top - m.vh * 0.1]);
-  const rotateX = useTransform(progress, [0, 1], [18, 0]);
-  const y = useTransform(progress, [0, 1], [80, 0]);
-  const scale = useTransform(progress, [0, 1], [0.92, 1]);
-
+  const { quote, chapters } = landing;
+  const parts = quote.headline.split(" *");
   return (
-    <section ref={ref} aria-labelledby="quote-title" className={`${ui.section} overflow-hidden`}>
-      {/* Soft pastel wash behind the ticket. */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-1/2 h-[640px] -translate-y-1/2 bg-[radial-gradient(40%_50%_at_50%_50%,var(--color-lilac),transparent_70%),radial-gradient(30%_40%_at_30%_60%,var(--color-peach),transparent_70%),radial-gradient(30%_40%_at_70%_40%,var(--color-sky),transparent_70%)] opacity-80"
-      />
-      <div className="relative">
-        <SectionHeader id="quote-title" pill={quote.pill} title={quote.headline} />
-
-        <div
-          className={`${ui.container} ${ui.afterHeader} grid items-center gap-10 lg:grid-cols-[1fr_auto_1fr] lg:gap-14`}
-        >
-          <div className="order-2 grid gap-8 sm:grid-cols-2 lg:order-1 lg:grid-cols-1 lg:gap-16">
-            <Callout index={0} align="left" />
-            <Callout index={1} align="left" />
-          </div>
-          <div className="order-1 flex justify-center [perspective:1400px] lg:order-2">
-            <motion.div
-              className="flex w-full justify-center will-change-transform"
-              style={{ rotateX, y, scale, transformOrigin: "50% 100%" }}
-            >
-              <Ticket />
-            </motion.div>
-          </div>
-          <div className="order-3 grid gap-8 sm:grid-cols-2 lg:grid-cols-1 lg:gap-16">
-            <Callout index={2} align="right" />
-            <Callout index={3} align="right" />
-          </div>
+    <section
+      aria-label={chapters.quote}
+      data-world="0.68,0.04,0,1|0.74,0.04,0,1"
+      data-chapter={chapters.quote}
+      className="relative sect overflow-clip pt-section "
+    >
+      <div className="relative z-10 grid items-end gap-block pb-head md:grid-cols-[minmax(0,1fr)_auto]">
+        <div>
+          <Reveal>
+            <p className="eyebrow text-fg-soft">{quote.kicker}</p>
+          </Reveal>
+          <RiseHeading
+            lines={[parts[0] ?? "", `*${parts[1] ?? ""}`]}
+            className="display t-section mt-4 text-fg"
+          />
         </div>
+        <Reveal y={40} className="hidden md:block">
+          <Image
+            src={art.seal.src}
+            width={art.seal.width}
+            height={art.seal.height}
+            sizes="20vw"
+            alt=""
+            className="plate size-[max(180px,calc(var(--cw)*0.19))]"
+          />
+        </Reveal>
+      </div>
+      <div className="world-window flex min-h-[100svh] items-center justify-center py-head">
+        <Ticket />
+      </div>
+      <div className="relative z-10 mt-head grid gap-x-block gap-y-block md:grid-cols-2 xl:grid-cols-4">
+        {quote.callouts.map((callout, i) => (
+          <Callout key={callout.title} index={i} {...callout} />
+        ))}
       </div>
     </section>
   );

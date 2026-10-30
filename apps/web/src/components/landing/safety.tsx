@@ -1,80 +1,93 @@
 "use client";
 
 import { Check } from "lucide-react";
-import { motion, useTransform } from "motion/react";
-import { useRef } from "react";
+import { motion, useMotionValueEvent, useTransform } from "motion/react";
+import Image from "next/image";
+import { useRef, useState } from "react";
+import { art } from "../../content/art";
 import { landing } from "../../content/landing";
-import { GlassTiles } from "./glass-tiles";
-import { Reveal, SectionHeader } from "./primitives";
+import { Reveal, RiseHeading } from "./primitives";
 import { useScrollRange } from "./scroll";
-import { ui } from "./ui";
 
-const CORNER_TILES = [
-  [0, 0],
-  [1, 1],
-  [2, 0],
-] as const;
-
-/** On-chain guarantees, on a pastel panel that settles into place as it scrolls in. */
+/**
+ * A quote travels down the line as you scroll and clears the vault's checks one by one. Each gate
+ * lights when the packet reaches it; everything is already lit under reduced motion.
+ */
 export function Safety() {
-  const { safety } = landing;
-  const ref = useRef<HTMLElement>(null);
-  const progress = useScrollRange(ref, (m) => [m.top - m.vh, m.top - m.vh * 0.2]);
-  const scale = useTransform(progress, [0, 1], [0.94, 1]);
-  const y = useTransform(progress, [0, 1], [60, 0]);
+  const { safety, chapters } = landing;
+  const items = safety.items;
+  const rail = useRef<HTMLOListElement>(null);
+  const progress = useScrollRange(rail, (m) => [
+    m.top - m.vh * 0.55,
+    m.top + m.height - m.vh * 0.6,
+  ]);
+  const height = useTransform(progress, [0, 1], ["0%", "100%"]);
+  const [passed, setPassed] = useState(0);
+  useMotionValueEvent(progress, "change", (p) => setPassed(Math.ceil(p * items.length + 0.02)));
+  const [lead, accent] = safety.headline.split(" *");
 
   return (
-    <section ref={ref} aria-labelledby="safety-title" className={ui.panelSection}>
-      <motion.div
-        className={`relative ${ui.container} overflow-hidden ${ui.panel} ${ui.panelPad} bg-lilac will-change-transform`}
-        style={{ scale, y }}
-      >
-        <div
-          aria-hidden
-          className="pointer-events-none absolute -top-40 -right-32 size-[520px] rounded-full bg-[radial-gradient(closest-side,var(--color-peach),transparent)] opacity-70"
-        />
-        <div
-          aria-hidden
-          className="pointer-events-none absolute -bottom-48 -left-24 size-[520px] rounded-full bg-[radial-gradient(closest-side,var(--color-sky),transparent)] opacity-80"
-        />
-        <GlassTiles
-          cells={CORNER_TILES}
-          variant="outline"
-          seed={11}
-          size={56}
-          className="right-10 bottom-10 hidden opacity-70 lg:block"
-        />
-
-        <div className="relative grid gap-10 lg:grid-cols-[0.85fr_1.15fr] lg:gap-16">
-          <SectionHeader
-            id="safety-title"
-            pill={safety.pill}
-            title={safety.headline}
-            sub={safety.sub}
-            align="left"
-            pillTone="bg-canvas"
+    <section
+      aria-label={chapters.safety}
+      data-world="0.94,0,0,1|0.98,0,0,1"
+      data-chapter={chapters.safety}
+      className="relative sect bg-white pt-section"
+    >
+      <div className="grid gap-x-head gap-y-head lg:grid-cols-[minmax(0,6fr)_minmax(0,6fr)]">
+        <div className="lg:sticky lg:top-[calc(var(--spacing-chrome)+var(--spacing-block))] lg:self-start">
+          <Reveal>
+            <p className="eyebrow text-fg-soft">{safety.kicker}</p>
+          </Reveal>
+          <RiseHeading
+            lines={[lead ?? "", `*${accent ?? ""}`]}
+            className="display t-section mt-4 text-fg"
           />
-
-          <ul className={`grid ${ui.gridGap} sm:grid-cols-2`}>
-            {safety.items.map((item, i) => (
-              <li key={item.title}>
-                <Reveal
-                  index={i}
-                  className={`flex h-full gap-4 ${ui.inset} bg-canvas/80 p-5 md:p-6`}
-                >
-                  <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-mint">
-                    <Check aria-hidden className="size-4 text-iris-deep" strokeWidth={2.5} />
-                  </span>
-                  <div>
-                    <h3 className={ui.itemTitle}>{item.title}</h3>
-                    <p className={`mt-1 ${ui.body}`}>{item.body}</p>
-                  </div>
-                </Reveal>
-              </li>
-            ))}
-          </ul>
+          <Reveal index={2}>
+            <p className="lead mt-6 max-w-[460px] text-fg-soft">{safety.sub}</p>
+          </Reveal>
+          <Reveal index={3} className="mt-block hidden lg:block">
+            <Image
+              src={art.gates.src}
+              width={art.gates.width}
+              height={art.gates.height}
+              sizes="40vw"
+              alt=""
+              className="plate h-[46vh] w-auto"
+            />
+          </Reveal>
         </div>
-      </motion.div>
+
+        <ol ref={rail} className="relative">
+          <span aria-hidden className="absolute top-2 bottom-2 left-[15px] w-px bg-line" />
+          <motion.span
+            aria-hidden
+            style={{ height }}
+            className="absolute top-2 left-[15px] w-px origin-top bg-fg "
+          />
+          {items.map((item, i) => {
+            const lit = i < passed;
+            return (
+              <li key={item.title} className="relative flex gap-6 pb-head last:pb-0">
+                <span
+                  aria-hidden
+                  className={`relative z-10 flex size-[31px] shrink-0 items-center justify-center rounded-full border transition-colors duration-500 ${lit ? "border-fg bg-fg text-inverse" : "border-line bg-transparent text-transparent"}`}
+                >
+                  <Check className="size-3.5" strokeWidth={2.5} />
+                </span>
+                <div
+                  className={`transition-opacity duration-700 ${lit ? "opacity-100" : "opacity-55"}`}
+                >
+                  <p className="eyebrow text-fg-faint">Gate {i + 1}</p>
+                  <h3 className="display mt-2 text-[max(2rem,calc(var(--cw)*0.034))] text-fg">
+                    {item.title}
+                  </h3>
+                  <p className="mt-3 max-w-[460px] text-fg-soft md:text-[18px]">{item.body}</p>
+                </div>
+              </li>
+            );
+          })}
+        </ol>
+      </div>
     </section>
   );
 }

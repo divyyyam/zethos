@@ -1,100 +1,243 @@
 "use client";
 
-import { motion, useTransform } from "motion/react";
-import { useRef } from "react";
+import { animate, useMotionValue, useMotionValueEvent } from "motion/react";
+import Image from "next/image";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { art } from "../../content/art";
 import { landing } from "../../content/landing";
-import { SectionHeader } from "./primitives";
-import { useScrollRange } from "./scroll";
-import { ui } from "./ui";
+import { useReducedMotionPref } from "../../hooks/use-media-query";
+import { Reveal, RiseHeading } from "./primitives";
 
-type Side = (typeof landing.compare)["pool" | "zethos"];
+const { model, range } = landing.compare;
+const LOG_MIN = Math.log(range.min);
+const LOG_MAX = Math.log(range.max);
+const sizeAt = (t: number) => Math.exp(LOG_MIN + t * (LOG_MAX - LOG_MIN));
+const tAt = (size: number) => (Math.log(size) - LOG_MIN) / (LOG_MAX - LOG_MIN);
 
-function OutcomeCard({ side, featured }: { side: Side; featured: boolean }) {
+/** Output of a constant-product pool: the bigger the trade, the further it walks the curve. */
+function poolOut(usdt: number) {
+  const reserveHsk = model.poolUsdt / model.mid;
+  const net = usdt * (1 - model.poolFee);
+  return (reserveHsk * net) / (model.poolUsdt + net);
+}
+const zethosOut = (usdt: number) => (usdt / model.mid) * (1 - model.spread);
+const poolCost = (usdt: number) => 1 - poolOut(usdt) / (usdt / model.mid);
+
+const fmt = (n: number) => Math.round(n).toLocaleString("en-US");
+
+const CHART = { w: 1000, h: 300, pad: 8 };
+const MAX_COST = poolCost(range.max);
+const pointX = (t: number) => CHART.pad + t * (CHART.w - CHART.pad * 2);
+const pointY = (cost: number) =>
+  CHART.h - CHART.pad - (cost / MAX_COST) * (CHART.h - CHART.pad * 2);
+
+function CostChart({ t, label }: { t: number; label: string }) {
+  const { curve, area } = useMemo(() => {
+    const points = Array.from({ length: 80 }, (_, i) => {
+      const at = i / 79;
+      return `${pointX(at).toFixed(1)},${pointY(poolCost(sizeAt(at))).toFixed(1)}`;
+    });
+    const flat = pointY(model.spread);
+    return {
+      curve: `M${points.join(" L")}`,
+      area: `M${points.join(" L")} L${pointX(1)},${flat} L${pointX(0)},${flat} Z`,
+    };
+  }, []);
+  const size = sizeAt(t);
+  const x = pointX(t);
+  const y = pointY(poolCost(size));
+  const flat = pointY(model.spread);
   return (
-    <div
-      className={`relative flex h-full flex-col ${ui.card} ${ui.cardPad} ${
-        featured
-          ? "bg-lavender shadow-[0_30px_80px_-40px_rgb(91_79_209/0.55)]"
-          : "border border-hairline bg-canvas-soft"
-      }`}
+    <svg
+      viewBox={`0 0 ${CHART.w} ${CHART.h}`}
+      role="img"
+      aria-label={label}
+      className="h-[200px] w-full md:h-[260px]"
+      preserveAspectRatio="none"
     >
-      <div className="flex items-center justify-between gap-3">
-        <h3 className={ui.cardTitle}>{side.name}</h3>
-        <span
-          aria-hidden
-          className={`size-2.5 rounded-full ${featured ? "bg-iris" : "bg-ink-muted/40"}`}
-        />
-      </div>
-      <dl className="mt-6 flex flex-1 flex-col divide-y divide-ink/10">
-        {side.rows.map((row) => (
-          <div key={row.label} className="flex items-baseline justify-between gap-4 py-3.5">
-            <dt className={ui.body}>{row.label}</dt>
-            <dd className="text-right font-body text-sm font-medium whitespace-nowrap text-ink tabular-nums md:text-[15px]">
-              {row.value}
-            </dd>
-          </div>
-        ))}
-      </dl>
-      <div className={`mt-6 ${ui.inset} px-5 py-4 ${featured ? "bg-canvas/70" : "bg-canvas"}`}>
-        <p className="font-body text-xs font-medium uppercase tracking-[0.08em] text-ink-muted">
-          {side.resultLabel}
-        </p>
-        <p
-          className={`mt-1 font-display text-[clamp(2rem,3.4vw,2.75rem)] font-medium leading-none tracking-[-0.03em] tabular-nums ${
-            featured ? "text-iris-deep" : "text-ink/70"
-          }`}
-        >
-          {side.result}
-        </p>
-      </div>
-    </div>
+      <defs>
+        <linearGradient id="cost-gap" x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0" stopColor="#d9532f" stopOpacity="0.28" />
+          <stop offset="1" stopColor="#d9532f" stopOpacity="0.02" />
+        </linearGradient>
+        <clipPath id="cost-clip">
+          <rect x="0" y="0" width={x} height={CHART.h} />
+        </clipPath>
+      </defs>
+      <path d={area} fill="url(#cost-gap)" clipPath="url(#cost-clip)" />
+      <path
+        d={curve}
+        fill="none"
+        stroke="var(--fg-faint)"
+        strokeWidth="1.5"
+        vectorEffect="non-scaling-stroke"
+        strokeDasharray="3 5"
+      />
+      <path
+        d={curve}
+        fill="none"
+        stroke="#d9532f"
+        strokeWidth="2.5"
+        vectorEffect="non-scaling-stroke"
+        clipPath="url(#cost-clip)"
+      />
+      <line
+        x1={pointX(0)}
+        x2={pointX(1)}
+        y1={flat}
+        y2={flat}
+        stroke="var(--fg)"
+        strokeWidth="2.5"
+        vectorEffect="non-scaling-stroke"
+      />
+      <line
+        x1={x}
+        x2={x}
+        y1={y}
+        y2={flat}
+        stroke="var(--fg)"
+        strokeWidth="1"
+        vectorEffect="non-scaling-stroke"
+      />
+    </svg>
   );
 }
 
-/** Same trade, two venues: a thin pool versus a Zethos firm quote. */
+/**
+ * The argument as an instrument. The figures are real arithmetic: a constant-product pool against a
+ * flat spread, so a judge can drag from $100 to $25K and watch exactly where a thin pool gives way.
+ */
 export function Compare() {
-  const { compare } = landing;
-  const ref = useRef<HTMLElement>(null);
-  // Cards slide toward each other as the section scrolls in, then hold.
-  const progress = useScrollRange(ref, (m) => [m.top - m.vh, m.top - m.vh * 0.25]);
-  const leftX = useTransform(progress, [0, 1], ["-6%", "0%"]);
-  const rightX = useTransform(progress, [0, 1], ["6%", "0%"]);
-  const deltaScale = useTransform(progress, [0.6, 1], [0.6, 1]);
-  const deltaOpacity = useTransform(progress, [0.6, 1], [0, 1]);
+  const { compare, chapters } = landing;
+  const id = useId();
+  const reduced = useReducedMotionPref();
+  const [t, setT] = useState(() => tAt(range.start));
+  const sweep = useMotionValue(0);
+  const touched = useRef(false);
+  const section = useRef<HTMLElement>(null);
+  useMotionValueEvent(sweep, "change", (v) => {
+    if (!touched.current) setT(v);
+  });
+
+  // One sweep on first sight, up to the resting size, so the control announces that it moves.
+  useEffect(() => {
+    const el = section.current;
+    if (!el || reduced) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry?.isIntersecting || touched.current) return;
+        observer.disconnect();
+        sweep.set(0);
+        animate(sweep, tAt(range.start), { duration: 2.2, ease: [0.16, 1, 0.3, 1] });
+      },
+      { threshold: 0.45 },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [reduced, sweep]);
+
+  const size = sizeAt(t);
+  const pool = poolOut(size);
+  const zethos = zethosOut(size);
+  const delta = zethos - pool;
+  const words = compare.headline.split(". ");
 
   return (
-    <section ref={ref} aria-labelledby="compare-title" className={`${ui.section} bg-canvas`}>
-      <SectionHeader
-        id="compare-title"
-        pill={compare.pill}
-        title={compare.headline}
-        sub={compare.trade}
-      />
-
-      <div
-        className={`relative ${ui.container} ${ui.afterHeader} grid ${ui.gridGap} md:grid-cols-2`}
-      >
-        <motion.div className="max-md:order-1" style={{ x: leftX }}>
-          <OutcomeCard side={compare.pool} featured={false} />
-        </motion.div>
-        <motion.div className="max-md:order-3" style={{ x: rightX }}>
-          <OutcomeCard side={compare.zethos} featured />
-        </motion.div>
-
-        <motion.div
-          className="pointer-events-none z-10 mx-auto flex flex-col items-center max-md:order-2 max-md:-my-1 md:absolute md:top-0 md:flex-col-reverse md:gap-2 md:[&>span:last-child]:mt-0 md:left-1/2 md:-translate-x-1/2 md:-translate-y-[54px]"
-          style={{ scale: deltaScale, opacity: deltaOpacity }}
-        >
-          <span className="rounded-full bg-iris-deep px-4 py-2 font-display text-lg font-medium tracking-[-0.02em] text-canvas shadow-[0_12px_30px_-10px_rgb(47_42_92/0.6)] tabular-nums">
-            {compare.delta}
-          </span>
-          <span className="mt-2 rounded-full bg-canvas/90 px-3 py-1 font-body text-xs text-ink-muted">
-            {compare.deltaLabel}
-          </span>
-        </motion.div>
+    <section
+      ref={section}
+      aria-label={chapters.compare}
+      data-world="0.58,0,0,1|0.6,0,0,1"
+      data-chapter={chapters.compare}
+      className="relative sect bg-white pt-after-window"
+    >
+      <div className="grid items-end gap-block lg:grid-cols-[minmax(0,1fr)_minmax(0,34%)]">
+        <div>
+          <Reveal>
+            <p className="eyebrow text-fg-soft">{compare.kicker}</p>
+          </Reveal>
+          <RiseHeading
+            lines={[`${words[0]}.`, words[1] ?? ""]}
+            className="display t-section mt-4 text-fg"
+          />
+        </div>
+        <Reveal y={40} className="hidden lg:block">
+          <Image
+            src={art.valley.src}
+            width={art.valley.width}
+            height={art.valley.height}
+            sizes="34vw"
+            alt=""
+            className="plate h-auto w-full"
+          />
+        </Reveal>
       </div>
 
-      <p className={`mx-auto mt-8 max-w-[560px] text-center ${ui.fine}`}>{compare.note}</p>
+      <div className="mt-head grid gap-x-block gap-y-block lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
+        <div className="flex flex-col justify-between gap-block">
+          <div>
+            <p className="num text-[max(3.75rem,calc(var(--cw)*0.09))] text-fg">+{fmt(delta)}</p>
+            <p className="lead mt-3 text-fg-soft">HSK {compare.deltaLabel}</p>
+          </div>
+          <dl className="grid grid-cols-2 gap-6 border-t border-line pt-6">
+            <div>
+              <dt className="eyebrow flex items-center gap-2 text-fg-soft">
+                <span aria-hidden className="size-1.5 rounded-full bg-[#d9532f]" />
+                {compare.pool.name}
+              </dt>
+              <dd className="mt-4 num text-[2rem] text-fg-soft md:text-[2.75rem]">{fmt(pool)}</dd>
+              <dd className="mt-1 text-[15px] text-fg-soft">{compare.pool.resultLabel}</dd>
+            </div>
+            <div>
+              <dt className="eyebrow flex items-center gap-2 text-fg">
+                <span aria-hidden className="size-1.5 rounded-full bg-fg" />
+                {compare.zethos.name}
+              </dt>
+              <dd className="mt-4 num text-[2rem] text-fg md:text-[2.75rem]">{fmt(zethos)}</dd>
+              <dd className="mt-1 text-[15px] text-fg-soft">{compare.zethos.resultLabel}</dd>
+            </div>
+          </dl>
+        </div>
+
+        <div>
+          <div className="flex items-baseline justify-between gap-4">
+            <label htmlFor={id} className="eyebrow text-fg-soft">
+              {compare.sliderHint}
+            </label>
+            <output htmlFor={id} className="num text-[max(1.75rem,calc(var(--cw)*0.032))] text-fg">
+              {fmt(size)}{" "}
+              <span className="font-sans text-[0.45em] tracking-normal text-fg-soft">USDT</span>
+            </output>
+          </div>
+          <div className="mt-3" data-cursor="drag">
+            <CostChart t={t} label={compare.chartLabel} />
+            <input
+              id={id}
+              type="range"
+              min={0}
+              max={1}
+              step={0.001}
+              value={t}
+              aria-label={compare.sliderLabel}
+              aria-valuetext={`${fmt(size)} USDT`}
+              className="size-slider -mt-1 block"
+              style={{ "--fill": `${t * 100}%` } as React.CSSProperties}
+              onChange={(event) => {
+                touched.current = true;
+                setT(Number(event.target.value));
+              }}
+            />
+          </div>
+          <div className="flex justify-between num-sm text-sm text-fg-soft">
+            <span>$100</span>
+            <span>{compare.chartLabel}</span>
+            <span>$25K</span>
+          </div>
+        </div>
+      </div>
+
+      <p className="mt-block max-w-[680px] text-[15px] leading-relaxed text-fg-faint">
+        {compare.note}
+      </p>
     </section>
   );
 }

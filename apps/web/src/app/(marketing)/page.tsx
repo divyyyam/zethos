@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Boot } from "../../components/landing/boot";
 import { Compare } from "../../components/landing/compare";
 import { Cta } from "../../components/landing/cta";
 import { Features } from "../../components/landing/features";
@@ -10,9 +11,9 @@ import { Nav } from "../../components/landing/nav";
 import { Proof } from "../../components/landing/proof";
 import { QuoteAnatomy } from "../../components/landing/quote-anatomy";
 import { Safety } from "../../components/landing/safety";
+import { LandingWorld } from "../../components/landing/world";
 import { landing } from "../../content/landing";
 import { getStats } from "../../content/stats.mock";
-import { getScenery } from "../../lib/scenery";
 
 const { meta } = landing;
 
@@ -36,19 +37,21 @@ export const metadata: Metadata = {
 };
 
 export default async function LandingPage() {
-  const [stats, scenery] = [await getStats(), getScenery()];
+  const stats = await getStats();
   return (
     <LandingShell>
+      <Boot />
+      <LandingWorld />
       <Nav />
-      <main className="relative z-10 mb-[var(--footer-h)] bg-canvas">
-        <Hero scenery={scenery} />
-        <Proof stats={stats} scenery={scenery} />
+      <main>
+        <Hero />
+        <Proof stats={stats} />
+        <HowItWorks />
         <Compare />
-        <HowItWorks scenery={scenery} />
         <QuoteAnatomy />
         <Features />
         <Safety />
-        <Cta scenery={scenery} />
+        <Cta />
       </main>
       <Footer />
     </LandingShell>

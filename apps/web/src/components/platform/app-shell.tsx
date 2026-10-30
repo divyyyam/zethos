@@ -15,8 +15,10 @@ import type { ReactNode } from "react";
 import { useAccount } from "wagmi";
 import { useEngineStatus, useEngineStream, useVaultOwner } from "../../hooks/platform/use-platform";
 import { platformConfig } from "../../lib/platform-config";
+import { LogoMark } from "../landing/logo-mark";
 import { ConnectWalletButton, useWallet } from "../wallet/wallet-provider";
-import { BrandMark, StatusDot } from "./primitives";
+import { AppWorld } from "./app-world";
+import { StatusDot } from "./primitives";
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
@@ -35,15 +37,11 @@ export function AppShell({ children }: { children: ReactNode }) {
       <a className="p-skip-link" href="#platform-main">
         Skip to main content
       </a>
-      <div className="p-background" aria-hidden>
-        <span />
-        <span />
-        <span />
-      </div>
+      <AppWorld />
       <header className="p-header">
         <div className="p-header-inner">
-          <Link className="p-brand" href="/" aria-label="Zethos home">
-            <BrandMark className="size-7" />
+          <Link className="p-brand group" href="/" aria-label="Zethos home">
+            <LogoMark className="size-7" motion="hover" />
             <span>zethos</span>
             <small>EXCHANGE</small>
           </Link>

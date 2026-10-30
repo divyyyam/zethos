@@ -1,36 +1,36 @@
 import "./globals.css";
-import { Instrument_Sans, Instrument_Serif, Inter } from "next/font/google";
+import { Geist, Geist_Mono, Newsreader } from "next/font/google";
+import { AnimatedFavicon } from "../components/animated-favicon";
 
-const instrumentSans = Instrument_Sans({
+const geist = Geist({
   subsets: ["latin"],
-  weight: ["400", "500"],
+  variable: "--font-ui",
+  display: "swap",
+});
+
+const geistMono = Geist_Mono({
+  subsets: ["latin"],
+  weight: ["400"],
+  variable: "--font-data",
+  display: "swap",
+});
+
+// Variable with its optical-size axis: hairlines stay delicate at display sizes, sturdy when small.
+const newsreader = Newsreader({
+  subsets: ["latin"],
   style: ["normal", "italic"],
-  variable: "--font-instrument",
-  display: "swap",
-});
-
-const inter = Inter({
-  subsets: ["latin"],
-  weight: ["400", "500"],
-  variable: "--font-inter",
-  display: "swap",
-});
-
-const instrumentSerif = Instrument_Serif({
-  subsets: ["latin"],
-  weight: "400",
-  style: "italic",
+  axes: ["opsz"],
   variable: "--font-editorial",
   display: "swap",
 });
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html
-      lang="en"
-      className={`${instrumentSans.variable} ${inter.variable} ${instrumentSerif.variable}`}
-    >
-      <body>{children}</body>
+    <html lang="en" className={`${geist.variable} ${geistMono.variable} ${newsreader.variable}`}>
+      <body>
+        <AnimatedFavicon />
+        {children}
+      </body>
     </html>
   );
 }

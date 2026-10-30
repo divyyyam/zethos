@@ -1,40 +1,44 @@
 "use client";
 
-import { useMotionValueEvent } from "motion/react";
 import Link from "next/link";
-import { useState } from "react";
 import { landing } from "../../content/landing";
 import { LogoMark } from "./logo-mark";
 import { PrimaryButton } from "./primitives";
-import { useLandingScroll } from "./scroll";
 
-/** Floating, centred nav pill. Turns translucent and blurred after 40px of scroll. */
+/**
+ * Edge-to-edge instrument bar. The centre readout is the page's clock: it runs from dawn to night
+ * with the scroll position and names the current chapter (written by `LandingWorld`).
+ */
 export function Nav() {
-  const { scrollY } = useLandingScroll();
-  const [scrolled, setScrolled] = useState(false);
-  useMotionValueEvent(scrollY, "change", (v) => setScrolled(v > 40));
-
   return (
-    <header className="pointer-events-none fixed inset-x-0 top-3 z-50 flex justify-center px-4 md:top-5">
+    <header className="fixed inset-x-0 top-0 z-50 bg-white px-[var(--gutter)] py-3 ">
       <nav
         aria-label={landing.nav.label}
-        className={`pointer-events-auto flex items-center gap-4 rounded-full p-1.5 pl-4 shadow-[0_12px_40px_rgb(17_17_17/0.06)] transition-colors duration-300 md:gap-10 md:p-2 md:pl-5 ${
-          scrolled ? "bg-white/80 backdrop-blur-xl" : "bg-white"
-        }`}
+        className="grid grid-cols-[1fr_auto] items-center md:grid-cols-[1fr_auto_1fr]"
       >
         <Link
           href="/"
           aria-label={landing.nav.homeLabel}
-          className="flex items-center gap-2 text-ink"
+          data-cursor="hover"
+          className="group flex w-fit items-center gap-2 text-fg"
         >
-          <LogoMark className="size-5 md:size-6" />
-          <span className="font-display text-xl font-medium leading-none tracking-[-0.045em] md:text-[23px]">
+          <LogoMark className="size-5" motion="hover" />
+          <span className="font-serif text-[27px] leading-none font-light tracking-[-0.035em]">
             {landing.nav.wordmark}
           </span>
         </Link>
-        <PrimaryButton href={landing.nav.cta.href} size="sm">
-          {landing.nav.cta.label}
-        </PrimaryButton>
+        <p className="hidden items-center gap-3 text-sm text-fg-soft md:flex" aria-hidden>
+          <span data-hud-clock className="num-sm text-fg">
+            05:42
+          </span>
+          <span className="h-px w-8 bg-line" />
+          <span data-hud-chapter>{landing.chapters.hero}</span>
+        </p>
+        <div className="justify-self-end">
+          <PrimaryButton href={landing.nav.cta.href} size="sm">
+            {landing.nav.cta.label}
+          </PrimaryButton>
+        </div>
       </nav>
     </header>
   );

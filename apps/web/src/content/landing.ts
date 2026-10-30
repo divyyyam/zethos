@@ -31,8 +31,19 @@ export const landing = {
     siteUrl: "http://localhost:3000",
     title: "Zethos — Exchange prices for every swap on HashKey Chain",
     description:
-      "Zethos is an AI agent that quotes every swap on HashKey Chain against live exchange order books and fills it from its own on-chain vault. No thin pools, no surprise slippage.",
+      "Zethos quotes every swap on HashKey Chain against live exchange order books and fills it from its own on-chain vault. No thin pools, no surprise slippage.",
     ogImage: "/og.png",
+  },
+
+  chapters: {
+    hero: "The horizon",
+    proof: "The problem",
+    how: "The book",
+    compare: "The difference",
+    quote: "The promise",
+    features: "The craft",
+    safety: "The guardrails",
+    cta: "The close",
   },
 
   nav: {
@@ -43,15 +54,21 @@ export const landing = {
   },
 
   hero: {
-    headline: { lead: "Swap on HashKey Chain", line2: "at", accent: "exchange prices." },
-    sub: "An AI agent quotes every swap against live exchange order books and fills it straight from its vault. No thin pools, no surprise slippage.",
+    headline: { lead: "Every swap on HashKey,", accent: "at exchange prices." },
+    sub: "Zethos prices your swap against live exchange order books and fills it straight from its vault. No thin pools, no surprise slippage.",
     primary: { label: "Launch app", href: "/app" },
-    secondary: { label: "How it works", href: "#how-it-works" },
+    secondary: { label: "Look closer", href: "#how-it-works" },
+    ticker: [
+      { label: "HSK / USDT", value: "0.0820" },
+      { label: "Spread", value: "0.08%" },
+      { label: "Quote valid", value: "30s" },
+    ],
+    tickerNote: "Sample data",
   },
 
   proof: {
-    pill: "Live on HashKey Chain testnet",
-    headline: "Every fill, priced against the market.",
+    statement:
+      "Most on-chain swaps are priced by a *thin pool*. The real market lives on exchange order books. Zethos brings that price to *your swap*, and settles it on-chain.",
     cards: [
       {
         key: "avgSpreadPct",
@@ -66,25 +83,28 @@ export const landing = {
       },
       { key: "swapsFilled", label: "Swaps filled", format: { decimals: 0, suffix: "+" } },
     ] satisfies StatCardContent[],
-    note: "Testnet figures. Live data coming from the Zethos engine.",
+    note: "Sample figures. Live numbers arrive with the Zethos engine.",
     integrationsLabel: "Built with and priced against",
     integrations: ["HashKey Chain", "HashKey Global", "Binance", "OKX", "Foundry"],
   },
 
   howItWorks: {
     id: "how-it-works",
-    pill: "Agent in the loop",
-    headline: "You swap. The agent does the rest.",
+    reveal: { kicker: "Look closer", title: "That horizon is an *order book.*" },
+    bids: "Bids",
+    asks: "Asks",
+    mid: { label: "Exchange mid", value: "0.0820" },
+    firm: { label: "Your firm quote", value: "0.08207", delta: "+0.08%" },
+    settled: { word: "Settled", ring: "ALL OR NOTHING  ·  ATOMIC SETTLEMENT  ·  " },
     stepLabel: "Go to step",
-    progressLabel: "The path to a better swap",
     steps: [
       {
         title: "Request a quote.",
-        body: "Pick a pair and size. The agent returns a firm, signed price in under a second.",
+        body: "Pick a pair and size. Zethos returns a firm, signed price in under a second.",
       },
       {
         title: "Priced against the exchange.",
-        body: "It reads live order books across major exchanges and adds a tight spread sized to volatility and vault inventory.",
+        body: "Zethos reads live order books across major exchanges and adds a tight spread sized to volatility and vault inventory.",
       },
       {
         title: "Settled on-chain.",
@@ -94,51 +114,38 @@ export const landing = {
   },
 
   compare: {
-    pill: "Why Zethos",
-    headline: "The same swap, two outcomes.",
-    trade: "Swap 25,000 USDT for HSK",
-    note: "Illustrative example at a mid price of 0.50 USDT per HSK. Pool figures assume a thin testnet pool with a 0.30% fee.",
-    pool: {
-      name: "Typical AMM pool",
-      rows: [
-        { label: "Pool fee", value: "0.30%" },
-        { label: "Price impact", value: "1.84%" },
-        { label: "Minimum received (1% slippage)", value: "48,441 HSK" },
-      ],
-      resultLabel: "Expected",
-      result: "48,930 HSK",
-    },
-    zethos: {
-      name: "Zethos",
-      rows: [
-        { label: "Spread vs exchange mid", value: "0.08%" },
-        { label: "Price impact", value: "None, firm quote" },
-        { label: "Quote valid for", value: "30 seconds" },
-      ],
-      resultLabel: "Guaranteed",
-      result: "49,960 HSK",
-    },
-    delta: "+1,030 HSK",
+    kicker: "The same swap, two outcomes",
+    headline: "Drag the size. *Watch the pool give way.*",
+    sliderLabel: "Swap size in USDT",
+    sliderHint: "Trade size",
+    pool: { name: "Typical AMM pool", resultLabel: "You'd expect" },
+    zethos: { name: "Zethos", resultLabel: "Guaranteed by quote" },
     deltaLabel: "more on the same trade",
+    chartLabel: "Cost vs exchange mid, by trade size",
+    note: "Illustrative. A constant-product pool holding $250K per side with a 0.30% fee, against a 0.08% Zethos spread at a 0.0820 mid. Not live prices.",
+    model: { mid: 0.082, poolUsdt: 250_000, poolFee: 0.003, spread: 0.0008 },
+    range: { min: 100, max: 25_000, start: 8_000 },
   },
 
   quote: {
-    pill: "Inside a quote",
-    headline: "Every quote is a signed promise.",
+    kicker: "Inside a quote",
+    headline: "Every quote is a *signed promise.*",
     ticket: {
       title: "Firm quote",
+      badge: "Sample",
       payLabel: "You pay",
       pay: "25,000.00",
       payToken: "USDT",
       receiveLabel: "You receive",
-      receive: "49,960.00",
+      receive: "304,634.60",
       receiveToken: "HSK",
       rows: [
-        { label: "Price", value: "0.5004 USDT" },
-        { label: "Exchange mid", value: "0.5000 USDT" },
+        { label: "Price", value: "0.08207 USDT" },
+        { label: "Exchange mid", value: "0.08200 USDT" },
         { label: "Spread", value: "0.08%" },
-        { label: "Signed by", value: "0x7a3f…c91e" },
       ],
+      signedLabel: "Signed by Zethos",
+      signature: "0x7a3f94be20d1c7e85fa6c91e",
       expiresLabel: "Expires in",
       expiresSeconds: 30,
     },
@@ -157,38 +164,43 @@ export const landing = {
       },
       {
         title: "Verified on-chain",
-        body: "The vault checks the agent's signature, nonce and expiry before it moves a token.",
+        body: "The vault checks every signature, nonce and expiry before it moves a token.",
       },
     ],
   },
 
   features: {
-    pill: "What you get",
-    headline: "Built like a market maker. Feels like a swap.",
+    kicker: "What you get",
+    headline: "Built like a market maker. *Feels like a swap.*",
     items: [
       {
         title: "Exchange-grade depth",
+        art: "depth",
         body: "Size up without walking a curve. Quotes reflect the depth of major exchange books.",
       },
       {
         title: "Sub-second quotes",
+        art: "speed",
         body: "Pick a pair, get a signed price before you finish reading it.",
-        stat: "<1s",
       },
       {
         title: "All-or-nothing fills",
+        art: "atomic",
         body: "One atomic transaction. It settles in full or reverts, never halfway.",
       },
       {
         title: "Inventory-aware spreads",
+        art: "balance",
         body: "Spreads tighten when the vault wants your side of the trade.",
       },
       {
         title: "Nothing to sandwich",
+        art: "shield",
         body: "The price is fixed before you sign, so there is no slippage for a bot to farm.",
       },
       {
         title: "Open source",
+        art: "open",
         body: "Contracts, engine and this page live in one public repo.",
         link: { label: "Read the code", href: "https://github.com/divyyyam/zethos" },
       },
@@ -196,13 +208,13 @@ export const landing = {
   },
 
   safety: {
-    pill: "Built to be verified",
-    headline: "Guardrails on every fill.",
-    sub: "The agent proposes prices. The vault contract decides whether a trade is allowed.",
+    kicker: "Built to be verified",
+    headline: "Six gates. *Every fill.*",
+    sub: "Zethos proposes prices. The vault contract decides whether a trade is allowed.",
     items: [
       {
         title: "Signature check",
-        body: "Only quotes signed by the registered agent key are accepted.",
+        body: "Only quotes signed by the registered Zethos key are accepted.",
       },
       { title: "Expiry and nonce", body: "Each quote is single-use and dies after its deadline." },
       {
@@ -219,29 +231,46 @@ export const landing = {
   },
 
   cta: {
-    pill: "Start today",
-    headline: "Stop paying for thin pools.",
+    headline: "Stop paying for *thin pools.*",
     sub: "Get exchange-grade prices on every swap on HashKey Chain.",
     primary: { label: "Launch app", href: "/app" },
+    argument: { value: "+28,228 HSK", label: "on the same 25,000 USDT swap" },
+    argumentNote: "Illustrative, from the example above.",
   },
 
   footer: {
     navLabel: "Footer navigation",
-    status: "Agent quoting on HashKey testnet",
+    status: "Preview on HashKey Chain",
     backToTop: "Back to top",
-    links: [
-      { label: "Product", href: "/app" },
-      { label: "Docs", href: "https://github.com/divyyyam/zethos/tree/main/docs" },
-      { label: "GitHub", href: "https://github.com/divyyyam/zethos" },
-      { label: "Hackathon", href: "https://github.com/divyyyam/zethos#zethos" },
-    ] satisfies Link[],
-    copyright: "© 2026 Zethos. Built for the HashKey Chain Horizon Hackathon.",
-    social: {
-      x: {
-        label: "Share Zethos on X",
-        href: "https://x.com/intent/post?text=Zethos%20%E2%80%94%20Exchange%20prices%20for%20every%20swap%20on%20HashKey%20Chain&url=https%3A%2F%2Fgithub.com%2Fdivyyyam%2Fzethos",
+    statement: "Exchange prices, on *every swap.*",
+    columns: [
+      {
+        title: "Product",
+        links: [
+          { label: "Launch app", href: "/app" },
+          { label: "Insights", href: "/stats" },
+          { label: "Operator", href: "/operator" },
+        ],
       },
-      github: { label: "Zethos on GitHub", href: "https://github.com/divyyyam/zethos" },
-    },
+      {
+        title: "Build",
+        links: [
+          { label: "How it works", href: "#how-it-works" },
+          { label: "Docs", href: "https://github.com/divyyyam/zethos/tree/main/docs" },
+          { label: "GitHub", href: "https://github.com/divyyyam/zethos" },
+        ],
+      },
+      {
+        title: "Elsewhere",
+        links: [
+          {
+            label: "Share on X",
+            href: "https://x.com/intent/post?text=Zethos%20%E2%80%94%20Exchange%20prices%20for%20every%20swap%20on%20HashKey%20Chain&url=https%3A%2F%2Fgithub.com%2Fdivyyyam%2Fzethos",
+          },
+          { label: "Hackathon", href: "https://github.com/divyyyam/zethos#zethos" },
+        ],
+      },
+    ] satisfies { title: string; links: Link[] }[],
+    copyright: "© 2026 Zethos. Built for the HashKey Chain Horizon Hackathon.",
   },
 } as const;

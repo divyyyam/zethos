@@ -256,7 +256,7 @@ export function StatsPageContent() {
                   type="monotone"
                   dataKey="poolPrice"
                   dot={false}
-                  stroke="#b9856d"
+                  stroke="#ff8f70"
                   strokeWidth={1.8}
                   isAnimationActive={false}
                 />
