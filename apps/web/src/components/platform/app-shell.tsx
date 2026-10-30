@@ -1,134 +1,136 @@
 "use client";
 
-import {
-  ArrowLeftRight,
-  ArrowUpRight,
-  BarChart3,
-  ChevronDown,
-  CircleHelp,
-  Command,
-  Layers3,
-} from "lucide-react";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import type { ReactNode } from "react";
+import { ArrowUpRight } from "lucide-react";
+import { MotionConfig } from "motion/react";
+import { useRouter } from "next/navigation";
+import { type PointerEvent, type ReactNode, useCallback, useEffect, useState } from "react";
 import { useAccount } from "wagmi";
-import { useEngineStatus, useEngineStream, useVaultOwner } from "../../hooks/platform/use-platform";
+import { useEngineStatus } from "../../hooks/platform/use-platform";
 import { platformConfig } from "../../lib/platform-config";
-import { LogoMark } from "../landing/logo-mark";
-import { ConnectWalletButton, useWallet } from "../wallet/wallet-provider";
+import { Cursor } from "../landing/cursor";
+import { useWallet } from "../wallet/wallet-provider";
 import { StatusDot } from "./primitives";
+import { CommandPalette } from "./shell/command-palette";
+import { NAV_ITEMS } from "./shell/nav";
+import { Sidebar } from "./shell/sidebar";
+import { Topbar } from "./shell/topbar";
+
+const COLLAPSED_KEY = "zethos.sidebar.collapsed";
+
+/** Cards light up under the pointer. One listener for the whole page, so cards stay plain markup. */
+function spotlight(event: PointerEvent<HTMLElement>) {
+  const card = (event.target as Element).closest<HTMLElement>(".d-card, .p-card, .p-metric");
+  if (!card) return;
+  const box = card.getBoundingClientRect();
+  card.style.setProperty("--mx", `${event.clientX - box.left}px`);
+  card.style.setProperty("--my", `${event.clientY - box.top}px`);
+}
 
 export function AppShell({ children }: { children: ReactNode }) {
-  const pathname = usePathname();
+  const router = useRouter();
   const { openNetwork } = useWallet();
-  const { isOwner } = useVaultOwner();
   const { isConnected, chainId } = useAccount();
   const status = useEngineStatus();
-  const streaming = useEngineStream();
-  const nav = [
-    { href: "/app", label: "Swap", icon: ArrowLeftRight },
-    { href: "/stats", label: "Insights", icon: BarChart3 },
-    ...(isOwner ? [{ href: "/operator", label: "Workspace", icon: Command }] : []),
-  ];
+  const [collapsed, setCollapsed] = useState(false);
+  const [drawer, setDrawer] = useState(false);
+  const [palette, setPalette] = useState(false);
+
+  useEffect(() => {
+    try {
+      setCollapsed(localStorage.getItem(COLLAPSED_KEY) === "true");
+    } catch {
+      /* Preferences are optional. */
+    }
+  }, []);
+  const toggleSidebar = useCallback(() => {
+    setCollapsed((current) => {
+      try {
+        localStorage.setItem(COLLAPSED_KEY, String(!current));
+      } catch {
+        /* Preferences are optional. */
+      }
+      return !current;
+    });
+  }, []);
+  const closePalette = useCallback(() => setPalette(false), []);
+
+  useEffect(() => {
+    let leader = 0;
+    const onKey = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setPalette((current) => !current);
+        return;
+      }
+      const target = event.target as HTMLElement;
+      if (
+        event.metaKey ||
+        event.ctrlKey ||
+        event.altKey ||
+        target.closest("input, textarea, select, dialog, [contenteditable]")
+      )
+        return;
+      if (event.key === "[") toggleSidebar();
+      else if (event.key === "g") leader = Date.now();
+      else if (Date.now() - leader < 900) {
+        const page = NAV_ITEMS.find((item) => item.key === event.key);
+        leader = 0;
+        if (page) router.push(page.href);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [router, toggleSidebar]);
+
   return (
-    <>
-      <a className="p-skip-link" href="#platform-main">
-        Skip to main content
-      </a>
-      <header className="p-header">
-        <div className="p-header-inner">
-          <Link className="p-brand group" href="/" aria-label="Zethos home">
-            <LogoMark className="size-7" motion="hover" />
-            <span>zethos</span>
-          </Link>
-          <nav className="p-navigation" aria-label="App navigation">
-            {nav.map(({ href, label, icon: Icon }) => (
-              <Link
-                key={href}
-                href={href}
-                aria-current={pathname === href ? "page" : undefined}
-                className={pathname === href ? "active" : ""}
-              >
-                <Icon size={15} aria-hidden />
-                {label}
-              </Link>
-            ))}
-          </nav>
-          <div className="p-header-actions">
-            <button type="button" className="p-network-button" onClick={openNetwork}>
-              <span className="p-chain-mark" aria-hidden>
-                H
-              </span>
+    <MotionConfig reducedMotion="user">
+      <div className="d-app" data-collapsed={collapsed}>
+        <a className="p-skip-link" href="#platform-main">
+          Skip to main content
+        </a>
+        <Sidebar
+          collapsed={collapsed}
+          onToggle={toggleSidebar}
+          open={drawer}
+          onClose={() => setDrawer(false)}
+        />
+        <div className="d-column">
+          <Topbar onMenu={() => setDrawer(true)} onPalette={() => setPalette(true)} />
+          {status.data?.mode !== "shadow" && isConnected && chainId !== platformConfig.chain.id && (
+            <div className="p-network-banner">
               <span>
-                HashKey<small>{platformConfig.chain.testnet ? "Testnet" : "Chain"}</small>
+                <StatusDot tone="warning" />
+                Your wallet is on a different network.
               </span>
-              <ChevronDown size={12} aria-hidden />
-            </button>
-            <ConnectWalletButton />
-          </div>
-        </div>
-      </header>
-      {isConnected && chainId !== platformConfig.chain.id && (
-        <div className="p-network-banner">
-          <span>
-            <StatusDot tone="warning" />
-            Your wallet is on a different network.
-          </span>
-          <button type="button" onClick={openNetwork}>
-            Switch to {platformConfig.chain.name}
-            <ArrowUpRight size={14} />
-          </button>
-        </div>
-      )}
-      <main id="platform-main" className="p-main">
-        {children}
-      </main>
-      <footer className="p-footer">
-        <div className="p-footer-status">
-          <StatusDot tone={status.data && !status.data.paused ? "success" : "neutral"} />
-          <span>
-            {!platformConfig.engineUrl
-              ? "Preview environment"
-              : status.isError
-                ? "Service unavailable"
-                : status.data?.paused
-                  ? "Vault paused"
-                  : status.data
-                    ? streaming
-                      ? "Connected to the market"
-                      : "Market service connected"
-                    : "Connecting to the market"}
-          </span>
-          <span className="p-footer-separator">/</span>
-          <span>{platformConfig.chain.name}</span>
-        </div>
-        <div className="p-footer-links">
-          <Link href="/operator">
-            <Layers3 size={13} />
-            Operator workspace
-          </Link>
-          <a
-            href="https://github.com/divyyyam/zethos/tree/main/docs"
-            target="_blank"
-            rel="noreferrer noopener"
-          >
-            <CircleHelp size={13} />
-            Documentation
-            <ArrowUpRight size={12} />
-          </a>
-          {platformConfig.vaultAddress && (
-            <a
-              href={`${platformConfig.explorer}/address/${platformConfig.vaultAddress}`}
-              target="_blank"
-              rel="noreferrer noopener"
-            >
-              Vault contract
-              <ArrowUpRight size={12} />
-            </a>
+              <button type="button" onClick={openNetwork}>
+                Switch to {platformConfig.chain.name}
+                <ArrowUpRight size={14} />
+              </button>
+            </div>
           )}
+          <main id="platform-main" className="p-main d-page" onPointerMove={spotlight}>
+            {children}
+          </main>
+          <footer className="d-footer">
+            <span>
+              {status.data?.mode === "shadow"
+                ? `Shadow mode: ${status.data.dataSource === "replay" ? "replayed" : "live"} exchange prices, paper settlement. No funds move.`
+                : platformConfig.chain.name}
+            </span>
+            {platformConfig.vaultAddress && (
+              <a
+                href={`${platformConfig.explorer}/address/${platformConfig.vaultAddress}`}
+                target="_blank"
+                rel="noreferrer noopener"
+              >
+                Vault contract <ArrowUpRight size={12} aria-hidden />
+              </a>
+            )}
+          </footer>
         </div>
-      </footer>
-    </>
+        <CommandPalette open={palette} onClose={closePalette} onToggleSidebar={toggleSidebar} />
+        <Cursor />
+      </div>
+    </MotionConfig>
   );
 }

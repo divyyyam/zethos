@@ -7,3 +7,20 @@ This version has breaking changes — APIs, conventions, and file structure may 
 This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
 
 <!-- END:nextjs-agent-rules -->
+
+# Zethos web app
+
+Read the root [`AGENTS.md`](../../AGENTS.md) first for the product, the final feature list and
+the invariants. The frontend ↔ engine ↔ vault contract is in [`INTEGRATION.md`](./INTEGRATION.md).
+
+- The UI is complete. Work here is wiring, not redesign: connect to the real engine and the
+  deployed vault, and keep every existing safety check in `src/lib/engine/` and
+  `src/hooks/platform/use-swap-execution.ts`.
+- `src/lib/engine/{client,verify-quote,types}.ts` will be extracted into `packages/sdk`. Keep
+  them free of React and Next imports.
+- `/agent` uses the landing's design system (`[data-landing]`, serif display, world windows,
+  the quote ticket), not the platform cards. Keep it that way. Its parser refuses what it can't
+  fully read; don't make it guess, because users authorize what it compiles.
+- Every platform page renders inside the dashboard shell (`components/platform/shell`, `app/(app)/shell.css`).
+  The shell re-points `--cw` and `--edge`, so size page content from those, not from `100vw`.
+- Sample data lives only in `src/content/*.mock.ts` and is always labeled.

@@ -38,6 +38,7 @@ import { BrandMark, Modal, StatusDot, TokenIcon, useToast } from "./primitives";
 
 export function OperatorPageContent() {
   const account = useAccount();
+  const status = useEngineStatus();
   const owner = useVaultOwner();
   const [preview, setPreview] = useState(false);
   const [actor, setActor] = useState<{ address: string; chain: number; expires: number } | null>(
@@ -109,12 +110,16 @@ export function OperatorPageContent() {
       const signature = await signMessageAsync({ message });
       assertWallet();
       setPhase("verification");
-      await engineRequest("/auth/verify", {
-        method: "POST",
-        body: JSON.stringify({ message, signature }),
-      });
+      const session = object(
+        await engineRequest("/auth/verify", {
+          method: "POST",
+          body: JSON.stringify({ message, signature }),
+        }),
+      );
       assertWallet();
-      setActor({ address, chain: platformConfig.chain.id, expires: Date.now() + 12 * 3600000 });
+      if (typeof session.expiresAt !== "number")
+        throw new Error("The sign-in service returned an invalid session.");
+      setActor({ address, chain: platformConfig.chain.id, expires: session.expiresAt });
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : "Sign-in couldn’t be completed.";
       setError(
@@ -135,6 +140,8 @@ export function OperatorPageContent() {
         onExit={() => {
           setPreview(false);
           setActor(null);
+          if (platformConfig.engineUrl)
+            void engineRequest("/auth/logout", { method: "POST" }).catch(() => {});
         }}
         onSessionExpired={() => {
           setActor(null);
@@ -151,17 +158,19 @@ export function OperatorPageContent() {
         <p>
           {notOwner
             ? "This wallet isn’t the current vault owner. Connect the owner wallet to continue."
-            : !platformConfig.vaultAddress
+            : !platformConfig.vaultAddress && status.data?.mode !== "shadow"
               ? "Operator access opens with the vault deployment. You can explore a read-only preview in the meantime."
-              : !account.isConnected
-                ? "Connect the vault owner’s wallet to open your workspace."
-                : owner.isPending
-                  ? "Checking the vault’s current owner…"
-                  : owner.isError
-                    ? "We couldn’t verify ownership right now. Check the vault’s network and try again."
-                    : !platformConfig.engineUrl
-                      ? "Your owner wallet is verified. Operator sign-in opens when the live service is connected."
-                      : "Your wallet is verified as the owner. Sign a message to start your operator session."}
+              : status.data?.mode === "shadow" && !status.data.operator
+                ? "Paper operator access is not configured. Set OPERATOR_ADDRESS and SESSION_SECRET in the engine."
+                : !account.isConnected
+                  ? "Connect the vault owner’s wallet to open your workspace."
+                  : owner.isPending
+                    ? "Checking the vault’s current owner…"
+                    : owner.isError
+                      ? "We couldn’t verify ownership right now. Check the vault’s network and try again."
+                      : !platformConfig.engineUrl
+                        ? "Your owner wallet is verified. Operator sign-in opens when the live service is connected."
+                        : "Your wallet is verified as the owner. Sign a message to start your operator session."}
         </p>
         {account.address && (
           <div className="p-access-wallet">
@@ -242,9 +251,11 @@ function OperatorDashboard({
 }) {
   const [period, setPeriod] = useState("today");
   const [confirmControl, setConfirmControl] = useState(false);
+  const [confirmReset, setConfirmReset] = useState(false);
   const [controlPhase, setControlPhase] = useState<"idle" | "signing" | "confirming">("idle");
   const [controlError, setControlError] = useState<string | null>(null);
   const status = useEngineStatus();
+  const shadow = status.data?.mode === "shadow";
   const client = usePublicClient({ chainId: platformConfig.chain.id });
   const owner = useVaultOwner();
   const queryClient = useQueryClient();
@@ -265,7 +276,7 @@ function OperatorDashboard({
   });
   const inventory = useQuery({
     queryKey: ["vault-inventory", platformConfig.chain.id, platformConfig.vaultAddress],
-    enabled: Boolean(!preview && platformConfig.vaultAddress && client),
+    enabled: Boolean(!preview && !shadow && platformConfig.vaultAddress && client),
     staleTime: 10000,
     refetchInterval: 20000,
     retry: false,
@@ -317,18 +328,28 @@ function OperatorDashboard({
   const abi: Abi = zethosVaultAbi;
   const controlName = paused ? "unpause" : "pause";
   const canControl =
-    !preview &&
-    owner.isOwner &&
-    Boolean(
-      platformConfig.vaultAddress &&
-        status.data &&
-        abi.some((entry) => entry.type === "function" && entry.name === controlName),
-    );
+    (!preview &&
+      owner.isOwner &&
+      Boolean(
+        platformConfig.vaultAddress &&
+          status.data &&
+          abi.some((entry) => entry.type === "function" && entry.name === controlName),
+      )) ||
+    (!preview && shadow && owner.isOwner && Boolean(status.data));
   const control = async () => {
-    if (!canControl || !client || !platformConfig.vaultAddress || controlPhase !== "idle") return;
+    if (!canControl || controlPhase !== "idle") return;
     setControlError(null);
     setControlPhase("signing");
     try {
+      if (shadow) {
+        await engineRequest(`/operator/${paused ? "resume" : "pause"}`, { method: "POST" });
+        await queryClient.invalidateQueries({ queryKey: ["engine", "status"] });
+        setConfirmControl(false);
+        notify({ title: paused ? "Paper quoting resumed" : "Paper vault paused", tone: "success" });
+        return;
+      }
+      if (!client || !platformConfig.vaultAddress)
+        throw new Error("The live vault is not configured.");
       const currentOwner = await owner.refetch();
       const account = getAccount(wagmiConfig);
       if (
@@ -391,7 +412,14 @@ function OperatorDashboard({
           spreadAsk: 0.06,
         },
       ]
-    : status.data?.pairs || [];
+    : (status.data?.pairs ?? []).map((pair) => ({
+        pair: pair.pair,
+        feed: pair.health,
+        mid: pair.mid ?? 0,
+        gapPct: null,
+        spreadBid: (pair.halfSpread?.sell ?? 0) * 100,
+        spreadAsk: (pair.halfSpread?.buy ?? 0) * 100,
+      }));
   return (
     <>
       <div className="p-page-heading">
@@ -451,12 +479,24 @@ function OperatorDashboard({
         </div>
         <div>
           <span>Vault value</span>
-          <strong>{preview ? "$48,000.00" : "—"}</strong>
+          <strong>
+            {preview
+              ? "$48,000.00"
+              : status.data?.equityUsd != null
+                ? formatUsd(status.data.equityUsd)
+                : "—"}
+          </strong>
         </div>
         <div>
           <span>Assets under management</span>
           <strong>
-            {preview ? "3 assets" : inventory.data ? `${inventory.data.length} assets` : "—"}
+            {preview
+              ? "3 assets"
+              : shadow
+                ? "3 paper assets"
+                : inventory.data
+                  ? `${inventory.data.length} assets`
+                  : "—"}
           </strong>
         </div>
         <button
@@ -471,6 +511,19 @@ function OperatorDashboard({
           {paused ? <Play size={14} /> : <Pause size={14} />}
           {paused ? "Resume vault" : "Pause vault"}
         </button>
+        {!preview && shadow && (
+          <button
+            type="button"
+            className="p-button p-button-secondary"
+            disabled={!owner.isOwner}
+            onClick={() => {
+              setControlError(null);
+              setConfirmReset(true);
+            }}
+          >
+            Reset paper Arena
+          </button>
+        )}
       </div>
       <section aria-labelledby="inventory-title">
         <div className="p-section-heading">
@@ -480,7 +533,17 @@ function OperatorDashboard({
         <div className="p-inventory-grid">
           {platformTokens.map((token) => {
             const sampleAsset = sampleInventory.find((asset) => asset.symbol === token.symbol);
-            const liveAsset = inventory.data?.find((asset) => asset.symbol === token.symbol);
+            const metadata = status.data?.pairs
+              .flatMap((p) => [p.base, p.quote])
+              .find((t) => t.symbol === token.symbol);
+            const paperAmount = status.data?.inventory[token.symbol];
+            const liveAsset =
+              shadow && metadata && paperAmount !== undefined
+                ? {
+                    symbol: token.symbol,
+                    amount: formatUnits(BigInt(paperAmount), metadata.decimals),
+                  }
+                : inventory.data?.find((asset) => asset.symbol === token.symbol);
             return (
               <div className="p-card p-inventory-card" key={token.symbol}>
                 <div className="p-card-header">
@@ -612,7 +675,7 @@ function OperatorDashboard({
                   </div>
                   <div>
                     <dt>Pool gap</dt>
-                    <dd>{formatNumber(pair.gapPct)}%</dd>
+                    <dd>{pair.gapPct === null ? "No venue" : `${formatNumber(pair.gapPct)}%`}</dd>
                   </div>
                   <div>
                     <dt>Bid / ask spread</dt>
@@ -704,9 +767,11 @@ function OperatorDashboard({
           </span>
           <h2>{paused ? "Resume quoting?" : "Pause quoting?"}</h2>
           <p>
-            {paused
-              ? "Your wallet will confirm an on-chain transaction to resume the vault."
-              : "Pausing stops new settlements through the vault. Your wallet will confirm the on-chain transaction."}
+            {shadow
+              ? "This changes the paper engine only. No wallet transaction or funds transfer occurs."
+              : paused
+                ? "Your wallet will confirm an on-chain transaction to resume the vault."
+                : "Pausing stops new settlements through the vault. Your wallet will confirm the on-chain transaction."}
           </p>
           {controlError && (
             <p className="p-form-error" role="alert">
@@ -727,6 +792,49 @@ function OperatorDashboard({
                 : paused
                   ? "Resume vault"
                   : "Pause vault"}
+          </button>
+        </div>
+      </Modal>
+      <Modal
+        open={confirmReset}
+        title="Reset paper Arena"
+        onClose={() => {
+          if (controlPhase === "idle") setConfirmReset(false);
+        }}
+        className="p-control-modal"
+      >
+        <div className="p-control-content">
+          <h2>Start a fresh paper epoch?</h2>
+          <p>
+            This resets paper inventory and P&amp;L. Previous fills stay in history, tagged with
+            their epoch. Outstanding paper quotes will no longer fill.
+          </p>
+          {controlError && (
+            <p className="p-form-error" role="alert">
+              {controlError}
+            </p>
+          )}
+          <button
+            type="button"
+            className="p-button p-button-primary p-full"
+            disabled={controlPhase !== "idle"}
+            onClick={async () => {
+              setControlPhase("confirming");
+              try {
+                await engineRequest("/operator/arena-reset", { method: "POST" });
+                await queryClient.invalidateQueries({ queryKey: ["engine"] });
+                setConfirmReset(false);
+                notify({ title: "Paper Arena reset", tone: "success" });
+              } catch (cause) {
+                setControlError(
+                  cause instanceof Error ? cause.message : "Could not reset paper Arena",
+                );
+              } finally {
+                setControlPhase("idle");
+              }
+            }}
+          >
+            Reset paper inventory
           </button>
         </div>
       </Modal>

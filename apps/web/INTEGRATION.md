@@ -1,5 +1,33 @@
 # Zethos internal platform
 
+## Shadow integration (31 Oct 2026)
+
+The active REST/stream wire contract is `packages/sdk/src/schemas.ts`, exercised against
+the real Hono engine in `apps/engine/test/sdk.test.ts` and the Arena/agent tests. The live-vault
+sections below also describe future settlement; they are not a claim that a vault is deployed.
+
+- Swap requests and quote verification use `@zethos/sdk`. The paper route uses a zero-address
+  signing domain and requires no token approval, wallet signature, wallet balance or gas.
+  The connected address is the human taker identity. Existing live ABI capability gates remain.
+- `/arena` consumes equity, by-flow P&L, epoch-scoped fills and markouts, taker tiers and the
+  deterministic decision journal. Paper labels and the methodology remain visible.
+- Insights uses fused/reference source history and actual configured venue depth. An empty
+  venue list is shown as zero configured depth, without an invented pool price or savings.
+- `/status.operator` identifies the SIWE owner in shadow; live mode continues to read the
+  deployed vault owner. Paper pause/resume and reset use authenticated engine endpoints.
+- One shared SDK stream feeds both the shell and Agent. It updates or invalidates query
+  caches, never triggers trades. Outage price frames explicitly allow `mid: null`.
+- The Agent accepts ordinary English quote questions directly; broader requests use Gemini's
+  read-only `/chat` interpretation when configured. Amounts, units, guards, schedules and
+  triggers are validated before drafting. Quotes fetch real signed engine prices without
+  settlement. Trade drafts still require authorization; the model never supplies fill calldata.
+- With no engine URL, previews are explicitly labelled. A configured engine failure stays a
+  failure. Gemini failures do not silently turn an English request into an executable trade.
+
+Local setup: engine on `:8787`, web `NEXT_PUBLIC_ENGINE_URL=http://localhost:8787`, and exact
+engine `CORS_ORIGIN=http://localhost:3000`. Set Gemini and operator secrets only on the engine;
+see `apps/engine/.dev.vars.example`. Apply the engine's Drizzle migrations before using Neon.
+
 The internal app lives in the existing Next.js app and leaves the landing page independent.
 It inherits the landing's Instrument Sans / Inter fonts, palette, rounded surfaces, and glass
 details. Internal styles are scoped by `[data-platform]` in `src/app/(app)/platform.css`.

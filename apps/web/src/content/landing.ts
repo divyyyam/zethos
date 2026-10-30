@@ -50,13 +50,13 @@ export const landing = {
     label: "Primary navigation",
     wordmark: "zethos",
     homeLabel: "Zethos home",
-    cta: { label: "Launch app", href: "/app" },
+    cta: { label: "Launch app", href: "/dashboard" },
   },
 
   hero: {
     headline: { lead: "Every swap on HashKey,", accent: "at exchange prices." },
     sub: "Zethos prices your swap against live exchange order books and fills it straight from its vault. No thin pools, no surprise slippage.",
-    primary: { label: "Launch app", href: "/app" },
+    primary: { label: "Launch app", href: "/dashboard" },
     secondary: { label: "Look closer", href: "#how-it-works" },
     ticker: [
       { label: "HSK / USDT", value: "0.0820" },
@@ -233,7 +233,7 @@ export const landing = {
   cta: {
     headline: "Stop paying for *thin pools.*",
     sub: "Get exchange-grade prices on every swap on HashKey Chain.",
-    primary: { label: "Launch app", href: "/app" },
+    primary: { label: "Launch app", href: "/dashboard" },
     argument: { value: "+28,228 HSK", label: "on the same 25,000 USDT swap" },
     argumentNote: "Illustrative, from the example above.",
   },
@@ -247,7 +247,7 @@ export const landing = {
       {
         title: "Product",
         links: [
-          { label: "Launch app", href: "/app" },
+          { label: "Launch app", href: "/dashboard" },
           { label: "Insights", href: "/stats" },
           { label: "Operator", href: "/operator" },
         ],

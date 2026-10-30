@@ -1,6 +1,7 @@
 "use client";
 
 import { Check, ChevronRight, X } from "lucide-react";
+import Link from "next/link";
 import {
   createContext,
   type ReactNode,
@@ -229,7 +230,14 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             <div>
               <strong>{toast.title}</strong>
               {toast.description && <p>{toast.description}</p>}
-              {toast.href && <ExternalLink href={toast.href}>View transaction</ExternalLink>}
+              {toast.href &&
+                (toast.href.startsWith("/") ? (
+                  <Link className="p-text-link" href={toast.href}>
+                    View in Arena
+                  </Link>
+                ) : (
+                  <ExternalLink href={toast.href}>View transaction</ExternalLink>
+                ))}
             </div>
             <button
               className="p-icon-button"

@@ -1,4 +1,7 @@
 import "./platform.css";
+import "./arena/arena.css";
+import "./agent/agent.css";
+import "./shell.css";
 import type { Metadata } from "next";
 import { AppShell } from "../../components/platform/app-shell";
 import { Providers } from "../providers";

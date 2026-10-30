@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import type { QuoteRequest, SignedQuoteResponse } from "@zethos/sdk";
 import {
   ArrowDown,
   ArrowDownUp,
@@ -31,8 +32,7 @@ import {
   swapPhaseLabel,
   useSwapExecution,
 } from "../../hooks/platform/use-swap-execution";
-import { engine } from "../../lib/engine/client";
-import type { QuoteRequest, VaultQuote } from "../../lib/engine/types";
+import { failureMessage, zethos } from "../../lib/engine/sdk";
 import {
   formatNumber,
   formatUsd,
@@ -43,7 +43,7 @@ import {
   tokenBySymbol,
 } from "../../lib/platform-config";
 import { useWallet } from "../wallet/wallet-provider";
-import { Assistant } from "./assistant";
+import { PriceAnatomy } from "./price-anatomy";
 import { BrandMark, EmptyState, ExternalLink, Modal, StatusDot, TokenIcon } from "./primitives";
 
 function TokenPicker({
@@ -127,23 +127,33 @@ export function SwapPageContent() {
   const [settings, setSettings] = useState(false);
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [review, setReview] = useState(false);
-  const [reviewedQuote, setReviewedQuote] = useState<VaultQuote | null>(null);
-  const [assistantOpen, setAssistantOpen] = useState(false);
+  const [reviewedQuote, setReviewedQuote] = useState<SignedQuoteResponse | null>(null);
+  const [reviewedRequest, setReviewedRequest] = useState<QuoteRequest | null>(null);
   const [now, setNow] = useState(0);
   const account = useAccount();
   const { openWallet, openNetwork } = useWallet();
-  const balance = useTokenBalance(from);
-  const outputBalance = useTokenBalance(to);
   const status = useEngineStatus();
+  const isShadow = status.data?.mode === "shadow";
+  const inputToken = status.data?.pairs
+    .flatMap((p) => [p.base, p.quote])
+    .find((t) => t.symbol === from.symbol);
+  const outputToken = status.data?.pairs
+    .flatMap((p) => [p.base, p.quote])
+    .find((t) => t.symbol === to.symbol);
+  const balance = useTokenBalance(from, !isShadow);
+  const outputBalance = useTokenBalance(to, !isShadow);
+  const inputDecimals = isShadow ? inputToken?.decimals : balance.data?.decimals;
+  const outputDecimals = isShadow ? outputToken?.decimals : outputBalance.data?.decimals;
   const execution = useSwapExecution();
   const native = useBalance({
     ...(account.address ? { address: account.address } : {}),
     chainId: platformConfig.chain.id,
-    query: { enabled: Boolean(account.address), refetchInterval: 20000 },
+    query: { enabled: Boolean(account.address && !isShadow), refetchInterval: 20000 },
   });
   const amountId = useId();
   const sample = !platformConfig.engineUrl;
-  const wrongNetwork = account.isConnected && account.chainId !== platformConfig.chain.id;
+  const wrongNetwork =
+    !isShadow && account.isConnected && account.chainId !== platformConfig.chain.id;
   const amountValue = Number(debouncedAmount || "0");
   useEffect(() => {
     const timeout = setTimeout(() => setDebouncedAmount(amount), 400);
@@ -162,54 +172,69 @@ export function SwapPageContent() {
     }
   }, []);
   const inputValidation = useMemo(() => {
-    if (!balance.data || !debouncedAmount || !Number.isFinite(amountValue) || amountValue <= 0)
+    if (
+      inputDecimals === undefined ||
+      !debouncedAmount ||
+      !Number.isFinite(amountValue) ||
+      amountValue <= 0
+    )
       return { raw: 0n, error: null };
-    if ((debouncedAmount.split(".")[1]?.length || 0) > balance.data.decimals)
+    if ((debouncedAmount.split(".")[1]?.length || 0) > inputDecimals)
       return {
         raw: 0n,
-        error: `${from.symbol} supports up to ${balance.data.decimals} decimal places.`,
+        error: `${from.symbol} supports up to ${inputDecimals} decimal places.`,
       };
     try {
-      const raw = parseUnits(debouncedAmount, balance.data.decimals);
+      const raw = parseUnits(debouncedAmount, inputDecimals);
       return {
         raw,
         error:
-          !sample && raw > balance.data.value
+          !sample && !isShadow && balance.data && raw > balance.data.value
             ? `Your ${from.symbol} balance is lower than this amount.`
             : null,
       };
     } catch {
       return { raw: 0n, error: "Enter a valid token amount." };
     }
-  }, [balance.data, debouncedAmount, amountValue, from.symbol, sample]);
+  }, [balance.data, inputDecimals, debouncedAmount, amountValue, from.symbol, sample, isShadow]);
+  const inputAddress = isShadow ? inputToken?.address : from.address;
+  const outputAddress = isShadow ? outputToken?.address : to.address;
   const request: QuoteRequest | null =
     account.address &&
-    from.address &&
-    to.address &&
+    inputAddress &&
+    outputAddress &&
     inputValidation.raw > 0n &&
     !inputValidation.error &&
     !wrongNetwork &&
-    outputBalance.data
+    outputDecimals !== undefined
       ? {
           taker: account.address,
-          tokenIn: from.address,
-          tokenOut: to.address,
+          tokenIn: inputAddress,
+          tokenOut: outputAddress,
           amountIn: inputValidation.raw.toString(),
         }
       : null;
   const quote = useQuery({
     queryKey: ["engine", "quote", platformConfig.chain.id, request],
-    queryFn: ({ signal }) => {
-      if (!request) throw new Error("Choose an amount and connect your wallet.");
-      return engine.quote(request, signal);
+    queryFn: async () => {
+      if (!request || !zethos) throw new Error("Choose an amount and connect your wallet.");
+      const response = await zethos.quote(request);
+      if (response.route !== "hskswap") {
+        const verified = await zethos.verifyQuote(response, request, {
+          minRemainingSec: response.route === "paper" ? 1 : 5,
+        });
+        if (!verified.ok)
+          throw new Error(`Quote verification failed: ${verified.reasons.join(", ")}`);
+      }
+      return response;
     },
-    enabled: Boolean(request && !sample),
+    enabled: Boolean(request && !sample && status.data && !status.isError && !review),
     retry: false,
     staleTime: 0,
     refetchOnWindowFocus: true,
     refetchInterval: (query) => {
       const data = query.state.data;
-      return autoRefresh && data?.route === "conduit"
+      return autoRefresh && !review && !execution.busy && data && data.route !== "hskswap"
         ? Math.max(1000, data.expiresAt * 1000 - Date.now() - 1000)
         : false;
     },
@@ -218,27 +243,33 @@ export function SwapPageContent() {
     Number.isFinite(amountValue) && amountValue > 0
       ? ((amountValue * from.samplePrice) / to.samplePrice) * 0.9992
       : 0;
-  const live = quote.data?.route === "conduit" ? quote.data : null;
+  const live = !quote.isError && quote.data && quote.data.route !== "hskswap" ? quote.data : null;
   const out = sample
     ? sampleOut
-    : quote.data && outputBalance.data
+    : !quote.isError && quote.data && outputDecimals !== undefined
       ? Number(
           formatUnits(
-            BigInt(quote.data.route === "conduit" ? quote.data.conduitOut : quote.data.hskswapOut),
-            outputBalance.data.decimals,
+            BigInt(
+              quote.data.route === "hskswap" ? quote.data.hskswapOut : quote.data.quote.amountOut,
+            ),
+            outputDecimals,
           ),
         )
       : null;
+  const poolRaw = live ? (live.route === "paper" ? live.poolOut : live.hskswapOut) : null;
   const poolOut = sample
     ? ((amountValue * from.samplePrice) / to.samplePrice) * 0.978
-    : live && outputBalance.data
-      ? Number(formatUnits(BigInt(live.hskswapOut), outputBalance.data.decimals))
+    : poolRaw !== null && outputDecimals !== undefined
+      ? Number(formatUnits(BigInt(poolRaw), outputDecimals))
       : null;
   const saving = out !== null && poolOut !== null ? Math.max(0, out - poolOut) : 0;
-  const savingPct = live?.savingPct ?? (sample && poolOut && out ? (out / poolOut - 1) * 100 : 0);
+  const savingPct =
+    (live?.route === "paper" ? live.savingVsPoolPct : live?.savingPct) ??
+    (sample && poolOut && out ? (out / poolOut - 1) * 100 : 0);
   const ttl = live ? Math.max(0, Math.ceil(live.expiresAt - now / 1000)) : 0;
   const validAmount = Boolean(amountValue > 0 && Number.isFinite(amountValue));
-  const hasLowGas = account.isConnected && native.data && native.data.value < parseEther("0.05");
+  const hasLowGas =
+    !isShadow && account.isConnected && native.data && native.data.value < parseEther("0.05");
   const inputChanged = amount !== debouncedAmount;
   const blocked =
     !validAmount ||
@@ -265,6 +296,7 @@ export function SwapPageContent() {
   const openReview = () => {
     execution.reset();
     setReviewedQuote(live);
+    setReviewedRequest(request);
     setReview(true);
   };
   let action = "Review swap";
@@ -276,18 +308,19 @@ export function SwapPageContent() {
     action = inputValidation.raw > 0n ? `Not enough ${from.symbol}` : "Check the amount";
   else if (sample) action = "View swap preview";
   else if (!from.address || !to.address) action = "This pair isn’t available yet";
-  else if (balance.isPending || outputBalance.isPending) action = "Reading your balances…";
-  else if (balance.isError || outputBalance.isError) action = "Token balance unavailable";
+  else if (!isShadow && (balance.isPending || outputBalance.isPending))
+    action = "Reading your balances…";
+  else if (!isShadow && (balance.isError || outputBalance.isError))
+    action = "Token balance unavailable";
   else if (quote.isFetching || inputChanged) action = "Finding your price…";
   else if (quote.isError) action = "Try a fresh quote";
-  else if (quote.data?.route === "hskswap") action = "Better on HSKSwap";
+  else if (quote.data?.route === "hskswap") action = "On-chain venue has a better price";
   else if (live && ttl <= 0) action = "Refresh expired quote";
   const formNotice =
     inputValidation.error ||
-    (balance.isError && account.isConnected
+    (!isShadow && balance.isError && account.isConnected
       ? "We couldn’t read this token balance. Check the network and try again."
       : null);
-  const poolHref = `https://app.hskswap.com/#/swap?${new URLSearchParams({ inputCurrency: from.address || "", outputCurrency: to.address || "" })}`;
   return (
     <>
       <div className="p-swap-layout">
@@ -298,18 +331,14 @@ export function SwapPageContent() {
                 <h2 id="swap-form-title">Swap</h2>
                 <span className={`p-pill ${sample ? "p-pill-neutral" : ""}`}>
                   <StatusDot />
-                  {sample ? "Preview prices" : "Firm quote"}
+                  {sample ? "Preview prices" : isShadow ? "Paper quote" : "Firm quote"}
                 </span>
               </div>
               <div className="p-card-actions">
-                <button
-                  type="button"
-                  className="p-text-button"
-                  onClick={() => setAssistantOpen(true)}
-                >
+                <Link className="p-text-button" href="/agent">
                   <Sparkles size={14} />
-                  Ask Zethos
-                </button>
+                  Agent mode
+                </Link>
                 <button
                   type="button"
                   className="p-icon-button"
@@ -324,7 +353,9 @@ export function SwapPageContent() {
               <div className="p-amount-label">
                 <label htmlFor={amountId}>You pay</label>
                 <span>
-                  Balance: {balance.data ? formatNumber(Number(balance.data.formatted), 5) : "—"}
+                  {isShadow
+                    ? "Paper · no wallet funds used"
+                    : `Balance: ${balance.data ? formatNumber(Number(balance.data.formatted), 5) : "—"}`}
                   {account.isConnected && balance.data && balance.data.value > 0n && (
                     <button type="button" onClick={() => setAmount(balance.data.formatted)}>
                       Max
@@ -416,12 +447,14 @@ export function SwapPageContent() {
               <div>
                 <span>
                   <ArrowLeftRight size={13} />
-                  HSKSwap
+                  On-chain pools
                 </span>
                 <span>
                   {poolOut
                     ? `${formatNumber(poolOut, to.symbol === "WETH" ? 6 : 4)} ${to.symbol}`
-                    : "—"}
+                    : live?.route === "paper"
+                      ? "No venue with depth for this size"
+                      : "—"}
                 </span>
               </div>
               {saving > 0 && (
@@ -437,6 +470,22 @@ export function SwapPageContent() {
                 </div>
               )}
             </div>
+            {live && (
+              <details className="p-quote-anatomy">
+                <summary>Why this price</summary>
+                <PriceAnatomy
+                  breakdown={live.breakdown}
+                  vsMidBps={live.route === "paper" ? live.vsMidBps : 0}
+                />
+              </details>
+            )}
+            {live?.breakdown.tier !== "normal" && live && (
+              <p className="p-card-footnote">
+                {live.breakdown.tier === "probation"
+                  ? "New takers get shorter quotes until they have a few fills."
+                  : "Your recent fills moved against the vault; quotes are shorter and wider."}
+              </p>
+            )}
             {formNotice && (
               <p className="p-form-error" role="alert">
                 {formNotice}
@@ -444,7 +493,7 @@ export function SwapPageContent() {
             )}
             {quote.isError && !sample && (
               <p className="p-form-error" role="alert">
-                {quote.error.message}
+                {quote.error instanceof Error ? quote.error.message : failureMessage(quote.error)}
               </p>
             )}
             {hasLowGas && (
@@ -454,15 +503,9 @@ export function SwapPageContent() {
               </div>
             )}
             {quote.data?.route === "hskswap" ? (
-              <a
-                className="p-button p-button-primary p-swap-action"
-                href={poolHref}
-                target="_blank"
-                rel="noreferrer noopener"
-              >
-                {action}
-                <ArrowUpRight size={15} />
-              </a>
+              <p className="p-card-footnote">
+                {action}: {quote.data.venue}. {quote.data.reason}
+              </p>
             ) : (
               <button
                 type="button"
@@ -494,7 +537,9 @@ export function SwapPageContent() {
               <span>
                 {sample
                   ? "Sample prices. No funds move in preview mode."
-                  : "Never worse than HSKSwap, checked on-chain."}
+                  : isShadow
+                    ? "Paper settlement. No approval or wallet transaction."
+                    : "Output protected by the signed quote and vault checks."}
               </span>
               {live && (
                 <button
@@ -605,7 +650,9 @@ export function SwapPageContent() {
           <p className="p-review-sub">
             {sample
               ? "Sample prices. This is not an executable quote."
-              : "Check the amounts before continuing in your wallet."}
+              : isShadow
+                ? "Paper fill. No funds move and no wallet transaction is requested."
+                : "Check the amounts before continuing in your wallet."}
           </p>
           <div className="p-review-amount">
             <TokenIcon symbol={from.symbol} />
@@ -624,11 +671,9 @@ export function SwapPageContent() {
             <div>
               <span>You receive</span>
               <strong>
-                {reviewedQuote && outputBalance.data
+                {reviewedQuote && outputDecimals !== undefined
                   ? formatNumber(
-                      Number(
-                        formatUnits(BigInt(reviewedQuote.conduitOut), outputBalance.data.decimals),
-                      ),
+                      Number(formatUnits(BigInt(reviewedQuote.quote.amountOut), outputDecimals)),
                       6,
                     )
                   : formatNumber(out || 0, 6)}{" "}
@@ -645,12 +690,12 @@ export function SwapPageContent() {
               <span>Price protection</span>
               <strong>
                 <ShieldCheck size={12} />
-                On-chain check
+                {isShadow ? "Paper vault checks" : "On-chain check"}
               </strong>
             </div>
             <div>
               <span>Approval limit</span>
-              <strong>This swap only</strong>
+              <strong>{isShadow ? "No approval needed" : "This swap only"}</strong>
             </div>
             {account.address && (
               <div>
@@ -698,41 +743,42 @@ export function SwapPageContent() {
               type="button"
               className="p-button p-button-primary p-full"
               disabled={
-                !settlementReady ||
+                (!isShadow && !settlementReady) ||
                 !reviewedQuote ||
                 execution.busy ||
+                !reviewedRequest ||
+                (reviewedQuote ? Number(reviewedQuote.quote.expiry) * 1000 <= now : true) ||
                 wrongNetwork ||
                 !account.address ||
                 account.address.toLowerCase() !== reviewedQuote?.quote.taker.toLowerCase()
               }
               onClick={() => {
-                if (reviewedQuote) void execution.execute(reviewedQuote);
+                if (reviewedQuote && reviewedRequest)
+                  void execution.execute(reviewedQuote, reviewedRequest);
               }}
             >
               {execution.busy && <LoaderCircle size={16} className="p-spin" />}
-              {!settlementReady
-                ? "Live settlement opens with the vault"
-                : swapPhaseLabel[execution.phase]}
+              {isShadow
+                ? execution.busy
+                  ? "Filling paper quote…"
+                  : reviewedQuote && Number(reviewedQuote.quote.expiry) * 1000 <= now
+                    ? "Quote expired · close and refresh"
+                    : "Paper fill"
+                : !settlementReady
+                  ? "Live settlement opens with the vault"
+                  : swapPhaseLabel[execution.phase]}
             </button>
           )}
           <p className="p-wallet-footnote">
             <ShieldCheck size={13} />
             {sample
               ? "No transaction will be submitted."
-              : "Your wallet will ask you to approve each transaction."}
+              : isShadow
+                ? "Paper settlement only. No funds move."
+                : "Your wallet will ask you to approve each transaction."}
           </p>
         </div>
       </Modal>
-      <Assistant
-        open={assistantOpen}
-        onClose={() => setAssistantOpen(false)}
-        onUseQuote={(input) => {
-          setFrom(tokenBySymbol(input.from));
-          setTo(tokenBySymbol(input.to));
-          setAmount(input.amount);
-          setAssistantOpen(false);
-        }}
-      />
     </>
   );
 }
@@ -742,7 +788,10 @@ function RecentSwaps() {
   const { openWallet } = useWallet();
   const query = useQuery({
     queryKey: ["engine", "fills", address],
-    queryFn: ({ signal }) => engine.fills(address || "", signal),
+    queryFn: () => {
+      if (!address || !zethos) throw new Error("Connect your wallet to read paper fills.");
+      return zethos.fills({ taker: address, limit: 20 });
+    },
     enabled: Boolean(address && platformConfig.engineUrl),
     retry: false,
   });
@@ -794,8 +843,8 @@ function RecentSwaps() {
           title={query.isFetching ? "Loading swaps" : "No swaps yet"}
         >
           {query.isFetching
-            ? "Fetching your on-chain activity."
-            : "Confirmed swaps will appear here."}
+            ? "Fetching your swap activity."
+            : "Your confirmed paper and on-chain fills will appear here."}
         </EmptyState>
       </div>
     );
@@ -806,7 +855,7 @@ function RecentSwaps() {
           <tr>
             <th scope="col">Pair</th>
             <th scope="col">Filled</th>
-            <th scope="col">Saving vs pool</th>
+            <th scope="col">Price 5 s later</th>
             <th scope="col">Settlement</th>
           </tr>
         </thead>
@@ -820,11 +869,23 @@ function RecentSwaps() {
                   timeStyle: "short",
                 })}
               </td>
-              <td className="p-success-text">+{formatNumber(fill.savingPct)}%</td>
               <td>
-                <ExternalLink href={`${platformConfig.explorer}/tx/${fill.txHash}`}>
-                  {shortAddress(fill.txHash)}
-                </ExternalLink>
+                {fill.markouts?.["5"] !== undefined
+                  ? `${formatNumber(fill.markouts["5"])} bps · vault view`
+                  : "Measuring…"}
+              </td>
+              <td>
+                {fill.paper ? (
+                  <Link className="p-text-link" href={`/arena#${fill.id}`}>
+                    Paper fill
+                  </Link>
+                ) : fill.txHash ? (
+                  <ExternalLink href={`${platformConfig.explorer}/tx/${fill.txHash}`}>
+                    {shortAddress(fill.txHash)}
+                  </ExternalLink>
+                ) : (
+                  "Awaiting settlement"
+                )}
               </td>
             </tr>
           ))}

@@ -1,186 +1,150 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import type { Pair } from "@zethos/sdk";
+import { Info, Layers3, RefreshCw, ShieldCheck } from "lucide-react";
+import Link from "next/link";
+import { useId, useState } from "react";
 import {
-  ArrowDownRight,
-  ArrowRight,
-  ArrowUpRight,
-  Info,
-  Layers3,
-  RefreshCw,
-  ShieldCheck,
-} from "lucide-react";
-import { useId, useMemo, useState } from "react";
-import {
-  Area,
   CartesianGrid,
-  ComposedChart,
   Line,
-  ReferenceLine,
+  LineChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from "recharts";
-import { sampleSeries, sampleSummary } from "../../content/platform.mock";
-import { engine } from "../../lib/engine/client";
-import { formatNumber, formatUsd, platformConfig, shortAddress } from "../../lib/platform-config";
-import { ExternalLink, StatusDot, TokenIcon } from "./primitives";
+import { sampleSeries } from "../../content/platform.mock";
+import { useEngineStatus } from "../../hooks/platform/use-platform";
+import { failureMessage, zethos } from "../../lib/engine/sdk";
+import { formatNumber, formatUsd, platformConfig } from "../../lib/platform-config";
+import { EmptyState, ExternalLink, StatusDot } from "./primitives";
 
-const ranges = [
-  { key: "6h", label: "6 hours" },
-  { key: "24h", label: "24 hours" },
-  { key: "all", label: "All time" },
-] as const;
-type Range = (typeof ranges)[number]["key"];
-function chartTime(value: number) {
-  return new Intl.DateTimeFormat("en-GB", {
-    hour: "2-digit",
-    minute: "2-digit",
-    timeZone: "Asia/Kolkata",
-  }).format(value > 1e12 ? value : value * 1000);
-}
+const chartTime = (ts: number) =>
+  new Date(ts).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+const colors = ["#356bb3", "#7955ac", "#b48127", "#247b64", "#b74c35", "#696b75"];
 export function StatsPageContent() {
-  const [pair, setPair] = useState("WHSK/USDT");
-  const [range, setRange] = useState<Range>("all");
-  const sample = !platformConfig.engineUrl;
+  const [pair, setPair] = useState<Pair>("HSK/USDT");
+  const [range, setRange] = useState("6h");
+  const status = useEngineStatus();
   const uid = useId();
+  const sample = !platformConfig.engineUrl;
   const query = useQuery({
     queryKey: ["engine", "stats", pair, range],
-    enabled: !sample,
+    enabled: Boolean(zethos),
     retry: false,
-    staleTime: 20000,
     refetchInterval: 30000,
-    queryFn: ({ signal }) => {
+    queryFn: () => {
+      if (!zethos) throw new Error("Engine is not configured");
       const now = Date.now();
-      return engine.stats(
-        pair.startsWith("WETH") ? "ETH/USDT" : "HSK/USDT",
-        range === "all" ? 0 : now - (range === "6h" ? 6 : 24) * 3600000,
-        now,
-        signal,
-      );
+      return zethos.stats({
+        pair,
+        from: range === "all" ? 0 : now - (range === "6h" ? 6 : 24) * 3600000,
+        to: now,
+      });
     },
   });
-  const summary = sample ? sampleSummary : query.data?.summary;
-  const series = useMemo(() => {
-    if (!sample) return query.data?.series ?? [];
-    const values = sampleSeries(pair);
-    return range === "6h" ? values.slice(-7) : range === "24h" ? values.slice(-25) : values;
-  }, [sample, pair, range, query.data?.series]);
-  const digits = pair.startsWith("WETH") ? 2 : 5;
-  const intervention = sample ? sampleSeries(pair)[21]?.t : undefined;
-  const showIntervention = intervention && series[0] && series[0].t <= intervention;
-  const totalFills = summary?.swapsFilled ?? (sample ? 1240 : query.data?.fills.length);
+  const market = status.data?.pairs.find((p) => p.pair === pair);
+  const series = sample
+    ? sampleSeries(pair === "HSK/USDT" ? "WHSK/USDT" : "WETH/USDT").map((p) => ({
+        t: p.t,
+        mid: p.mid,
+      }))
+    : query.isError
+      ? []
+      : (query.data?.series ?? []).map((p) => ({ ...p, ...p.sources }));
+  const summary = !query.isError ? query.data?.summary : undefined;
+  const venues = !query.isError ? query.data?.venues : undefined;
   return (
     <>
       <div className="p-page-heading">
         <div>
           <h1>Insights</h1>
+          <p>Exchange prices and on-chain liquidity, shown as they are.</p>
         </div>
         <div className="p-page-tools">
-          <span className={`p-pill ${sample ? "p-pill-neutral" : ""}`}>
+          <span className="p-pill p-pill-neutral">
             <StatusDot />
-            {sample ? "Sample data" : query.isError ? "Data unavailable" : "Engine data"}
+            {sample
+              ? "Sample price history"
+              : status.data?.mode === "shadow"
+                ? "Paper settlement"
+                : "Engine data"}
           </span>
           {!sample && (
             <button
               type="button"
               className="p-icon-button"
-              aria-label="Refresh market insights"
+              aria-label="Refresh Insights"
               onClick={() => void query.refetch()}
-              disabled={query.isFetching}
             >
-              <RefreshCw size={16} className={query.isFetching ? "p-spin" : ""} />
+              <RefreshCw size={16} />
             </button>
           )}
         </div>
       </div>
       {query.isError && (
-        <div className="p-form-error" role="alert">
-          {query.error.message}
-          <button className="p-text-button" type="button" onClick={() => void query.refetch()}>
+        <p role="alert" className="p-form-error">
+          {failureMessage(query.error)}{" "}
+          <button type="button" className="p-text-button" onClick={() => void query.refetch()}>
             Try again
-            <RefreshCw size={12} />
           </button>
-        </div>
+        </p>
       )}
-      <section className="p-metrics-grid" aria-label="Market performance">
+      <section className="p-metrics-grid" aria-label="Observed market data">
         <div className="p-metric p-metric-featured">
-          <span>Total user savings</span>
-          <strong>{summary ? formatUsd(summary.userSavings) : "—"}</strong>
+          <span>Fused exchange mid</span>
+          <strong>{market?.mid ? `${formatNumber(market.mid, 5)} USDT` : "—"}</strong>
+          <small>{market?.health ?? "Waiting for feeds"}</small>
+        </div>
+        <div className="p-metric">
+          <span>Paper volume filled</span>
+          <strong>{summary ? formatUsd(summary.volumeUsd) : "—"}</strong>
+          <small>Selected pair and time range</small>
+        </div>
+        <div className="p-metric">
+          <span>Paper fills</span>
+          <strong>{summary ? formatNumber(summary.fills, 0) : "—"}</strong>
+          <small>Recorded settlement, not exchange volume</small>
+        </div>
+        <div className="p-metric">
+          <span>On-chain depth ±2%</span>
+          <strong>{venues ? formatUsd(venues.reduce((s, v) => s + v.depthUsd, 0)) : "—"}</strong>
           <small>
-            <ArrowUpRight size={13} />
-            Compared with HSKSwap
+            {venues?.length
+              ? `${venues.length} configured venues`
+              : "No confirmed venue configured"}
           </small>
-        </div>
-        <div className="p-metric">
-          <span>Volume filled</span>
-          <strong>{summary ? `$${formatNumber(summary.volumeFilled / 1000, 1)}K` : "—"}</strong>
-          <small>Settled through the vault</small>
-        </div>
-        <div className="p-metric">
-          <span>Price gap with Zethos</span>
-          <strong>{summary ? `${formatNumber(summary.medianGapAfter, 2)}%` : "—"}</strong>
-          <small>
-            <ArrowDownRight size={13} />
-            From {summary ? `${formatNumber(summary.medianGapBefore)}%` : "—"} before
-          </small>
-        </div>
-        <div className="p-metric">
-          <span>Swaps filled</span>
-          <strong>{totalFills === undefined ? "—" : formatNumber(totalFills, 0)}</strong>
-          <small>Every fill has an on-chain trail.</small>
         </div>
       </section>
-      <section className="p-card p-market-chart" aria-labelledby="market-chart-title">
+      <section className="p-card p-market-chart" aria-labelledby={`${uid}-title`}>
         <div className="p-card-header">
           <div>
-            <h2 id="market-chart-title">Price vs HSKSwap</h2>
-            <p>Exchange reference and HSKSwap price over time.</p>
+            <h2 id={`${uid}-title`}>Exchange price vs on-chain reality</h2>
+            <p>Depth-weighted exchange mid and the sources used to build it.</p>
           </div>
-          <fieldset className="p-chart-pairs" aria-label="Chart trading pair">
-            {["WHSK/USDT", "WETH/USDT"].map((value) => (
-              <button
-                type="button"
-                aria-pressed={pair === value}
-                key={value}
-                onClick={() => setPair(value)}
-              >
-                <TokenIcon symbol={value.startsWith("WETH") ? "WETH" : "WHSK"} />
-                {value.replace("/", " / ")}
+          <fieldset className="p-chart-pairs" aria-label="Trading pair">
+            {(["HSK/USDT", "ETH/USDT"] as const).map((p) => (
+              <button type="button" key={p} aria-pressed={p === pair} onClick={() => setPair(p)}>
+                {p}
               </button>
             ))}
           </fieldset>
         </div>
         <div className="p-chart-toolbar">
-          <div className="p-chart-legend">
-            <span>
-              <i className="exchange" />
-              Exchange reference
-            </span>
-            <span>
-              <i className="pool" />
-              HSKSwap
-            </span>
-          </div>
-          <fieldset className="p-segmented" aria-label="Chart time range">
-            {ranges.map((option) => (
-              <button
-                type="button"
-                key={option.key}
-                aria-pressed={range === option.key}
-                onClick={() => setRange(option.key)}
-              >
-                {option.label}
+          <span className="p-card-footnote">Fused mid · selected healthy sources</span>
+          <fieldset className="p-segmented" aria-label="Time range">
+            {["6h", "24h", "all"].map((r) => (
+              <button type="button" key={r} aria-pressed={r === range} onClick={() => setRange(r)}>
+                {r === "all" ? "All history" : r}
               </button>
             ))}
           </fieldset>
         </div>
-        <div className="p-chart-unit">Price in USDT</div>
         <div
           className="p-chart"
           role="img"
-          aria-label={`${pair.replace("/", " to ")} price history. ${summary ? `The median gap fell from ${summary.medianGapBefore}% to ${summary.medianGapAfter}%.` : "Waiting for market history."}`}
+          aria-label={`${pair} exchange price history. ${sample ? "Sample data." : `${series.length} recorded price observations.`}`}
         >
           {series.length ? (
             <ResponsiveContainer
@@ -189,179 +153,103 @@ export function StatsPageContent() {
               minWidth={0}
               initialDimension={{ width: 900, height: 310 }}
             >
-              <ComposedChart
+              <LineChart
                 data={series}
-                margin={{ top: 16, right: 12, bottom: 8, left: 0 }}
                 accessibilityLayer
+                margin={{ top: 20, right: 20, bottom: 15, left: 0 }}
               >
-                <defs>
-                  <linearGradient id={`${uid}-area`} x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="var(--p-accent)" stopOpacity={0.11} />
-                    <stop offset="100%" stopColor="var(--p-accent)" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
                 <CartesianGrid vertical={false} stroke="var(--p-line)" strokeDasharray="3 5" />
                 <XAxis
                   dataKey="t"
                   tickFormatter={chartTime}
-                  tickLine={false}
-                  axisLine={false}
                   minTickGap={60}
-                  tick={{ fontSize: 12, fill: "var(--p-muted)" }}
-                  dy={12}
+                  tick={{ fontSize: 11 }}
                 />
                 <YAxis
                   domain={["auto", "auto"]}
-                  tickFormatter={(value: number) => formatNumber(value, digits)}
-                  tickLine={false}
-                  axisLine={false}
-                  width={pair.startsWith("WETH") ? 60 : 65}
-                  tick={{ fontSize: 12, fill: "var(--p-muted)" }}
+                  tickFormatter={(v: number) => formatNumber(v, pair === "HSK/USDT" ? 5 : 2)}
+                  tick={{ fontSize: 11 }}
+                  width={70}
                 />
                 <Tooltip
-                  content={({ active, payload, label }) => {
-                    if (!active || !payload?.length) return null;
-                    return (
-                      <div className="p-chart-tooltip">
-                        <strong>{chartTime(Number(label))} IST</strong>
-                        {payload
-                          .filter(
-                            (entry) => entry.dataKey === "mid" || entry.dataKey === "poolPrice",
-                          )
-                          .map((entry) => (
-                            <div key={String(entry.dataKey)}>
-                              <span>{entry.dataKey === "mid" ? "Exchange" : "HSKSwap"}</span>
-                              <b>{formatNumber(Number(entry.value), digits)} USDT</b>
-                            </div>
-                          ))}
-                      </div>
-                    );
-                  }}
+                  labelFormatter={(label) => chartTime(Number(label))}
+                  formatter={(value) => `${formatNumber(Number(value), 5)} USDT`}
                 />
-                <Area
-                  type="monotone"
-                  dataKey="mid"
-                  stroke="none"
-                  fill={`url(#${uid}-area)`}
-                  isAnimationActive={false}
-                  tooltipType="none"
-                />
-                <Line
-                  name="HSKSwap"
-                  type="monotone"
-                  dataKey="poolPrice"
-                  dot={false}
-                  stroke="#ff8f70"
-                  strokeWidth={1.8}
-                  isAnimationActive={false}
-                />
-                <Line
-                  name="Exchange reference"
-                  type="monotone"
-                  dataKey="mid"
-                  dot={false}
-                  stroke="var(--p-accent)"
-                  strokeWidth={2}
-                  isAnimationActive={false}
-                />
-                {showIntervention && (
-                  <ReferenceLine
-                    x={intervention}
-                    stroke="var(--p-accent)"
-                    strokeDasharray="4 5"
-                    label={{
-                      value: "Zethos enabled",
-                      position: "insideTopRight",
-                      fill: "var(--p-accent)",
-                      fontSize: 12,
-                    }}
+                {market?.sources.map((source, index) => (
+                  <Line
+                    key={source.venue}
+                    dataKey={source.venue}
+                    name={source.venue}
+                    stroke={colors[index % colors.length] ?? "#356bb3"}
+                    strokeWidth={1}
+                    strokeDasharray="3 3"
+                    dot={false}
+                    connectNulls={false}
+                    isAnimationActive={false}
                   />
-                )}
-              </ComposedChart>
+                ))}
+                <Line
+                  dataKey="mid"
+                  name="Fused mid"
+                  stroke="var(--p-accent)"
+                  strokeWidth={2.5}
+                  dot={false}
+                  isAnimationActive={false}
+                />
+              </LineChart>
             </ResponsiveContainer>
           ) : (
-            <div className="p-chart-empty">
-              <Layers3 size={25} />
-              <p>
-                {query.isFetching
-                  ? "Reading the market…"
-                  : "Market history will appear when the engine is available."}
-              </p>
-            </div>
+            <EmptyState
+              icon={<Layers3 size={25} />}
+              title={query.isFetching ? "Reading the market…" : "No market history yet"}
+            >
+              Live observations appear when the engine has healthy price feeds.
+            </EmptyState>
           )}
         </div>
         <div className="p-chart-bottom">
           <p>
             <Info size={12} />
             {sample
-              ? "Illustrative market data. These are not live prices or results."
-              : "Reference prices are indicative. Only a signed quote guarantees an executable price."}
+              ? "Illustrative exchange history. No live results are implied."
+              : "Reference prices are indicative. A verified signed quote fixes the output until expiry."}
           </p>
-          <span>Times shown in IST</span>
         </div>
       </section>
       <div className="p-insight-bottom">
-        <section className="p-card p-gap-card" aria-labelledby="gap-title">
+        <section className="p-card p-gap-card">
           <div className="p-card-header">
-            <div>
-              <h2 id="gap-title">Price gap</h2>
-            </div>
-            <span className="p-insight-icon">
-              <ArrowDownRight size={22} />
-            </span>
+            <h2>Exchange sources</h2>
           </div>
-          <div className="p-gap-comparison">
-            <div>
-              <span>Before Zethos</span>
-              <strong>{summary ? `${formatNumber(summary.medianGapBefore)}%` : "—"}</strong>
-              <div className="p-gap-bar before">
-                <span />
-              </div>
+          {market?.sources.map((source) => (
+            <div className="p-signal-row" key={source.venue}>
+              <span style={{ width: 120 }}>{source.venue}</span>
+              <span>{source.status}</span>
+              <span>{source.mid ? `${formatNumber(source.mid, 5)} USDT` : "—"}</span>
+              <strong>{formatNumber(source.weight * 100, 0)}%</strong>
             </div>
-            <ArrowRight size={20} className="p-muted" />
-            <div>
-              <span>With Zethos</span>
-              <strong className="p-success-text">
-                {summary ? `${formatNumber(summary.medianGapAfter)}%` : "—"}
-              </strong>
-              <div className="p-gap-bar after">
-                <span
-                  style={{
-                    width:
-                      summary && summary.medianGapBefore > 0
-                        ? `${Math.min(100, (summary.medianGapAfter / summary.medianGapBefore) * 100)}%`
-                        : "0%",
-                  }}
-                />
-              </div>
-            </div>
-          </div>
+          ))}
+          {!market && <p className="p-card-footnote">No live source data is available.</p>}
           <p className="p-card-footnote">
-            Median difference between the pool and exchange reference.
-            {sample ? " Sample comparison." : ""}
+            Stale and disagreeing sources are excluded. HSK is not listed on Binance or OKX.
           </p>
         </section>
-        <section className="p-card p-verification-card" aria-labelledby="verify-title">
+        <section className="p-card p-verification-card">
           <span className="p-verification-icon">
-            <ShieldCheck size={24} strokeWidth={1.4} />
+            <ShieldCheck size={24} />
           </span>
-          <h2 id="verify-title">Verify on-chain</h2>
+          <h2>What can be verified</h2>
           <p>
-            Each settled fill records its pool comparison on-chain. Follow the trail, right down to
-            the transaction.
+            {status.data?.mode === "shadow"
+              ? "Paper signatures, fill records, markouts and agent decisions are visible in the Arena. There is no on-chain fill in shadow mode."
+              : "Paper settlement and live settlement have different verification trails. The Arena explains the current methodology."}
           </p>
           <div>
-            {platformConfig.vaultAddress ? (
-              <ExternalLink
-                href={`${platformConfig.explorer}/address/${platformConfig.vaultAddress}`}
-              >
-                Vault {shortAddress(platformConfig.vaultAddress)}
-              </ExternalLink>
-            ) : (
-              <ExternalLink href={platformConfig.explorer}>Explore HashKey Chain</ExternalLink>
-            )}
-            <ExternalLink href="https://github.com/divyyyam/zethos/tree/main/docs">
-              Read the architecture
+            <Link className="p-text-link" href="/arena#methodology">
+              Read the paper methodology
+            </Link>
+            <ExternalLink href="https://github.com/divyyyam/zethos#readme">
+              Project architecture
             </ExternalLink>
           </div>
         </section>

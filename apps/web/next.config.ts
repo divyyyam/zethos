@@ -6,7 +6,7 @@ const emptyModule = "./src/lib/empty-module.ts";
 const optionalPeers = ["@x402/core", "@x402/evm", "@x402/extensions", "@x402/svm"];
 
 const nextConfig: NextConfig = {
-  transpilePackages: ["@zethos/shared"],
+  transpilePackages: ["@zethos/sdk", "@zethos/shared"],
   turbopack: {
     resolveAlias: Object.fromEntries(
       optionalPeers.flatMap((pkg) => [

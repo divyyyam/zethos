@@ -23,7 +23,7 @@ function useCountdown(total: number, active: boolean) {
 }
 
 /** Hex that resolves character by character, like a signature being produced. */
-function Signature({ value, run }: { value: string; run: boolean }) {
+export function Signature({ value, run }: { value: string; run: boolean }) {
   const reduced = useReducedMotionPref();
   const [text, setText] = useState(value);
   useEffect(() => {
@@ -46,7 +46,7 @@ function Signature({ value, run }: { value: string; run: boolean }) {
   return <>{text}</>;
 }
 
-function Ring({ left, total }: { left: number; total: number }) {
+export function Ring({ left, total }: { left: number; total: number }) {
   const r = 15;
   const c = 2 * Math.PI * r;
   return (

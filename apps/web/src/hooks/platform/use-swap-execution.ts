@@ -1,13 +1,14 @@
 "use client";
 
 import { useQueryClient } from "@tanstack/react-query";
+import type { QuoteRequest, SignedQuoteResponse } from "@zethos/sdk";
 import { zethosVaultAbi } from "@zethos/shared";
 import { useRef, useState } from "react";
-import { type Abi, erc20Abi, type Hash, parseAbi } from "viem";
+import { type Abi, erc20Abi, formatUnits, type Hash, parseAbi } from "viem";
 import { usePublicClient } from "wagmi";
 import { getAccount, getWalletClient } from "wagmi/actions";
 import { useToast } from "../../components/platform/primitives";
-import type { VaultQuote } from "../../lib/engine/types";
+import { failureMessage, zethos } from "../../lib/engine/sdk";
 import { toContractQuote, verifyQuoteSignature } from "../../lib/engine/verify-quote";
 import { platformConfig } from "../../lib/platform-config";
 import { wagmiConfig } from "../../lib/wagmi";
@@ -15,8 +16,8 @@ import { wagmiConfig } from "../../lib/wagmi";
 const vaultAbi: Abi = zethosVaultAbi;
 const quoteChecksAbi = parseAbi([
   "function quoteSigner() view returns (address)",
-  "function maxTtl() view returns (uint32)",
-  "function isNonceUsed(address signer, uint256 nonce) view returns (bool)",
+  "function maxTtl() view returns (uint64)",
+  "function isNonceUsed(address taker, uint256 nonce) view returns (bool)",
 ]);
 export const settlementReady = Boolean(
   platformConfig.vaultAddress &&
@@ -59,13 +60,48 @@ export function useSwapExecution() {
     setError(null);
     setHash(null);
   };
-  const execute = async (response: VaultQuote) => {
+  const execute = async (response: SignedQuoteResponse, request: QuoteRequest) => {
     if (running.current) return;
     running.current = true;
     setError(null);
     setHash(null);
     setPhase("preparing");
     try {
+      if (!zethos) throw new Error("The engine is not configured.");
+      if (response.route === "paper") {
+        const assertTaker = () => {
+          const current = getAccount(wagmiConfig);
+          if (
+            !current.address ||
+            current.address.toLowerCase() !== response.quote.taker.toLowerCase()
+          )
+            throw new Error("Your wallet changed. Get a new paper quote.");
+        };
+        assertTaker();
+        const check = await zethos.verifyQuote(response, request, { minRemainingSec: 1 });
+        if (!check.ok) throw new Error(`Quote verification failed: ${check.reasons.join(", ")}`);
+        assertTaker();
+        setPhase("pending");
+        const fill = await zethos.paperFill(response, request);
+        setPhase("confirmed");
+        const status = await zethos.status().catch(() => null);
+        const pair = status?.pairs.find((p) => p.pair === fill.pair);
+        const received = pair ? (fill.side === "buy" ? pair.base : pair.quote) : null;
+        notify({
+          title: "Paper fill",
+          description: received
+            ? `Received ${formatUnits(BigInt(fill.amountOut), received.decimals)} ${received.symbol}. No funds moved.`
+            : "Paper settlement complete. No funds moved.",
+          tone: "success",
+          href: `/arena#${fill.id}`,
+        });
+        await Promise.all(
+          ["fills", "status", "arena", "arenaTakers"].map((key) =>
+            queryClient.invalidateQueries({ queryKey: ["engine", key] }),
+          ),
+        );
+        return;
+      }
       if (!settlementReady || !platformConfig.vaultAddress || !client)
         throw new Error("Live settlement is not available yet.");
       const connectorUid = getAccount(wagmiConfig).connector?.uid;
@@ -123,7 +159,7 @@ export function useSwapExecution() {
         address: platformConfig.vaultAddress,
         abi: quoteChecksAbi,
         functionName: "isNonceUsed",
-        args: [signer, quote.nonce],
+        args: [quote.taker, quote.nonce],
       });
       if (nonceUsed)
         throw new Error("This quote has already been used. Refresh the price before continuing.");
@@ -193,7 +229,7 @@ export function useSwapExecution() {
         href: `${platformConfig.explorer}/tx/${transaction}`,
       });
     } catch (cause) {
-      const message = cause instanceof Error ? cause.message : String(cause);
+      const message = cause instanceof Error ? cause.message : failureMessage(cause);
       const readable = /rejected|denied|4001/i.test(message)
         ? "Transaction cancelled in your wallet. Nothing else will be submitted."
         : /QuoteExpired|WorseThanPool|NonceUsed/i.test(message)
