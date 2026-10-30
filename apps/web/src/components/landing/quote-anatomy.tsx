@@ -196,7 +196,7 @@ export function QuoteAnatomy() {
       data-chapter={chapters.quote}
       className="relative sect overflow-clip pt-section "
     >
-      <div className="relative z-10 grid items-end gap-block pb-head md:grid-cols-[minmax(0,1fr)_auto]">
+      <div className="relative z-10 grid gap-block pb-head lg:grid-cols-[minmax(0,1fr)_minmax(0,30%)]">
         <div>
           <Reveal>
             <p className="eyebrow text-fg-soft">{quote.kicker}</p>
@@ -206,14 +206,13 @@ export function QuoteAnatomy() {
             className="display t-section mt-4 text-fg"
           />
         </div>
-        <Reveal y={40} className="hidden md:block">
+        <Reveal y={40} className="relative hidden lg:block">
           <Image
             src={art.seal.src}
-            width={art.seal.width}
-            height={art.seal.height}
-            sizes="20vw"
+            fill
+            sizes="30vw"
             alt=""
-            className="plate size-[max(180px,calc(var(--cw)*0.19))]"
+            className="plate object-contain object-right"
           />
         </Reveal>
       </div>

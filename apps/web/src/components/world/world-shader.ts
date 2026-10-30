@@ -120,6 +120,9 @@ vec3 skyColor(vec2 p, float time) {
 
   // Sun, or moon when uNight is high.
   vec2 d = p - uSunPos;
+  // main() squeezes x on portrait screens; undo that here so the disc stays round.
+  float aspect = uRes.x / uRes.y;
+  if (aspect < 1.0) d.x /= mix(1.55, 1.0, aspect);
   float r = length(d);
   float disc = 1.0 - smoothstep(0.047, 0.052, r);
   col += uSun * (0.24 * exp(-r * 3.4) + 0.2 * exp(-r * 11.0)) * (1.0 - 0.7 * uNight);

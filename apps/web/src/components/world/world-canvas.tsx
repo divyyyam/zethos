@@ -148,7 +148,9 @@ export function WorldCanvas({
       gl.uniform1f(u.uLake, live.lake);
       gl.uniform1f(u.uNight, p.night);
       gl.uniform2f(u.uPointer, pointer.x, pointer.y);
-      gl.uniform2fv(u.uSunPos, p.sunPos);
+      // Portrait screens are narrower than the sun's arc: pull it in so the disc stays in frame.
+      const portrait = canvas.width < canvas.height;
+      gl.uniform2f(u.uSunPos, p.sunPos[0] * (portrait ? 0.55 : 1), p.sunPos[1]);
       gl.uniform3fv(u.uSkyTop, p.skyTop);
       gl.uniform3fv(u.uSkyMid, p.skyMid);
       gl.uniform3fv(u.uSkyLow, p.skyLow);

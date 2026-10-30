@@ -8,7 +8,7 @@ export function Cta() {
   return (
     <section
       aria-label={chapters.cta}
-      data-world="1,-0.13,0,1|1,-0.13,0,1"
+      data-world="1,-0.05,0,1|1,-0.05,0,1"
       data-chapter={chapters.cta}
       className="relative sect overflow-clip pt-section"
     >

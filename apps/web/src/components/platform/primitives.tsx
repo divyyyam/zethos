@@ -58,9 +58,6 @@ export function TokenIcon({
 export function StatusDot({ tone = "neutral" }: { tone?: "neutral" | "success" | "warning" }) {
   return <span aria-hidden className={`p-status-dot p-status-${tone}`} />;
 }
-export function Eyebrow({ children }: { children: ReactNode }) {
-  return <p className="p-eyebrow">{children}</p>;
-}
 export function EmptyState({
   icon,
   title,

@@ -68,7 +68,7 @@ export function Proof({ stats }: { stats: EngineStats }) {
           <Reveal
             key={card.key}
             index={i}
-            className={`border-b border-line py-6 lg:border-b-0 ${i % 2 === 1 ? "pl-5" : "pr-5"} lg:px-6 ${i > 0 ? "lg:border-l" : "lg:pl-0"} ${i % 2 === 1 ? "max-lg:border-l" : ""}`}
+            className={`flex flex-col justify-between border-b border-line py-6 lg:border-b-0 ${i % 2 === 1 ? "pl-5" : "pr-5"} lg:px-6 ${i > 0 ? "lg:border-l" : "lg:pl-0"} ${i % 2 === 1 ? "max-lg:border-l" : ""}`}
           >
             <dt className="text-[15px] text-fg-soft">{card.label}</dt>
             <dd className="num mt-6 text-[max(2.75rem,calc(var(--cw)*0.054))] text-fg">

@@ -8,10 +8,8 @@ import {
   ArrowRight,
   ArrowUpRight,
   Check,
-  CheckCheck,
   ChevronDown,
   Info,
-  Layers3,
   LoaderCircle,
   LockKeyhole,
   Plus,
@@ -72,8 +70,7 @@ function TokenPicker({
   return (
     <Modal open={open} onClose={onClose} title="Choose a token" className="p-token-modal">
       <div className="p-token-picker">
-        <p className="p-eyebrow">A FEW WELL-CHOSEN ASSETS</p>
-        <h2>Choose a token.</h2>
+        <h2>Select token</h2>
         <label className="p-search" htmlFor={id}>
           <Search size={17} aria-hidden />
           <input
@@ -294,113 +291,34 @@ export function SwapPageContent() {
   return (
     <>
       <div className="p-swap-layout">
-        <div className="p-swap-intro">
-          <p className="p-eyebrow">A LITTLE MORE IN YOUR WALLET</p>
-          <h1>
-            Your next swap,
-            <br />
-            at a better price.
-          </h1>
-          <p className="p-swap-description">
-            The exchange price you expect.
-            <br />
-            The on-chain freedom you came for.
-          </p>
-          <div
-            className="p-quote-journey"
-            role="img"
-            aria-label="Exchange prices are quoted by Zethos and settled in your wallet"
-          >
-            <div className="p-journey-source">
-              <span className="p-journey-symbol">
-                <Layers3 size={22} strokeWidth={1.3} />
-              </span>
-              <span>
-                Exchange
-                <br />
-                <strong>order books</strong>
-              </span>
-            </div>
-            <div className="p-journey-link">
-              <span />
-              <ArrowRight size={13} />
-            </div>
-            <div className="p-journey-agent">
-              <BrandMark className="size-7" />
-              <span>zethos agent</span>
-              <small>
-                <StatusDot />
-                Always looking closer
-              </small>
-            </div>
-            <div className="p-journey-link">
-              <span />
-              <ArrowRight size={13} />
-            </div>
-            <div className="p-journey-destination">
-              <span className="p-journey-symbol">
-                <Wallet size={22} strokeWidth={1.3} />
-              </span>
-              <span>
-                Your wallet
-                <br />
-                <strong>on HashKey</strong>
-              </span>
-            </div>
-          </div>
-          <div className="p-swap-promises">
-            <div>
-              <span>
-                <ShieldCheck size={17} strokeWidth={1.5} />
-              </span>
-              <p>
-                <strong>A price with a promise.</strong>Every live quote is checked against HSKSwap
-                before it settles.
-              </p>
-            </div>
-            <div>
-              <span>
-                <LockKeyhole size={17} strokeWidth={1.5} />
-              </span>
-              <p>
-                <strong>Your keys. Your call.</strong>Quotes are signed. Swaps are atomic. You
-                approve every move.
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            className="p-assistant-entry"
-            onClick={() => setAssistantOpen(true)}
-          >
-            <span>
-              <Sparkles size={17} />
-            </span>
-            <div>
-              <strong>A little guidance?</strong>
-              <small>Ask Zethos about your next swap.</small>
-            </div>
-            <ArrowUpRight size={17} />
-          </button>
-        </div>
         <div className="p-swap-workspace">
           <section className="p-swap-card p-card" aria-labelledby="swap-form-title">
             <div className="p-card-header">
               <div className="p-swap-card-title">
-                <h2 id="swap-form-title">Let’s make a swap.</h2>
+                <h2 id="swap-form-title">Swap</h2>
                 <span className={`p-pill ${sample ? "p-pill-neutral" : ""}`}>
                   <StatusDot />
                   {sample ? "Preview prices" : "Firm quote"}
                 </span>
               </div>
-              <button
-                type="button"
-                className="p-icon-button"
-                aria-label="Swap preferences"
-                onClick={() => setSettings(true)}
-              >
-                <Settings2 size={18} />
-              </button>
+              <div className="p-card-actions">
+                <button
+                  type="button"
+                  className="p-text-button"
+                  onClick={() => setAssistantOpen(true)}
+                >
+                  <Sparkles size={14} />
+                  Ask Zethos
+                </button>
+                <button
+                  type="button"
+                  className="p-icon-button"
+                  aria-label="Swap preferences"
+                  onClick={() => setSettings(true)}
+                >
+                  <Settings2 size={18} />
+                </button>
+              </div>
             </div>
             <div className="p-amount-box">
               <div className="p-amount-label">
@@ -591,24 +509,13 @@ export function SwapPageContent() {
               )}
             </div>
           </section>
-          <div className="p-under-swap">
-            <LockKeyhole size={12} />
-            <span>One signed quote. One atomic settlement.</span>
-            <span className="p-under-swap-dot">·</span>
-            <span>All yours.</span>
-          </div>
         </div>
       </div>
       <section className="p-recent-section" aria-labelledby="recent-swaps-title">
         <div className="p-card-header">
           <div>
-            <p className="p-eyebrow">A CLEAR TRAIL, ALWAYS</p>
-            <h2 id="recent-swaps-title">Your recent swaps.</h2>
+            <h2 id="recent-swaps-title">Recent swaps</h2>
           </div>
-          <span className="p-pill p-pill-neutral">
-            <ReceiptText size={11} />
-            On-chain activity
-          </span>
         </div>
         <RecentSwaps />
       </section>
@@ -625,9 +532,8 @@ export function SwapPageContent() {
         className="p-settings-modal"
       >
         <div className="p-settings-content">
-          <p className="p-eyebrow">SETTLE IN</p>
-          <h2>Your preferences.</h2>
-          <p>Firm quotes make a few things simpler.</p>
+          <h2>Preferences</h2>
+
           <div className="p-preference">
             <div>
               <strong>Price protection</strong>
@@ -689,30 +595,16 @@ export function SwapPageContent() {
         className="p-review-modal"
       >
         <div className="p-review-content">
-          <div className={`p-review-icon ${execution.phase === "confirmed" ? "success" : ""}`}>
-            {execution.phase === "confirmed" ? (
-              <CheckCheck size={27} />
-            ) : (
-              <ArrowLeftRight size={25} />
-            )}
-          </div>
-          <p className="p-eyebrow">
-            {sample
-              ? "A LOOK AT WHAT’S NEXT"
-              : execution.phase === "confirmed"
-                ? "RIGHT WHERE IT BELONGS"
-                : "ONE LAST LOOK"}
-          </p>
           <h2>
             {execution.phase === "confirmed"
-              ? "All settled."
+              ? "Swap complete"
               : sample
-                ? "Your swap, previewed."
-                : "Looking good."}
+                ? "Swap preview"
+                : "Review swap"}
           </h2>
           <p className="p-review-sub">
             {sample
-              ? "An illustration of the Zethos experience. This is not an executable quote."
+              ? "Sample prices. This is not an executable quote."
               : "Check the amounts before continuing in your wallet."}
           </p>
           <div className="p-review-amount">
@@ -775,9 +667,7 @@ export function SwapPageContent() {
           {execution.hash && (
             <div className="p-review-tx">
               <ExternalLink href={`${platformConfig.explorer}/tx/${execution.hash}`}>
-                {execution.phase === "confirmed"
-                  ? "View your settled swap"
-                  : "Track your transaction"}
+                {execution.phase === "confirmed" ? "View transaction" : "View transaction"}
               </ExternalLink>
             </div>
           )}
@@ -787,7 +677,7 @@ export function SwapPageContent() {
               className="p-button p-button-primary p-full"
               onClick={() => setReview(false)}
             >
-              Explore market insights
+              View insights
               <ArrowUpRight size={15} />
             </Link>
           ) : execution.phase === "confirmed" ? (
@@ -800,7 +690,7 @@ export function SwapPageContent() {
                 execution.reset();
               }}
             >
-              A fresh start
+              New swap
               <ArrowRight size={15} />
             </button>
           ) : (
@@ -861,15 +751,15 @@ function RecentSwaps() {
       <div className="p-card">
         <EmptyState
           icon={<ReceiptText size={21} strokeWidth={1.3} />}
-          title="A fresh page for your first swap."
+          title="No swaps yet"
           action={
             <button type="button" className="p-text-button" onClick={openWallet}>
-              Connect to see your activity
+              Connect wallet
               <ArrowUpRight size={13} />
             </button>
           }
         >
-          Every fill, every saving, all in one place.
+          Connect a wallet to see your swaps.
         </EmptyState>
       </div>
     );
@@ -878,7 +768,7 @@ function RecentSwaps() {
       <div className="p-card">
         <EmptyState
           icon={<ReceiptText size={21} />}
-          title="Your activity is taking a moment."
+          title="Couldn’t load your swaps"
           action={
             <button type="button" className="p-text-button" onClick={() => void query.refetch()}>
               Try again
@@ -886,7 +776,7 @@ function RecentSwaps() {
             </button>
           }
         >
-          We couldn’t load your recent swaps. Your funds are unaffected.
+          Your funds are unaffected.
         </EmptyState>
       </div>
     );
@@ -901,11 +791,11 @@ function RecentSwaps() {
               <ReceiptText size={21} strokeWidth={1.3} />
             )
           }
-          title={query.isFetching ? "Looking up your swaps." : "Your next chapter starts here."}
+          title={query.isFetching ? "Loading swaps" : "No swaps yet"}
         >
           {query.isFetching
-            ? "Fetching your confirmed on-chain activity."
-            : "Your confirmed Zethos swaps will appear here once live trading begins."}
+            ? "Fetching your on-chain activity."
+            : "Confirmed swaps will appear here."}
         </EmptyState>
       </div>
     );

@@ -576,3 +576,23 @@ body:has([data-landing]) {
     animation: logo-glint 3.2s linear infinite;
   }
 }
+
+/* Route curtain: the same white and logo as the boot curtain, held back a beat so fast navigations
+   never flash it. */
+@keyframes route-curtain-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.route-curtain {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  background: #ffffff;
+  animation: route-curtain-in 0.25s ease-out 0.08s both;
+}

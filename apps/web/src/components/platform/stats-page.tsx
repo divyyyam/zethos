@@ -25,7 +25,7 @@ import {
 import { sampleSeries, sampleSummary } from "../../content/platform.mock";
 import { engine } from "../../lib/engine/client";
 import { formatNumber, formatUsd, platformConfig, shortAddress } from "../../lib/platform-config";
-import { BrandMark, ExternalLink, StatusDot, TokenIcon } from "./primitives";
+import { ExternalLink, StatusDot, TokenIcon } from "./primitives";
 
 const ranges = [
   { key: "6h", label: "6 hours" },
@@ -75,9 +75,7 @@ export function StatsPageContent() {
     <>
       <div className="p-page-heading">
         <div>
-          <p className="p-eyebrow">THE DIFFERENCE, IN PLAIN SIGHT</p>
-          <h1>A clearer view of the market.</h1>
-          <p>Better execution should be something you can see.</p>
+          <h1>Insights</h1>
         </div>
         <div className="p-page-tools">
           <span className={`p-pill ${sample ? "p-pill-neutral" : ""}`}>
@@ -112,11 +110,8 @@ export function StatsPageContent() {
           <strong>{summary ? formatUsd(summary.userSavings) : "—"}</strong>
           <small>
             <ArrowUpRight size={13} />
-            More value stays with swappers.
+            Compared with HSKSwap
           </small>
-          <span className="p-metric-decoration" aria-hidden>
-            <BrandMark className="size-16" />
-          </span>
         </div>
         <div className="p-metric">
           <span>Volume filled</span>
@@ -124,7 +119,7 @@ export function StatsPageContent() {
           <small>Settled through the vault</small>
         </div>
         <div className="p-metric">
-          <span>Price gap after the agent</span>
+          <span>Price gap with Zethos</span>
           <strong>{summary ? `${formatNumber(summary.medianGapAfter, 2)}%` : "—"}</strong>
           <small>
             <ArrowDownRight size={13} />
@@ -140,8 +135,8 @@ export function StatsPageContent() {
       <section className="p-card p-market-chart" aria-labelledby="market-chart-title">
         <div className="p-card-header">
           <div>
-            <h2 id="market-chart-title">A market, brought closer.</h2>
-            <p>Exchange reference and HSKSwap price, side by side.</p>
+            <h2 id="market-chart-title">Price vs HSKSwap</h2>
+            <p>Exchange reference and HSKSwap price over time.</p>
           </div>
           <fieldset className="p-chart-pairs" aria-label="Chart trading pair">
             {["WHSK/USDT", "WETH/USDT"].map((value) => (
@@ -212,7 +207,7 @@ export function StatsPageContent() {
                   tickLine={false}
                   axisLine={false}
                   minTickGap={60}
-                  tick={{ fontSize: 10, fill: "var(--p-muted)" }}
+                  tick={{ fontSize: 12, fill: "var(--p-muted)" }}
                   dy={12}
                 />
                 <YAxis
@@ -221,7 +216,7 @@ export function StatsPageContent() {
                   tickLine={false}
                   axisLine={false}
                   width={pair.startsWith("WETH") ? 60 : 65}
-                  tick={{ fontSize: 10, fill: "var(--p-muted)" }}
+                  tick={{ fontSize: 12, fill: "var(--p-muted)" }}
                 />
                 <Tooltip
                   content={({ active, payload, label }) => {
@@ -275,10 +270,10 @@ export function StatsPageContent() {
                     stroke="var(--p-accent)"
                     strokeDasharray="4 5"
                     label={{
-                      value: "Agent enabled",
+                      value: "Zethos enabled",
                       position: "insideTopRight",
                       fill: "var(--p-accent)",
-                      fontSize: 10,
+                      fontSize: 12,
                     }}
                   />
                 )}
@@ -309,8 +304,7 @@ export function StatsPageContent() {
         <section className="p-card p-gap-card" aria-labelledby="gap-title">
           <div className="p-card-header">
             <div>
-              <p className="p-eyebrow">A SMALLER GAP. A BETTER SWAP.</p>
-              <h2 id="gap-title">Closer to the real market.</h2>
+              <h2 id="gap-title">Price gap</h2>
             </div>
             <span className="p-insight-icon">
               <ArrowDownRight size={22} />
@@ -318,7 +312,7 @@ export function StatsPageContent() {
           </div>
           <div className="p-gap-comparison">
             <div>
-              <span>Before the agent</span>
+              <span>Before Zethos</span>
               <strong>{summary ? `${formatNumber(summary.medianGapBefore)}%` : "—"}</strong>
               <div className="p-gap-bar before">
                 <span />
@@ -326,7 +320,7 @@ export function StatsPageContent() {
             </div>
             <ArrowRight size={20} className="p-muted" />
             <div>
-              <span>After the agent</span>
+              <span>With Zethos</span>
               <strong className="p-success-text">
                 {summary ? `${formatNumber(summary.medianGapAfter)}%` : "—"}
               </strong>
@@ -351,8 +345,7 @@ export function StatsPageContent() {
           <span className="p-verification-icon">
             <ShieldCheck size={24} strokeWidth={1.4} />
           </span>
-          <p className="p-eyebrow">TRUST, WITH A PAPER TRAIL</p>
-          <h2 id="verify-title">Open by design.</h2>
+          <h2 id="verify-title">Verify on-chain</h2>
           <p>
             Each settled fill records its pool comparison on-chain. Follow the trail, right down to
             the transaction.

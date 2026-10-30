@@ -17,7 +17,6 @@ import { useEngineStatus, useEngineStream, useVaultOwner } from "../../hooks/pla
 import { platformConfig } from "../../lib/platform-config";
 import { LogoMark } from "../landing/logo-mark";
 import { ConnectWalletButton, useWallet } from "../wallet/wallet-provider";
-import { AppWorld } from "./app-world";
 import { StatusDot } from "./primitives";
 
 export function AppShell({ children }: { children: ReactNode }) {
@@ -37,13 +36,11 @@ export function AppShell({ children }: { children: ReactNode }) {
       <a className="p-skip-link" href="#platform-main">
         Skip to main content
       </a>
-      <AppWorld />
       <header className="p-header">
         <div className="p-header-inner">
           <Link className="p-brand group" href="/" aria-label="Zethos home">
             <LogoMark className="size-7" motion="hover" />
             <span>zethos</span>
-            <small>EXCHANGE</small>
           </Link>
           <nav className="p-navigation" aria-label="App navigation">
             {nav.map(({ href, label, icon: Icon }) => (

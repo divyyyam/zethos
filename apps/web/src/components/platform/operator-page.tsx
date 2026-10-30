@@ -10,8 +10,6 @@ import {
   ChevronDown,
   Command,
   Fingerprint,
-  Gauge,
-  Layers3,
   LoaderCircle,
   LockKeyhole,
   Pause,
@@ -19,7 +17,6 @@ import {
   RefreshCw,
   ShieldCheck,
 } from "lucide-react";
-import Link from "next/link";
 import { useEffect, useState } from "react";
 import { type Abi, erc20Abi, formatUnits } from "viem";
 import { createSiweMessage } from "viem/siwe";
@@ -149,70 +146,8 @@ export function OperatorPageContent() {
   const notOwner = account.isConnected && owner.data && !owner.isOwner;
   return (
     <div className="p-operator-gate">
-      <div className="p-gate-story">
-        <p className="p-eyebrow">A QUIET PLACE TO RUN THE BOOK</p>
-        <h1>
-          Your vault.
-          <br />
-          One clear view.
-        </h1>
-        <p>
-          Inventory, execution, and the agent’s thinking.
-          <br />A workspace that keeps the whole picture in balance.
-        </p>
-        <div className="p-gate-features">
-          <div>
-            <span>
-              <Layers3 size={18} />
-            </span>
-            <p>
-              <strong>See the whole inventory.</strong>Keep every asset inside its intended band.
-            </p>
-          </div>
-          <div>
-            <span>
-              <Gauge size={18} />
-            </span>
-            <p>
-              <strong>Stay close to the risk.</strong>See reference health and vault status
-              together.
-            </p>
-          </div>
-          <div>
-            <span>
-              <Activity size={18} />
-            </span>
-            <p>
-              <strong>Understand each decision.</strong>A plain-language journal of the agent’s
-              work.
-            </p>
-          </div>
-        </div>
-        <Link href="/stats" className="p-text-link">
-          Explore public market insights
-          <ArrowUpRight size={14} />
-        </Link>
-      </div>
       <section className="p-card p-access-card" aria-labelledby="operator-access-title">
-        <div className="p-access-art" aria-hidden>
-          <div className="p-access-art-tile back" />
-          <div className="p-access-art-tile front">
-            <Fingerprint size={46} strokeWidth={1.2} />
-            <span>OWNER ACCESS</span>
-          </div>
-          <span className="p-access-art-lock">
-            <LockKeyhole size={18} />
-          </span>
-        </div>
-        <span className="p-pill">
-          <ShieldCheck size={12} />
-          Operator workspace
-        </span>
-        <h2 id="operator-access-title">
-          A space for
-          <br />
-          the vault’s keeper.
-        </h2>
+        <h2 id="operator-access-title">Operator access</h2>
         <p>
           {notOwner
             ? "This wallet isn’t the current vault owner. Connect the owner wallet to continue."
@@ -284,7 +219,7 @@ export function OperatorPageContent() {
           </p>
         )}
         <button type="button" className="p-access-preview" onClick={() => setPreview(true)}>
-          Take a look around
+          View read-only preview
           <ArrowRight size={14} />
         </button>
         <div className="p-access-footnote">
@@ -461,9 +396,7 @@ function OperatorDashboard({
     <>
       <div className="p-page-heading">
         <div>
-          <p className="p-eyebrow">THE WHOLE PICTURE, IN BALANCE</p>
-          <h1>A good day to run the book.</h1>
-          <p>Keep an eye on the vault. The agent keeps an eye on the market.</p>
+          <h1>Operator</h1>
         </div>
         <div className="p-page-tools">
           <span className={`p-pill ${preview ? "p-pill-neutral" : "p-pill-success"}`}>
@@ -541,7 +474,7 @@ function OperatorDashboard({
       </div>
       <section aria-labelledby="inventory-title">
         <div className="p-section-heading">
-          <h2 id="inventory-title">A place for every asset.</h2>
+          <h2 id="inventory-title">Inventory</h2>
           <span>Vault inventory</span>
         </div>
         <div className="p-inventory-grid">
@@ -591,8 +524,7 @@ function OperatorDashboard({
         <section className="p-card p-pnl-card" aria-labelledby="pnl-title">
           <div className="p-card-header">
             <div>
-              <p className="p-eyebrow">THE DAY, ACCOUNTED FOR</p>
-              <h2 id="pnl-title">A clearer kind of P&amp;L.</h2>
+              <h2 id="pnl-title">P&amp;L</h2>
             </div>
             <fieldset className="p-segmented" aria-label="P&L period">
               {[
@@ -656,8 +588,7 @@ function OperatorDashboard({
         <section className="p-card p-reference-card" aria-labelledby="feeds-title">
           <div className="p-card-header">
             <div>
-              <p className="p-eyebrow">A FINGER ON THE MARKET</p>
-              <h2 id="feeds-title">Reference health.</h2>
+              <h2 id="feeds-title">Reference feeds</h2>
             </div>
             <span className="p-feed-icon">
               <Activity size={20} />
@@ -707,8 +638,7 @@ function OperatorDashboard({
       <section className="p-card p-journal-card" aria-labelledby="journal-title">
         <div className="p-card-header">
           <div>
-            <p className="p-eyebrow">NOTHING HAPPENS IN A BLACK BOX</p>
-            <h2 id="journal-title">The agent’s journal.</h2>
+            <h2 id="journal-title">Decision log</h2>
             <p>A clear reason behind every move.</p>
           </div>
           <span className="p-pill p-pill-neutral">
@@ -756,7 +686,7 @@ function OperatorDashboard({
           <p className="p-journal-empty">
             {decisions.isFetching
               ? "Reading the latest decisions…"
-              : "The agent’s recorded decisions will appear here."}
+              : "Zethos’s recorded decisions will appear here."}
           </p>
         )}
       </section>
@@ -772,8 +702,7 @@ function OperatorDashboard({
           <span className="p-control-icon">
             {paused ? <Play size={24} /> : <Pause size={24} />}
           </span>
-          <p className="p-eyebrow">OWNER CONTROL</p>
-          <h2>{paused ? "Ready to resume?" : "A moment to pause."}</h2>
+          <h2>{paused ? "Resume quoting?" : "Pause quoting?"}</h2>
           <p>
             {paused
               ? "Your wallet will confirm an on-chain transaction to resume the vault."

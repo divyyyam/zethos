@@ -1,17 +1,34 @@
-/** Engraved plates in public/art. Generated with Codex and Antigravity; see public/art/README.md. */
-const square = (name: string) => ({ src: `/art/${name}.webp`, width: 512, height: 512 });
+/** Engraved plates in public/art, trimmed to their ink. Tools are credited in public/art/README.md. */
+const plate = (name: keyof typeof SIZES) => ({
+  src: `/art/${name}.webp`,
+  width: SIZES[name][0],
+  height: SIZES[name][1],
+});
+
+const SIZES = {
+  panorama: [1559, 542],
+  valley: [1672, 725],
+  gates: [907, 1239],
+  seal: [422, 422],
+  depth: [400, 400],
+  speed: [454, 454],
+  atomic: [402, 402],
+  balance: [482, 482],
+  shield: [443, 443],
+  open: [486, 486],
+} as const;
 
 export const art = {
-  panorama: { src: "/art/panorama.webp", width: 1672, height: 941 },
-  valley: { src: "/art/valley.webp", width: 1672, height: 941 },
-  gates: { src: "/art/gates.webp", width: 1024, height: 1365 },
-  seal: square("seal"),
+  panorama: plate("panorama"),
+  valley: plate("valley"),
+  gates: plate("gates"),
+  seal: plate("seal"),
   emblems: {
-    depth: square("depth"),
-    speed: square("speed"),
-    atomic: square("atomic"),
-    balance: square("balance"),
-    shield: square("shield"),
-    open: square("open"),
+    depth: plate("depth"),
+    speed: plate("speed"),
+    atomic: plate("atomic"),
+    balance: plate("balance"),
+    shield: plate("shield"),
+    open: plate("open"),
   },
 } as const;

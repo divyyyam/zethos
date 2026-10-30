@@ -127,8 +127,7 @@ export function Assistant({
             <Sparkles size={22} strokeWidth={1.5} />
           </span>
           <div>
-            <p className="p-eyebrow">A LITTLE CLARITY</p>
-            <h2>Ask away.</h2>
+            <h2>Ask Zethos</h2>
           </div>
         </div>
         <p className="p-assistant-intro">
@@ -145,11 +144,7 @@ export function Assistant({
           {messages.length === 0 && (
             <div className="p-assistant-welcome">
               <BrandMark className="size-8" />
-              <h3>
-                Good swaps start
-                <br />
-                with a little understanding.
-              </h3>
+              <h3>How can I help?</h3>
               <p>Ask how it works, or start with a pair and an amount.</p>
               <div>
                 {[

@@ -150,7 +150,7 @@ export function Compare() {
       data-chapter={chapters.compare}
       className="relative sect bg-white pt-after-window"
     >
-      <div className="grid items-end gap-block lg:grid-cols-[minmax(0,1fr)_minmax(0,34%)]">
+      <div className="grid gap-block lg:grid-cols-[minmax(0,1fr)_minmax(0,30%)]">
         <div>
           <Reveal>
             <p className="eyebrow text-fg-soft">{compare.kicker}</p>
@@ -160,14 +160,13 @@ export function Compare() {
             className="display t-section mt-4 text-fg"
           />
         </div>
-        <Reveal y={40} className="hidden lg:block">
+        <Reveal y={40} className="relative hidden lg:block">
           <Image
             src={art.valley.src}
-            width={art.valley.width}
-            height={art.valley.height}
-            sizes="34vw"
+            fill
+            sizes="30vw"
             alt=""
-            className="plate h-auto w-full"
+            className="plate object-contain object-right"
           />
         </Reveal>
       </div>
