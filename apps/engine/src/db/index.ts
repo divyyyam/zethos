@@ -1,2 +1,60 @@
-// TODO: Implement db per docs/engine.md section 16.
-export {};
+import type { Address, Hex } from "viem";
+import type { Pair, Side } from "../config";
+import type { SignedQuote } from "../quotes";
+import type { Inventory } from "../tokens";
+import type { AgentState } from "../agent/types";
+
+export { createDb, type Database } from "./db";
+
+export type Flow = "tape" | "user" | "agent" | "attacker";
+
+export interface Fill {
+  id: string;
+  quoteId: string;
+  ts: number;
+  taker: Address;
+  pair: Pair;
+  side: Side;
+  tokenIn: Address;
+  tokenOut: Address;
+  amountIn: string;
+  amountOut: string;
+  price: number;
+  midAtFill: number;
+  flow: Flow;
+  paper: true;
+  txHash: Hex | null;
+}
+
+export interface QuoteRecord {
+  id: string;
+  ts: number;
+  epoch: number;
+  pair: Pair;
+  side: Side;
+  client: string;
+  quote: SignedQuote;
+  signature: Hex;
+  breakdown: unknown;
+  status?: "issued" | "filled" | "expired";
+}
+
+export interface ArenaState {
+  epoch: number;
+  startedAt: number;
+  inventory: Inventory;
+}
+
+export interface Store {
+  loadArena(): Promise<ArenaState | null>;
+  startArena(startedAt: number, inventory: Inventory): Promise<ArenaState>;
+  saveQuote(record: QuoteRecord): Promise<void>;
+  loadQuotes(epoch: number): Promise<QuoteRecord[]>;
+  expireQuotes(nowSec: number): Promise<void>;
+  nonceUsed(taker: string, nonce: string): Promise<boolean>;
+  loadState(): Promise<AgentState | null>;
+  saveState(state: AgentState): Promise<void>;
+  // Atomic: the fill, its nonce and the new inventory are written together or not at all.
+  saveFill(fill: Fill, nonce: string, epoch: number, inventory: Inventory): Promise<void>;
+  fills(query: { taker?: Address; limit: number; epoch?: number }): Promise<Fill[]>;
+}

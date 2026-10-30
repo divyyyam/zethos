@@ -1,0 +1,156 @@
+import { and, desc, eq, lt, max } from "drizzle-orm";
+import { getAddress } from "viem";
+import type { Pair, Side } from "../config";
+import { type Inventory, TOKEN_SYMBOLS } from "../tokens";
+import { createDb } from "./db";
+import type { Fill, Flow, QuoteRecord, Store } from "./index";
+import * as schema from "./schema";
+
+export function neonStore(url: string): Store {
+  const db = createDb(url);
+
+  const inventoryRows = (epoch: number, inventory: Inventory) =>
+    TOKEN_SYMBOLS.map((token) => ({ epoch, token, amount: inventory[token].toString() }));
+
+  return {
+    async loadArena() {
+      const [latest] = await db.select({ epoch: max(schema.epochs.epoch) }).from(schema.epochs);
+      if (latest?.epoch == null) return null;
+      const epoch = latest.epoch;
+      const [row] = await db.select().from(schema.epochs).where(eq(schema.epochs.epoch, epoch));
+      const rows = await db
+        .select()
+        .from(schema.inventory)
+        .where(eq(schema.inventory.epoch, epoch));
+      const inventory = Object.fromEntries(
+        TOKEN_SYMBOLS.map((token) => [
+          token,
+          BigInt(rows.find((item) => item.token === token)?.amount ?? "0"),
+        ]),
+      ) as Inventory;
+      return { epoch, startedAt: row?.startedAt ?? 0, inventory };
+    },
+
+    async startArena(startedAt, inventory) {
+      const [latest] = await db.select({ epoch: max(schema.epochs.epoch) }).from(schema.epochs);
+      const epoch = (latest?.epoch ?? 0) + 1;
+      await db.batch([
+        db.insert(schema.epochs).values({ epoch, startedAt }),
+        db.insert(schema.inventory).values(inventoryRows(epoch, inventory)),
+      ]);
+      return { epoch, startedAt, inventory };
+    },
+
+    async saveQuote(record) {
+      await db.insert(schema.quotes).values({
+        id: record.id,
+        ts: record.ts,
+        epoch: record.epoch,
+        pair: record.pair,
+        side: record.side,
+        client: record.client,
+        taker: record.quote.taker.toLowerCase(),
+        tokenIn: record.quote.tokenIn,
+        tokenOut: record.quote.tokenOut,
+        amountIn: record.quote.amountIn,
+        amountOut: record.quote.amountOut,
+        nonce: record.quote.nonce,
+        issuedAt: record.quote.issuedAt,
+        expiry: record.quote.expiry,
+        signature: record.signature,
+        breakdown: record.breakdown,
+      });
+    },
+
+    async loadQuotes(epoch) {
+      const rows = await db.select().from(schema.quotes).where(eq(schema.quotes.epoch, epoch));
+      return rows.map((row): QuoteRecord => ({
+        id: row.id, ts: row.ts, epoch: row.epoch, pair: row.pair as Pair, side: row.side as Side,
+        client: row.client, signature: row.signature as `0x${string}`, breakdown: row.breakdown,
+        status: row.status as NonNullable<QuoteRecord["status"]>,
+        quote: { taker: row.taker, tokenIn: row.tokenIn, tokenOut: row.tokenOut, amountIn: row.amountIn,
+          amountOut: row.amountOut, nonce: row.nonce, issuedAt: row.issuedAt, expiry: row.expiry },
+      }));
+    },
+
+    async expireQuotes(nowSec) {
+      await db.update(schema.quotes).set({ status: "expired" }).where(and(eq(schema.quotes.status, "issued"), lt(schema.quotes.expiry, String(nowSec))));
+    },
+
+    async nonceUsed(taker, nonce) {
+      const rows = await db.select({ id: schema.fills.id }).from(schema.fills)
+        .where(and(eq(schema.fills.taker, taker.toLowerCase()), eq(schema.fills.nonce, nonce))).limit(1);
+      return rows.length > 0;
+    },
+
+    async loadState() {
+      const [row] = await db.select().from(schema.engineState).where(eq(schema.engineState.id, "market"));
+      return row?.state ?? null;
+    },
+
+    async saveState(state) {
+      await db.insert(schema.engineState).values({ id: "market", state })
+        .onConflictDoUpdate({ target: schema.engineState.id, set: { state } });
+    },
+
+    async saveFill(fill, nonce, epoch, inventory) {
+      await db.batch([
+        db.insert(schema.fills).values({
+          id: fill.id,
+          quoteId: fill.quoteId,
+          ts: fill.ts,
+          epoch,
+          pair: fill.pair,
+          side: fill.side,
+          taker: fill.taker.toLowerCase(),
+          tokenIn: fill.tokenIn,
+          tokenOut: fill.tokenOut,
+          amountIn: fill.amountIn,
+          amountOut: fill.amountOut,
+          nonce,
+          price: fill.price,
+          midAtFill: fill.midAtFill,
+          flow: fill.flow,
+        }),
+        db.update(schema.quotes).set({ status: "filled" }).where(eq(schema.quotes.id, fill.quoteId)),
+        ...inventoryRows(epoch, inventory).map((row) =>
+          db
+            .insert(schema.inventory)
+            .values(row)
+            .onConflictDoUpdate({
+              target: [schema.inventory.epoch, schema.inventory.token],
+              set: { amount: row.amount },
+            }),
+        ),
+      ]);
+    },
+
+    async fills({ taker, limit, epoch }) {
+      const rows = await db
+        .select()
+        .from(schema.fills)
+        .where(and(taker ? eq(schema.fills.taker, taker.toLowerCase()) : undefined, epoch === undefined ? undefined : eq(schema.fills.epoch, epoch)))
+        .orderBy(desc(schema.fills.ts))
+        .limit(limit);
+      return rows.map(
+        (row): Fill => ({
+          id: row.id,
+          quoteId: row.quoteId,
+          ts: row.ts,
+          taker: getAddress(row.taker),
+          pair: row.pair as Pair,
+          side: row.side as Side,
+          tokenIn: getAddress(row.tokenIn),
+          tokenOut: getAddress(row.tokenOut),
+          amountIn: row.amountIn,
+          amountOut: row.amountOut,
+          price: row.price,
+          midAtFill: row.midAtFill,
+          flow: row.flow as Flow,
+          paper: true,
+          txHash: null,
+        }),
+      );
+    },
+  };
+}
