@@ -1,0 +1,1 @@
+ALTER TABLE "fills" ADD COLUMN "gas_usd" double precision DEFAULT 0 NOT NULL;

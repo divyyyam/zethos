@@ -1,0 +1,1 @@
+ALTER TABLE "fills" ALTER COLUMN "mid_at_fill" DROP NOT NULL;
