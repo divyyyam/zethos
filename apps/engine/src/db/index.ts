@@ -1,8 +1,8 @@
 import type { Address, Hex } from "viem";
+import type { AgentState } from "../agent/types";
 import type { Pair, Side } from "../config";
 import type { SignedQuote } from "../quotes";
 import type { Inventory } from "../tokens";
-import type { AgentState } from "../agent/types";
 
 export { createDb, type Database } from "./db";
 
@@ -20,10 +20,13 @@ export interface Fill {
   amountIn: string;
   amountOut: string;
   price: number;
-  midAtFill: number;
+  midAtFill: number | null;
   flow: Flow;
   paper: true;
   txHash: Hex | null;
+  markouts?: Record<string, number>;
+  gasUsd?: number;
+  epoch?: number;
 }
 
 export interface QuoteRecord {
@@ -52,7 +55,7 @@ export interface Store {
   loadQuotes(epoch: number): Promise<QuoteRecord[]>;
   expireQuotes(nowSec: number): Promise<void>;
   nonceUsed(taker: string, nonce: string): Promise<boolean>;
-  loadState(): Promise<AgentState | null>;
+  loadState(epoch?: number): Promise<AgentState | null>;
   saveState(state: AgentState): Promise<void>;
   // Atomic: the fill, its nonce and the new inventory are written together or not at all.
   saveFill(fill: Fill, nonce: string, epoch: number, inventory: Inventory): Promise<void>;

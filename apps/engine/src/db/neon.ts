@@ -64,32 +64,64 @@ export function neonStore(url: string): Store {
 
     async loadQuotes(epoch) {
       const rows = await db.select().from(schema.quotes).where(eq(schema.quotes.epoch, epoch));
-      return rows.map((row): QuoteRecord => ({
-        id: row.id, ts: row.ts, epoch: row.epoch, pair: row.pair as Pair, side: row.side as Side,
-        client: row.client, signature: row.signature as `0x${string}`, breakdown: row.breakdown,
-        status: row.status as NonNullable<QuoteRecord["status"]>,
-        quote: { taker: row.taker, tokenIn: row.tokenIn, tokenOut: row.tokenOut, amountIn: row.amountIn,
-          amountOut: row.amountOut, nonce: row.nonce, issuedAt: row.issuedAt, expiry: row.expiry },
-      }));
+      return rows.map(
+        (row): QuoteRecord => ({
+          id: row.id,
+          ts: row.ts,
+          epoch: row.epoch,
+          pair: row.pair as Pair,
+          side: row.side as Side,
+          client: row.client,
+          signature: row.signature as `0x${string}`,
+          breakdown: row.breakdown,
+          status: row.status as NonNullable<QuoteRecord["status"]>,
+          quote: {
+            taker: row.taker,
+            tokenIn: row.tokenIn,
+            tokenOut: row.tokenOut,
+            amountIn: row.amountIn,
+            amountOut: row.amountOut,
+            nonce: row.nonce,
+            issuedAt: row.issuedAt,
+            expiry: row.expiry,
+          },
+        }),
+      );
     },
 
     async expireQuotes(nowSec) {
-      await db.update(schema.quotes).set({ status: "expired" }).where(and(eq(schema.quotes.status, "issued"), lt(schema.quotes.expiry, String(nowSec))));
+      await db
+        .update(schema.quotes)
+        .set({ status: "expired" })
+        .where(and(eq(schema.quotes.status, "issued"), lt(schema.quotes.expiry, String(nowSec))));
     },
 
     async nonceUsed(taker, nonce) {
-      const rows = await db.select({ id: schema.fills.id }).from(schema.fills)
-        .where(and(eq(schema.fills.taker, taker.toLowerCase()), eq(schema.fills.nonce, nonce))).limit(1);
+      const rows = await db
+        .select({ id: schema.fills.id })
+        .from(schema.fills)
+        .where(and(eq(schema.fills.taker, taker.toLowerCase()), eq(schema.fills.nonce, nonce)))
+        .limit(1);
       return rows.length > 0;
     },
 
-    async loadState() {
-      const [row] = await db.select().from(schema.engineState).where(eq(schema.engineState.id, "market"));
+    async loadState(epoch) {
+      if (epoch === undefined) {
+        const [latest] = await db.select({ epoch: max(schema.epochs.epoch) }).from(schema.epochs);
+        epoch = latest?.epoch ?? undefined;
+      }
+      if (epoch === undefined) return null;
+      const [row] = await db
+        .select()
+        .from(schema.engineState)
+        .where(eq(schema.engineState.id, `epoch:${epoch}`));
       return row?.state ?? null;
     },
 
     async saveState(state) {
-      await db.insert(schema.engineState).values({ id: "market", state })
+      await db
+        .insert(schema.engineState)
+        .values({ id: `epoch:${state.epoch}`, state })
         .onConflictDoUpdate({ target: schema.engineState.id, set: { state } });
     },
 
@@ -111,8 +143,12 @@ export function neonStore(url: string): Store {
           price: fill.price,
           midAtFill: fill.midAtFill,
           flow: fill.flow,
+          gasUsd: fill.gasUsd ?? 0,
         }),
-        db.update(schema.quotes).set({ status: "filled" }).where(eq(schema.quotes.id, fill.quoteId)),
+        db
+          .update(schema.quotes)
+          .set({ status: "filled" })
+          .where(eq(schema.quotes.id, fill.quoteId)),
         ...inventoryRows(epoch, inventory).map((row) =>
           db
             .insert(schema.inventory)
@@ -129,7 +165,12 @@ export function neonStore(url: string): Store {
       const rows = await db
         .select()
         .from(schema.fills)
-        .where(and(taker ? eq(schema.fills.taker, taker.toLowerCase()) : undefined, epoch === undefined ? undefined : eq(schema.fills.epoch, epoch)))
+        .where(
+          and(
+            taker ? eq(schema.fills.taker, taker.toLowerCase()) : undefined,
+            epoch === undefined ? undefined : eq(schema.fills.epoch, epoch),
+          ),
+        )
         .orderBy(desc(schema.fills.ts))
         .limit(limit);
       return rows.map(
@@ -149,6 +190,8 @@ export function neonStore(url: string): Store {
           flow: row.flow as Flow,
           paper: true,
           txHash: null,
+          gasUsd: row.gasUsd,
+          epoch: row.epoch,
         }),
       );
     },

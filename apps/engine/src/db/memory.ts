@@ -1,5 +1,5 @@
-import type { Inventory } from "../tokens";
 import type { AgentState } from "../agent/types";
+import type { Inventory } from "../tokens";
 import type { ArenaState, Fill, QuoteRecord, Store } from "./index";
 
 export function memoryStore(): Store {
@@ -8,9 +8,10 @@ export function memoryStore(): Store {
   const fills: (Fill & { epoch: number })[] = [];
   const nonces = new Set<string>();
   let state: AgentState | null = null;
+  const epochs = new Map<number, AgentState>();
 
   return {
-    loadArena: async () => arena ? { ...arena, inventory: { ...arena.inventory } } : null,
+    loadArena: async () => (arena ? { ...arena, inventory: { ...arena.inventory } } : null),
     startArena: async (startedAt: number, inventory: Inventory) => {
       arena = { epoch: (arena?.epoch ?? 0) + 1, startedAt, inventory: { ...inventory } };
       return arena;
@@ -19,10 +20,17 @@ export function memoryStore(): Store {
       quotes.push(structuredClone({ ...record, status: "issued" as const }));
     },
     loadQuotes: async (epoch) => structuredClone(quotes.filter((q) => q.epoch === epoch)),
-    expireQuotes: async (nowSec) => { for (const q of quotes) if (q.status === "issued" && Number(q.quote.expiry) < nowSec) q.status = "expired"; },
+    expireQuotes: async (nowSec) => {
+      for (const q of quotes)
+        if (q.status === "issued" && Number(q.quote.expiry) < nowSec) q.status = "expired";
+    },
     nonceUsed: async (taker, nonce) => nonces.has(`${taker.toLowerCase()}:${nonce}`),
-    loadState: async () => structuredClone(state),
-    saveState: async (value) => { state = structuredClone(value); },
+    loadState: async (epoch) =>
+      structuredClone(epoch === undefined ? state : (epochs.get(epoch) ?? null)),
+    saveState: async (value) => {
+      state = structuredClone(value);
+      epochs.set(value.epoch, structuredClone(value));
+    },
     saveFill: async (fill, nonce, epoch, inventory) => {
       const key = `${fill.taker.toLowerCase()}:${nonce}`;
       if (nonces.has(key)) throw new Error("duplicate nonce");
@@ -34,7 +42,11 @@ export function memoryStore(): Store {
     },
     fills: async ({ taker, limit, epoch }) =>
       fills
-        .filter((fill) => (epoch === undefined || fill.epoch === epoch) && (!taker || fill.taker.toLowerCase() === taker.toLowerCase()))
+        .filter(
+          (fill) =>
+            (epoch === undefined || fill.epoch === epoch) &&
+            (!taker || fill.taker.toLowerCase() === taker.toLowerCase()),
+        )
         .sort((a, b) => b.ts - a.ts)
         .slice(0, limit),
   };
