@@ -1,5 +1,5 @@
 import "./globals.css";
-import { Instrument_Sans, Inter } from "next/font/google";
+import { Instrument_Sans, Instrument_Serif, Inter } from "next/font/google";
 
 const instrumentSans = Instrument_Sans({
   subsets: ["latin"],
@@ -16,9 +16,20 @@ const inter = Inter({
   display: "swap",
 });
 
+const instrumentSerif = Instrument_Serif({
+  subsets: ["latin"],
+  weight: "400",
+  style: "italic",
+  variable: "--font-editorial",
+  display: "swap",
+});
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${instrumentSans.variable} ${inter.variable}`}>
+    <html
+      lang="en"
+      className={`${instrumentSans.variable} ${inter.variable} ${instrumentSerif.variable}`}
+    >
       <body>{children}</body>
     </html>
   );

@@ -31,6 +31,7 @@
 
   --font-display: var(--font-instrument), ui-sans-serif, system-ui, sans-serif;
   --font-body: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-accent: var(--font-editorial), Georgia, serif;
 
   --ease-soft: cubic-bezier(0.22, 1, 0.36, 1);
 }
@@ -69,11 +70,18 @@ body:has([data-landing]) {
 }
 
 [data-landing] {
+  --font-display: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   --footer-h: 560px;
   font-family: var(--font-body);
   font-variant-numeric: normal;
   -webkit-font-smoothing: antialiased;
   isolation: isolate;
+}
+
+[data-landing] em {
+  font-family: var(--font-accent);
+  font-weight: 400;
+  letter-spacing: -0.025em;
 }
 
 [data-landing] ::selection {
