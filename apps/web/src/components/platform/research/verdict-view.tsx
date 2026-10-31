@@ -2,21 +2,21 @@
 
 import { Check, X } from "lucide-react";
 import type { EvaluationReport } from "../../../lib/engine/research-types";
+import styles from "./research.module.css";
 
 export function VerdictView({ report }: { report: EvaluationReport | null | undefined }) {
   if (!report?.verdict) {
     return (
       <div className="d-card">
         <div className="d-card-head">
-          <h2>Qualification Verdict</h2>
-          <p>Mandate qualification gates and promotion criteria</p>
+          <div>
+            <h2>Qualification</h2>
+            <p>The checks a strategy must pass before a canary trial.</p>
+          </div>
         </div>
-        <div className="py-4 text-center text-neutral-400">
+        <div className={styles.empty}>
           <span className="p-pill p-pill-neutral">Pending Evaluation</span>
-          <p className="text-xs text-neutral-400 mt-2">
-            This candidate does not yet have a qualification report. Do not treat un-evaluated
-            candidates as qualified.
-          </p>
+          <p>This candidate has not been evaluated and is not yet qualified for a canary trial.</p>
         </div>
       </div>
     );
@@ -48,25 +48,19 @@ export function VerdictView({ report }: { report: EvaluationReport | null | unde
   return (
     <div className="d-card">
       <div className="d-card-head">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <h2>Qualification Verdict</h2>
-            <p>Mandate qualification rules: all rules must pass to qualify for canary</p>
-          </div>
-          <span
-            className={`p-pill text-xs font-semibold px-3 py-1 ${
-              qualified
-                ? "p-pill-success border border-emerald-500/50"
-                : "p-pill-neutral text-rose-400 border border-rose-800/80 bg-rose-950/20"
-            }`}
-          >
-            {qualified ? "QUALIFIED" : "REJECTED"}
-          </span>
+        <div>
+          <h2>Qualification</h2>
+          <p>Every check must pass before a candidate can enter a canary trial.</p>
         </div>
+        <span
+          className={`p-pill ${styles.status} ${qualified ? "p-pill-success" : styles.rejected}`}
+        >
+          {qualified ? "Qualified" : "Rejected"}
+        </span>
       </div>
 
       <div className="p-table-wrap">
-        <table className="p-table text-xs" aria-label="Qualification verdict rules table">
+        <table className={`p-table ${styles.table}`} aria-label="Qualification verdict rules table">
           <thead>
             <tr>
               <th scope="col">Rule</th>
@@ -83,20 +77,16 @@ export function VerdictView({ report }: { report: EvaluationReport | null | unde
                 <tr key={reason.rule}>
                   <td>
                     <div>
-                      <strong className="text-neutral-200 block">{ruleTitle}</strong>
-                      <span className="font-mono text-neutral-400 text-xs">{reason.rule}</span>
+                      <strong className={styles.ruleTitle}>{ruleTitle}</strong>
+                      <span className={`font-mono text-xs ${styles.muted}`}>{reason.rule}</span>
                       {reason.detail ? (
-                        <span className="text-neutral-400 text-xs block mt-1">{reason.detail}</span>
+                        <span className={styles.ruleDetail}>{reason.detail}</span>
                       ) : null}
                     </div>
                   </td>
                   <td>
                     <span
-                      className={`inline-flex items-center gap-1 font-semibold px-2 py-0.5 rounded text-xs ${
-                        reason.passed
-                          ? "text-emerald-400 bg-emerald-950/30 border border-emerald-800/40"
-                          : "text-rose-400 bg-rose-950/30 border border-rose-800/40"
-                      }`}
+                      className={`p-pill ${styles.status} ${reason.passed ? "p-pill-success" : styles.rejected}`}
                     >
                       {reason.passed ? (
                         <>
@@ -111,9 +101,9 @@ export function VerdictView({ report }: { report: EvaluationReport | null | unde
                       )}
                     </span>
                   </td>
-                  <td className="font-mono text-neutral-100">{formatValue(reason.candidate)}</td>
-                  <td className="font-mono text-neutral-400">{formatValue(reason.incumbent)}</td>
-                  <td className="font-mono text-neutral-400">{formatValue(reason.threshold)}</td>
+                  <td className="font-mono">{formatValue(reason.candidate)}</td>
+                  <td className={`font-mono ${styles.muted}`}>{formatValue(reason.incumbent)}</td>
+                  <td className={`font-mono ${styles.muted}`}>{formatValue(reason.threshold)}</td>
                 </tr>
               );
             })}

@@ -3,23 +3,28 @@
 import { AlertCircle } from "lucide-react";
 import { formatFractionAsPct, formatUsdOrUnavailable } from "../../../lib/engine/desk-types";
 import type { DiagnosisResponse } from "../../../lib/engine/research-types";
+import styles from "./research.module.css";
 
-const CAUSE_TITLES: Record<string, { title: string; blurb: string }> = {
+const CAUSE_TITLES: Record<string, { title: string; blurb: string; color: string }> = {
   stale_reference: {
-    title: "Stale Reference",
+    title: "Stale reference",
     blurb: "Lead venue moved before the engine fused mid caught up",
+    color: "var(--p-accent)",
   },
   selective_execution: {
-    title: "Selective Execution",
+    title: "Selective execution",
     blurb: "Taker executed late in the quote window following a favorable market move",
+    color: "var(--color-periwinkle)",
   },
   adverse_size: {
-    title: "Adverse Size",
+    title: "Adverse size",
     blurb: "Losses concentrated disproportionately in large trade sizes",
+    color: "var(--p-warning)",
   },
   inventory_imbalance: {
-    title: "Inventory Imbalance",
+    title: "Inventory imbalance",
     blurb: "Loss originated from holding residual inventory rather than immediate markout",
+    color: "var(--p-success)",
   },
 };
 
@@ -36,15 +41,15 @@ export function DiagnosisView({
     return (
       <div className="d-card">
         <div className="d-card-head">
-          <h2>Loss Attribution Diagnosis</h2>
-          <p>Real-time cause attribution across losing executions</p>
+          <div>
+            <h2>Where losses come from</h2>
+            <p>Causes and example fills from the current analysis window.</p>
+          </div>
         </div>
-        <div className="py-4 text-center text-neutral-400 bg-neutral-900/30 border border-neutral-800 rounded">
-          <AlertCircle size={20} className="mx-auto mb-2 text-neutral-500" aria-hidden />
-          <p className="text-sm font-medium">Diagnosis data unavailable</p>
-          <p className="text-xs text-neutral-500 mt-1">
-            The loss attribution endpoint is currently unreachable or unpopulated.
-          </p>
+        <div className={styles.empty}>
+          <AlertCircle size={20} aria-hidden />
+          <strong>Loss breakdown unavailable</strong>
+          <p>The loss attribution endpoint is currently unreachable or unpopulated.</p>
         </div>
       </div>
     );
@@ -54,10 +59,12 @@ export function DiagnosisView({
     return (
       <div className="d-card">
         <div className="d-card-head">
-          <h2>Loss Attribution Diagnosis</h2>
-          <p>Real-time cause attribution across losing executions</p>
+          <div>
+            <h2>Where losses come from</h2>
+            <p>Causes and example fills from the current analysis window.</p>
+          </div>
         </div>
-        <p className="text-sm text-neutral-400 py-4">Loading attribution diagnosis...</p>
+        <p className="d-empty-line">Loading the loss breakdown...</p>
       </div>
     );
   }
@@ -67,39 +74,33 @@ export function DiagnosisView({
   return (
     <div className="d-card">
       <div className="d-card-head">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-          <div>
-            <h2>Loss Attribution Diagnosis</h2>
-            <p>
-              Attributed causes for losing fills in the current analysis window (Total:{" "}
-              <b>{formatUsdOrUnavailable(diagnosis.totalLossUsd)}</b>)
-            </p>
-          </div>
-          <span className="p-pill p-pill-neutral text-xs">S6 Attribution Model</span>
+        <div>
+          <h2>Where losses come from</h2>
+          <p>Causes and example fills from the current analysis window.</p>
         </div>
+        <span className="p-pill p-pill-neutral">
+          {formatUsdOrUnavailable(diagnosis.totalLossUsd)} attributed loss
+        </span>
       </div>
 
       {/* Visual Cause Share Breakdown */}
-      <div className="mb-5">
-        <div className="flex h-3 w-full rounded-full overflow-hidden bg-neutral-800 mb-2">
-          {causesList.map(([causeKey, item], index) => {
-            const colors = ["bg-amber-500", "bg-purple-500", "bg-cyan-500", "bg-emerald-500"];
-            const color = colors[index % colors.length];
-            return (
-              <div
-                key={causeKey}
-                className={color}
-                style={{ width: `${Math.max(0, Math.min(100, item.share * 100))}%` }}
-                title={`${causeKey}: ${(item.share * 100).toFixed(1)}%`}
-              />
-            );
-          })}
-        </div>
+      <div className={styles.lossBar} aria-hidden>
+        {causesList.map(([causeKey, item]) => {
+          return (
+            <span
+              key={causeKey}
+              style={{
+                width: `${Math.max(0, Math.min(100, item.share * 100))}%`,
+                backgroundColor: CAUSE_TITLES[causeKey]?.color ?? "var(--p-accent)",
+              }}
+            />
+          );
+        })}
       </div>
 
       {/* Causes Table */}
       <div className="p-table-wrap mb-5">
-        <table className="p-table text-xs" aria-label="Loss causes attribution table">
+        <table className={`p-table ${styles.table}`} aria-label="Loss causes attribution table">
           <thead>
             <tr>
               <th scope="col">Attributed Cause</th>
@@ -120,17 +121,24 @@ export function DiagnosisView({
                 <tr key={causeKey}>
                   <td>
                     <div>
-                      <strong className="text-neutral-200 block">{meta.title}</strong>
-                      <span className="text-neutral-400 text-xs">{meta.blurb}</span>
+                      <strong className={styles.causeLabel}>
+                        <span
+                          className={styles.dot}
+                          style={{
+                            backgroundColor: CAUSE_TITLES[causeKey]?.color ?? "var(--p-accent)",
+                          }}
+                          aria-hidden
+                        />
+                        {meta.title}
+                      </strong>
+                      <span className={styles.ruleDetail}>{meta.blurb}</span>
                     </div>
                   </td>
                   <td>
-                    <strong className="text-neutral-100 font-mono">
-                      {formatFractionAsPct(item.share)}
-                    </strong>
+                    <strong className="font-mono">{formatFractionAsPct(item.share)}</strong>
                   </td>
                   <td>
-                    <span className="text-rose-400 font-mono font-medium">
+                    <span className={`font-mono ${styles.negative}`}>
                       {formatUsdOrUnavailable(item.usd)}
                     </span>
                   </td>
@@ -138,13 +146,10 @@ export function DiagnosisView({
                   <td>
                     <div className="flex flex-wrap gap-1 font-mono text-xs">
                       {item.exampleFillIds.length === 0 ? (
-                        <span className="text-neutral-500">—</span>
+                        <span className={styles.muted}>—</span>
                       ) : (
                         item.exampleFillIds.map((fillId) => (
-                          <span
-                            key={fillId}
-                            className="bg-neutral-800/80 px-1.5 py-0.5 rounded text-neutral-300"
-                          >
+                          <span key={fillId} className={styles.fillId}>
                             {fillId}
                           </span>
                         ))
@@ -160,40 +165,38 @@ export function DiagnosisView({
 
       {/* Breakdown Evidence Samples (if available) */}
       {diagnosis.breakdown && diagnosis.breakdown.length > 0 && (
-        <div className="border-t border-neutral-800 pt-3">
-          <h3 className="text-xs uppercase tracking-wider text-neutral-400 mb-2 font-medium">
-            Evidence Samples From Tape
-          </h3>
-          <div className="space-y-2 text-xs">
+        <details className={styles.details}>
+          <summary>Example fills · {diagnosis.breakdown.length} records</summary>
+          <div className={`${styles.stack} mt-3 text-xs`}>
             {diagnosis.breakdown.map((item) => (
               <div
                 key={item.fillId}
-                className="bg-neutral-900/40 border border-neutral-800/60 rounded p-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2"
+                className={`${styles.inset} flex flex-col sm:flex-row sm:items-center justify-between gap-2`}
               >
                 <div>
-                  <span className="font-mono text-neutral-300 font-semibold">{item.fillId}</span>{" "}
-                  <span className="text-neutral-500">
+                  <span className="font-mono font-medium">{item.fillId}</span>{" "}
+                  <span className={styles.muted}>
                     ({item.pair} {item.side})
                   </span>
-                  <p className="text-neutral-400 text-xs mt-0.5">
+                  <p className={styles.muted}>
                     Notional: {formatUsdOrUnavailable(item.notionalUsd)} · Loss:{" "}
-                    <span className="text-rose-400 font-mono">
+                    <span className={`font-mono ${styles.negative}`}>
                       {formatUsdOrUnavailable(item.lossUsd)}
                     </span>
                   </p>
                 </div>
-                <div className="flex items-center gap-1.5 font-mono text-xs">
-                  <span className="text-neutral-500">Causes:</span>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className={styles.muted}>Causes:</span>
                   {item.matchedCauses.map((c) => (
-                    <span key={c} className="p-pill p-pill-neutral text-xs">
-                      {c}
+                    <span key={c} className={`p-pill p-pill-neutral ${styles.status}`}>
+                      {CAUSE_TITLES[c]?.title ?? c.replaceAll("_", " ")}
                     </span>
                   ))}
                 </div>
               </div>
             ))}
           </div>
-        </div>
+        </details>
       )}
     </div>
   );

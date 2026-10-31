@@ -2,6 +2,7 @@
 
 import { formatFractionAsPct, formatUsdOrUnavailable } from "../../../lib/engine/desk-types";
 import type { CanaryCounterfactual } from "../../../lib/engine/research-types";
+import styles from "./research.module.css";
 
 export function CanaryStatsView({
   canaryStats,
@@ -18,14 +19,14 @@ export function CanaryStatsView({
     return (
       <div className="d-card">
         <div className="d-card-head">
-          <h2>Canary Counterfactual Performance</h2>
-          <p>Live shadow execution compared against what the incumbent would have quoted</p>
+          <div>
+            <h2>Canary performance</h2>
+            <p>Observed trial results against what the incumbent would have quoted.</p>
+          </div>
         </div>
-        <div className="py-4 text-center text-neutral-400 bg-neutral-900/30 border border-neutral-800 rounded">
-          <p className="text-sm font-medium">No live counterfactual stats recorded yet</p>
-          <p className="text-xs text-neutral-500 mt-1">
-            Telemetry begins accumulating as quotes are priced and settled in shadow mode.
-          </p>
+        <div className={styles.empty}>
+          <strong>No canary results yet</strong>
+          <p>Results appear as quotes are priced and settled in shadow mode.</p>
         </div>
       </div>
     );
@@ -39,34 +40,32 @@ export function CanaryStatsView({
   return (
     <div className="d-card">
       <div className="d-card-head">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-          <div>
-            <h2>Canary Counterfactual Telemetry</h2>
-            <p>Live execution compared counterfactually against incumbent benchmark</p>
-          </div>
-          <span className="p-pill p-pill-neutral text-xs">Paper Shadow Canary</span>
+        <div>
+          <h2>Canary performance</h2>
+          <p>Observed trial results against what the incumbent would have quoted.</p>
         </div>
+        <span className="p-pill p-pill-neutral">Paper shadow canary</span>
       </div>
 
-      <div className="p-metrics-grid">
+      <div className={`p-metrics-grid ${styles.metrics}`}>
         <div className="p-metric">
-          <span>Observed Fills</span>
-          <strong>{canaryStats.observedFills}</strong>
+          <span>Observed fills</span>
+          <strong className={styles.metricValue}>{canaryStats.observedFills}</strong>
           <small>Counterfactual incumbent: {canaryStats.counterfactualFills ?? "—"} fills</small>
         </div>
         <div className="p-metric">
-          <span>Observed Canary P&L</span>
+          <span>Canary P&L</span>
           <strong
-            className={canaryStats.observedPnlUsd >= 0 ? "text-emerald-400" : "text-rose-400"}
+            className={`${styles.metricValue} ${canaryStats.observedPnlUsd >= 0 ? styles.positive : styles.negative}`}
           >
             {formatUsdOrUnavailable(canaryStats.observedPnlUsd)}
           </strong>
           <small>Counterfactual: {formatUsdOrUnavailable(canaryStats.counterfactualPnlUsd)}</small>
         </div>
         <div className="p-metric">
-          <span>Counterfactual P&L Edge</span>
+          <span>P&L advantage</span>
           <strong
-            className={pnlDelta !== null && pnlDelta >= 0 ? "text-emerald-400" : "text-rose-400"}
+            className={`${styles.metricValue} ${pnlDelta === null ? styles.muted : pnlDelta >= 0 ? styles.positive : styles.negative}`}
           >
             {pnlDelta !== null
               ? pnlDelta >= 0
@@ -77,8 +76,10 @@ export function CanaryStatsView({
           <small>Advantage vs incumbent</small>
         </div>
         <div className="p-metric">
-          <span>Fill Rate Delta</span>
-          <strong>{formatFractionAsPct(canaryStats.fillRateDrop)}</strong>
+          <span>Fill rate drop</span>
+          <strong className={styles.metricValue}>
+            {formatFractionAsPct(canaryStats.fillRateDrop)}
+          </strong>
           <small>Taker fill rate drop</small>
         </div>
       </div>
