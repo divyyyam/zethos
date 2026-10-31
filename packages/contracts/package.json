@@ -12,7 +12,9 @@
     "fmt": "forge fmt",
     "lint": "forge fmt --check",
     "typecheck": "forge build",
-    "deploy:testnet": "forge script script/Deploy.s.sol:Deploy --rpc-url hsk_testnet --account \"${FOUNDRY_ACCOUNT:?Set FOUNDRY_ACCOUNT to an encrypted keystore account name}\" --broadcast --verify --verifier blockscout --verifier-url https://testnet-explorer.hsk.xyz/api/",
+    "deploy:test-tokens": "forge script script/DeployTestTokens.s.sol:DeployTestTokens --rpc-url hsk_testnet --account \"${FOUNDRY_ACCOUNT:?Set FOUNDRY_ACCOUNT to an encrypted keystore account name}\" --broadcast --verify --verifier blockscout --verifier-url https://testnet-explorer.hskchain.net/api/",
+    "deploy:testnet": "forge script script/Deploy.s.sol:Deploy --rpc-url hsk_testnet --account \"${FOUNDRY_ACCOUNT:?Set FOUNDRY_ACCOUNT to an encrypted keystore account name}\" --broadcast --verify --verifier blockscout --verifier-url https://testnet-explorer.hskchain.net/api/",
+    "fund:testnet": "forge script script/Fund.s.sol:Fund --rpc-url hsk_testnet --account \"${FOUNDRY_ACCOUNT:?Set FOUNDRY_ACCOUNT to an encrypted keystore account name}\" --broadcast",
     "deploy:mainnet": "forge script script/Deploy.s.sol:Deploy --rpc-url hsk_mainnet --account \"${FOUNDRY_ACCOUNT:?Set FOUNDRY_ACCOUNT to an encrypted keystore account name}\" --broadcast --verify --verifier blockscout --verifier-url https://hsk.blockscout.com/api/"
   }
 }

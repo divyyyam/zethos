@@ -17,8 +17,12 @@ src/
   libraries/
     QuoteLib.sol                EIP-712 struct hash for a quote
     PoolPrice.sol               Spot output from a pool's sqrt price
+  testnet/
+    ZethosTestToken.sol         Owner-minted ERC-20 with no market value
 script/
   Deploy.s.sol                  Deploys the vault and configures its routes
+  DeployTestTokens.s.sol        Testnet only: deploys tUSDT and tWETH, mints to the owner
+  Fund.s.sol                    Deposits inventory from the owner into the vault
 test/
   base/VaultTest.sol            Shared fixture: a funded vault and quote helpers
   unit/                         One file per concern
@@ -85,8 +89,13 @@ all, once per nonce, only for that taker, only before expiry.
 - **Admin power is total.** The owner can withdraw everything at any time. Inventory belongs to the
   operator; third-party liquidity is out of scope.
 
-`arbSwap` isn't built. The HSKSwap router has not been confirmed on-chain, and `SwapRouter` and
-`SwapRouter02` have different swap structs. Add its interface and the function once it is.
+Deliberately not built, because the testnet goal doesn't need them:
+
+- **`arbSwap`.** The HSKSwap router has not been confirmed on-chain, `SwapRouter` and
+  `SwapRouter02` have different swap structs, and testnet has no pool liquidity to arbitrage. Add
+  its interface and the function once the router is confirmed.
+- **Pool protection on testnet.** Deploy with no pools (`pool = address(0)`), which matches reality.
+- **A rolling volume limit, fork tests and an audit.** See [Before mainnet](#before-mainnet).
 
 ## Commands
 
@@ -112,6 +121,40 @@ bun run codegen
 ```
 
 Then deposit inventory, set `NEXT_PUBLIC_VAULT_ADDRESS` for the web app and verify the source.
+
+## Testnet rehearsal
+
+The target is one real, verifiable fill on HSK testnet (chain `133`). Testnet has no confirmed USDT
+or WETH, so `tUSDT` and `tWETH` stand in for them. They have no market value and must be labelled as
+test tokens wherever they appear, though the price still comes from real exchange books.
+
+All amounts are raw units. Run these from `packages/contracts`, in order:
+
+```sh
+# Deploy tUSDT and tWETH. Copy the printed USDT_ADDRESS and WETH_ADDRESS into .env.
+bun run deploy:test-tokens
+
+# Deploy the vault and its four routes, then copy its address into .env as VAULT_ADDRESS.
+bun run deploy:testnet
+
+# WHSK inventory comes from wrapping faucet HSK. The value is in wei.
+cast send "$WHSK_ADDRESS" "deposit()" --value <wei> --rpc-url hsk_testnet --account "$FOUNDRY_ACCOUNT"
+
+# Set FUND_USDT, FUND_WHSK and FUND_WETH, then deposit.
+bun run fund:testnet
+
+# Give the wallet that will swap some test tokens. Only the owner can mint.
+cast send "$USDT_ADDRESS" "mint(address,uint256)" <taker> <raw amount> \
+  --rpc-url hsk_testnet --account "$FOUNDRY_ACCOUNT"
+```
+
+Without Bun in the shell, load `.env` with `set -a; source .env; set +a` and run the `forge script`
+command from the matching entry in `package.json`. Don't run `bun install` from WSL in a folder
+Windows also uses, because `node_modules` holds platform-specific binaries.
+
+The EVM target is `cancun`, because OpenZeppelin 5.7 uses `MCOPY`. HSK mainnet and testnet both
+execute `PUSH0`, `MCOPY`, `TLOAD` and `TSTORE`. Testnet's explorer is
+`https://testnet-explorer.hskchain.net`.
 
 ## Before mainnet
 
