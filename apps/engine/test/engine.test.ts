@@ -63,14 +63,8 @@ describe("quote", () => {
     const { engine, now } = await readyEngine();
     const { response } = await engine.quote(buyHsk(), "web", now);
     expect(response.route).toBe("paper");
-<<<<<<< HEAD
-    expect(response.policyId).toBe("v0");
-    expect(BigInt(response.paperOut)).toBeLessThan(BigInt(response.spotOut));
-||||||| 94d6717
-    expect(BigInt(response.paperOut)).toBeLessThan(BigInt(response.spotOut));
-=======
+    expect(paperOf(response).policyId).toBe("v0");
     expect(BigInt(paperOf(response).paperOut)).toBeLessThan(BigInt(response.spotOut));
->>>>>>> a6cc28d17a97636cf089a066d80f0999d06993b3
     expect(response.vsMidBps).toBeGreaterThan(0);
     expect(response.expiresAt).toBe(Number(response.quote.expiry));
     expect(Number(response.quote.expiry) - Number(response.quote.issuedAt)).toBe(
@@ -123,14 +117,8 @@ describe("paper fill", () => {
       now + 1000,
     );
     expect(fill.flow).toBe("user");
-<<<<<<< HEAD
     expect(fill.policyId).toBe("v0");
-    expect(fill.amountOut).toBe(response.paperOut);
-||||||| 94d6717
-    expect(fill.amountOut).toBe(response.paperOut);
-=======
     expect(fill.amountOut).toBe(paperOf(response).paperOut);
->>>>>>> a6cc28d17a97636cf089a066d80f0999d06993b3
     expect(fill.price).toBeGreaterThan(0.1);
     const inventory = engine.status().inventory;
     expect(inventory.USDT).toBe((BigInt(usdt(50_000)) + BigInt(usdt(100))).toString());

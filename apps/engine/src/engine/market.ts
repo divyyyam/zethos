@@ -1,14 +1,8 @@
 import { zeroAddress } from "viem";
 import type { Pair, Side } from "../config";
 import type { BookResult } from "../feeds";
-<<<<<<< HEAD
 import { fuse, midOf } from "../feeds/fuse";
-||||||| 94d6717
-import { fuse } from "../feeds/fuse";
-=======
-import { fuse } from "../feeds/fuse";
 import { routeKey } from "../live";
->>>>>>> a6cc28d17a97636cf089a066d80f0999d06993b3
 import { type Inventory, PAIR_TOKENS, TOKEN_SYMBOLS, type Token } from "../tokens";
 import { HISTORY_POINTS } from "./constants";
 import { EngineError } from "./errors";

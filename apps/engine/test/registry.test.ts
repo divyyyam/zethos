@@ -8,7 +8,7 @@ import { type EvaluationReport, evaluationReportSchema, verifyAdminAuth } from "
 import { createPolicySpec, hashPolicySpec } from "../src/research/canonical";
 import { createV0Spec } from "../src/research/incumbent";
 import type { PolicySpec } from "../src/research/schema";
-import { readyEngine, SIGNER_KEY, TAKER, tokens, usdt } from "./helpers";
+import { paperOf, readyEngine, SIGNER_KEY, TAKER, tokens, usdt } from "./helpers";
 
 const ADMIN_TOKEN = "secret_admin_token_for_tests_12345678";
 
@@ -746,7 +746,7 @@ describe("R8A: Policy Registry", () => {
         now,
       );
 
-      expect(quoteAfter.paperOut).toBe(quoteBefore.paperOut);
+      expect(paperOf(quoteAfter).paperOut).toBe(paperOf(quoteBefore).paperOut);
       expect(quoteAfter.breakdown.half).toBe(quoteBefore.breakdown.half);
       expect(quoteAfter.breakdown.base).toBe(quoteBefore.breakdown.base);
     });
@@ -815,7 +815,7 @@ describe("R8A: Policy Registry", () => {
       const assigned = Number(entry?.inputs.canaryAssigned) === 1;
       const bucket = Number(entry?.inputs.bucket);
       expect(assigned).toBe(bucket < 10);
-      expect(response.policyId).toBe(assigned ? spec.id : "v0");
+      expect(paperOf(response).policyId).toBe(assigned ? spec.id : "v0");
       expect(entry?.inputs.incumbentDecision).toBeDefined();
       expect(entry?.inputs.canaryDecision).toBeDefined();
     });
