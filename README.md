@@ -379,4 +379,4 @@ ZETHOS_ENGINE_URL=http://localhost:8787 bun apps/sniper/src/index.ts --mode snip
 | `packages/shared` | Chains, addresses, EIP-712 types, generated ABIs |
 
 
-**Note:** MCP and SDK integrations have been scaffolded but remain out of scope for the current implementation. They are reserved for potential future development. convert this into a super baller pitch and give me to the point lines for this
+**Note:** MCP and SDK integrations have been scaffolded but remain out of scope for the current implementation. They are reserved for potential future development. 
