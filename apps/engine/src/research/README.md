@@ -205,3 +205,22 @@ bun scripts/research-propose.ts \
 - **`--dev-stats`**: Aggregate development statistics JSON (e.g. from `scripts/research-eval.ts` on dev tape), containing fill counts, net USD, spread capture, drawdown, and fill/reject rates. Must not contain held-out data.
 - **`--incumbent`**: Path to incumbent PolicySpec JSON, or `"v0"` for the built-in declarative baseline.
 - **`--out`**: Destination path for the generated candidate PolicySpec JSON.
+
+### Full research cycle (`scripts/research-cycle.ts`)
+
+The cycle fetches `/diagnosis`, builds proposal statistics only from non-held-out scenarios, calls
+the proposer, then freezes the candidate before opening evaluator-role scenarios. The evaluator
+report (including held-out results) is posted unchanged to `POST /policies`; the held-out data is
+never passed to Gemini. `ENGINE_URL`, `GEMINI_API_KEY`, and `ADMIN_TOKEN` are read from the
+environment and are never printed.
+
+```sh
+ENGINE_URL=https://your-engine.workers.dev \
+GEMINI_API_KEY=... ADMIN_TOKEN=... \
+bun scripts/research-cycle.ts --date=20261101 --incumbent=v0
+```
+
+Optional flags include `--pair=HSK/USDT`, `--window=1h|24h|7d`, `--scenarios-dir`, `--runs-dir`,
+`--model`, and `--seed`. The cycle fails if there are no development scenarios, the engine diagnosis
+is unavailable, proposal/evaluation fails, or policy registration is rejected. It saves the dev
+summary, S4 report, and registration response under a cycle folder in `research-runs/`.
