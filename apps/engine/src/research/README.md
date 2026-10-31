@@ -95,5 +95,44 @@ remain in the existing execution layer. Compilation alone does not qualify or ac
 Do not treat a policy result as an executable promise until execution has accepted and signed it.
 
 The nine Tier 2 components are supported. `reservationFee` is rejected while Tier 3 and its
-reservation request fields remain gated. Attribution, scenario loading, evaluation,
+reservation request fields remain gated. Scenario loading, evaluation,
 qualification, proposal generation and the policy registry follow in separate checkpoints.
+
+## S6 Loss attribution (`attributeLosses`)
+
+Pure, deterministic evidence-based loss diagnosis from fills, markouts and venue history:
+
+```ts
+import { attributeLosses } from "./research";
+
+const result = attributeLosses({
+  window: { fromTs: 1700000000000, toTs: 1700000060000 },
+  fills: recordedFills,
+  quotes: matchedQuotes,
+  leadPrices: leadVenueSamples,
+  inventorySnapshots: snapshots,
+  thresholds: {
+    staleReferenceBps: 5.0,
+    selectiveLatenessRatio: 0.6,
+    selectiveFavorableMoveBps: 2.0,
+    adverseSizeUsd: 10000,
+    inventoryMax5sLossBps: 3.0,
+    inventoryMin300sLossBps: 5.0,
+    overlapStrategy: "proportional",
+  },
+});
+```
+
+### Diagnosis causes and evidence rules
+
+1. `stale_reference`: At fill time, an accepted lead venue (e.g. `hashkey-global`, `binance`) moved in the adverse direction by at least `staleReferenceBps` (default 5.0 bps) beyond the fused mid.
+2. `inventory_imbalance`: The loss comes from residual inventory holding, not the 5 s markout. The 5 s markout was benign (≤ `inventoryMax5sLossBps` loss, default 3.0 bps), while the 300 s residual markout suffered significant loss (< `-inventoryMin300sLossBps`, default 5.0 bps), consistent with holding adverse inventory.
+3. `selective_execution`: The fill arrived late in the quote's TTL (`lateness >= selectiveLatenessRatio`, default 0.60) right after a favourable market move for the taker (`favorableMoveBps >= selectiveFavorableMoveBps`, default 2.0 bps) during the quote's lifetime.
+4. `adverse_size`: Losses concentrated in large fills whose notional USD meets or exceeds `adverseSizeUsd` (default 10,000 USD).
+
+### Accounting and anti-double-counting guarantees
+
+- **Overlap handling**: Default strategy is `"proportional"`, dividing a multi-cause fill's loss equally among each matching cause. Every matching cause still records the fill in `exampleFillIds`. An optional `"priority"` strategy is available.
+- **Denominator and reconciliation**: Shares use `analyzedLossUsd` as the denominator. The sum of attributed cause USD plus `unclassified.usd` equals `analyzedLossUsd` exactly; shares sum to 1.0.
+- **Evidence integrity**: Unmatched losses remain in `unclassified`. Fills missing required markout data are placed in `excludedFills` with an explicit reason. No evidence is fabricated.
+- **Purity**: Zero network, wall-clock, journal or API dependencies. Timestamps and raw amounts are preserved as strings.
