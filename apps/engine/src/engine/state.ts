@@ -3,6 +3,7 @@ import { type AgentState, initialState } from "../agent/types";
 import type { Pair } from "../config";
 import type { Fill } from "../db";
 import { Volatility } from "../feeds/vol";
+import { createV0, type Policy } from "../policy";
 import type { SignedQuote } from "../quotes";
 import type { Inventory } from "../tokens";
 import type { EngineDeps, Issued, Market } from "./types";
@@ -32,11 +33,16 @@ export class EngineState {
         vol: new Volatility(),
         updatedAt: null,
         history: [],
+        venueHistory: {},
       });
     }
   }
   get signerAddress(): Address {
     return this.deps.signer.address;
+  }
+  get policy(): Policy {
+    // Parameter reloads must take effect for v0 without retaining stale configuration.
+    return this.deps.policy ?? createV0(this.deps.params);
   }
   // Durable Object requests interleave at awaits. Keep the original queue and rejection recovery.
   exclusive<T>(action: () => Promise<T>): Promise<T> {

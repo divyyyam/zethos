@@ -1,11 +1,12 @@
 import type { Address, Hex, LocalAccount } from "viem";
 import type { Decision } from "../agent/types";
-import type { Pair, Params, Side, TierName } from "../config";
+import type { Pair, Params, Side, TierName, VenueId } from "../config";
 import type { Fill, QuoteRecord, Store } from "../db";
 import type { Engine } from "../engine";
 import type { Fused, VenueState } from "../feeds/fuse";
 import type { Health, Source } from "../feeds/types";
 import type { Volatility } from "../feeds/vol";
+import type { Policy, VenueSample } from "../policy";
 import type { SignedQuote } from "../quotes";
 import type { Tokens } from "../tokens";
 
@@ -60,6 +61,7 @@ export interface EngineDeps {
   onDecision?: (decision: Decision) => void;
   operator?: Address | null;
   dataSource?: "live" | "replay";
+  policy?: Policy;
 }
 
 export interface Market {
@@ -68,6 +70,7 @@ export interface Market {
   vol: Volatility;
   updatedAt: number | null;
   history: { t: number; mid: number; sources?: Record<string, number> }[];
+  venueHistory: Partial<Record<VenueId, VenueSample[]>>;
 }
 
 export interface Issued {

@@ -1,12 +1,12 @@
 import { getAddress } from "viem";
 import type { QuoteRecord } from "../db";
-import { vwap, vwapForQuote } from "../feeds/fuse";
-import { amountOut, priceSwap, ttlSeconds } from "../pricing";
+import { amountOut } from "../pricing";
 import { quoteRequestSchema, randomNonce, type SignedQuote, signQuote } from "../quotes";
 import { units } from "../tokens";
 import { EngineError } from "./errors";
 import { nonceKey } from "./helpers";
 import { baseShareFor, refresh, requireInventory, route, tradable } from "./market";
+import { policyInputs } from "./policy";
 import type { EngineState } from "./state";
 import { getTaker, observeQuote } from "./toxicity";
 import type { PaperQuote } from "./types";
@@ -33,7 +33,7 @@ export async function issueQuote(
   const request = parse(quoteRequestSchema, input);
   const { pair, side, base, quote } = route(context, request.tokenIn, request.tokenOut);
   refresh(context, pair, now);
-  const { market, mid, book } = tradable(context, pair);
+  const { market, mid } = tradable(context, pair);
   const inventory = requireInventory(context);
   rateLimit(context, request.taker, now);
   if (ip) rateLimit(context, `ip:${ip}`, now);
@@ -58,34 +58,28 @@ export async function issueQuote(
     throw new EngineError("vault_capacity", 422, "Amount is above the per-swap limit");
   }
 
-  const ref =
-    side === "buy"
-      ? vwapForQuote(book.asks, notional)
-      : vwap(book.bids, units(amountIn, base.decimals));
-  if (ref === null) throw new EngineError("insufficient_reference_depth", 422);
+  const inputs = policyInputs(
+    context,
+    pair,
+    side,
+    request.amountIn,
+    notional,
+    tierName,
+    taker.score,
+    market,
+    now,
+  );
+  const priced = context.policy.decide(inputs.market, inputs.inventory, inputs.request);
+  if (priced.kind === "reject") {
+    throw new EngineError(priced.reason === "halted" ? "pair_halted" : priced.reason, 422);
+  }
 
   const share = baseShareFor(context, pair, mid, inventory);
   if (side === "sell" ? share > params.inventory.maxShare : share < params.inventory.minShare) {
     throw new EngineError("vault_capacity", 422, "The vault is not taking this side right now");
   }
 
-  const sigma1 = market.vol.sigma1;
-  const ttlSec = ttlSeconds(sigma1, tier.ttlSec, params.quote);
-  const priced = priceSwap(
-    {
-      side,
-      ref,
-      sigma1,
-      ttlSec,
-      baseShare: share,
-      degraded: market.fused.health === "degraded",
-      tier,
-      tuner: context.state.tuner[pair] ?? 1,
-      baseSpread: params.spread.base[pair],
-    },
-    params.spread,
-    params.inventory.targetShare,
-  );
+  const { ttlSec, ref } = priced;
 
   const out = amountOut(side, amountIn, priced.price, base.decimals, quote.decimals);
   const tokenOut = side === "buy" ? base : quote;
@@ -123,8 +117,13 @@ export async function issueQuote(
       mid,
       ref,
       sources: market.fused.sources,
-      ...priced.terms,
-      half: priced.half,
+      base: priced.terms.base ?? 0,
+      vol: priced.terms.vol ?? 0,
+      inventory: priced.terms.inventory ?? 0,
+      toxicity: priced.terms.toxicity ?? 0,
+      degraded: priced.terms.degraded ?? 0,
+      tuner: priced.terms.tuner ?? 1,
+      half: priced.halfSpread,
       sigmaT: priced.sigmaT,
       ttlSec,
       tier: tierName,

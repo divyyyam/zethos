@@ -1,7 +1,7 @@
 import { zeroAddress } from "viem";
 import type { Pair, Side } from "../config";
 import type { BookResult } from "../feeds";
-import { fuse } from "../feeds/fuse";
+import { fuse, midOf } from "../feeds/fuse";
 import { type Inventory, PAIR_TOKENS, TOKEN_SYMBOLS, type Token } from "../tokens";
 import { HISTORY_POINTS } from "./constants";
 import { EngineError } from "./errors";
@@ -20,6 +20,23 @@ export function ingest(context: EngineState, pair: Pair, results: BookResult[], 
       result.book
         ? { venue: result.venue, book: result.book, at: now }
         : (previous ?? { venue: result.venue, book: null, at: 0 }),
+    );
+    const mid = result.book ? midOf(result.book) : null;
+    if (result.book && mid !== null) {
+      const depth = (levels: typeof result.book.bids) =>
+        levels
+          .slice(0, context.deps.params.feeds.bookLevels)
+          .reduce((total, [price, size]) => total + price * size, 0);
+      const history = market.venueHistory[result.venue] ?? [];
+      market.venueHistory[result.venue] = [
+        ...history.filter((sample) => sample.t >= now - 60_000 && sample.t < now),
+        { t: now, mid, bidDepthUsd: depth(result.book.bids), askDepthUsd: depth(result.book.asks) },
+      ].slice(-121);
+    }
+  }
+  for (const venue of Object.keys(market.venueHistory) as (keyof typeof market.venueHistory)[]) {
+    market.venueHistory[venue] = (market.venueHistory[venue] ?? []).filter(
+      (sample) => sample.t >= now - 60_000,
     );
   }
   market.fused = fuse([...market.venues.values()], now, context.deps.params.feeds);
