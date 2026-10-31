@@ -34,7 +34,7 @@ export function OperatorInventory({ preview, status, shadow, inventory }: Props)
                 <div className="p-inventory-token">
                   <TokenIcon symbol={token.symbol} />
                   <div>
-                    <strong>{token.symbol}</strong>
+                    <strong>{token.label}</strong>
                     <small>{token.name}</small>
                   </div>
                 </div>

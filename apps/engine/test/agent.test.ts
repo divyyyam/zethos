@@ -4,7 +4,7 @@ import { createApp } from "../src/api";
 import { defaultParams, type Params } from "../src/config";
 import { memoryStore } from "../src/db/memory";
 import type { Engine } from "../src/engine";
-import { bookAround, MIDS, readyEngine, TAKER, tokens, usdt } from "./helpers";
+import { bookAround, MIDS, paperOf, readyEngine, TAKER, tokens, usdt } from "./helpers";
 
 const request = (amount = 100) => ({
   taker: TAKER,
@@ -146,7 +146,7 @@ describe("arena, risk and markouts", () => {
     const first = await engine.quote(request(), "web", now);
     await engine.setTaker(TAKER, TAKER, { label: "Attacker bot" }, now);
     const second = await engine.quote(request(), "web", now);
-    expect(second.response.paperOut).toBe(first.response.paperOut);
+    expect(paperOf(second.response).paperOut).toBe(paperOf(first.response).paperOut);
     expect(engine.takers()[0]?.score).toBe(defaultParams.toxicity.priorScore);
   });
   test("records all four horizons, reconciles paper P&L, persists risk and markouts", async () => {
@@ -236,7 +236,7 @@ describe("arena, risk and markouts", () => {
       await engine.tick(now + 5000);
       const row = engine.takers()[0];
       results.push({
-        out: q.response.paperOut,
+        out: paperOf(q.response).paperOut,
         breakdown: q.response.breakdown,
         row: { tier: row?.tier, score: row?.score, signals: row?.signals },
         risk: engine.status().riskState,

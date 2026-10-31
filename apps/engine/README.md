@@ -196,3 +196,22 @@ bunx wrangler deploy
 
 Set `CORS_ORIGIN` in `wrangler.jsonc` to the deployed web origin (comma-separated for
 several). On testnet set `CHAIN_ID=133` and the three token address vars.
+
+
+## Live mode (HSK testnet)
+
+`ENGINE_MODE=live` signs real quotes for the deployed vault. It needs `VAULT_ADDRESS`,
+`OPERATOR_ADDRESS`, `QUOTE_SIGNER_KEY` and `EXECUTOR_KEY`, and it's limited to `CHAIN_ID=133` for now.
+
+At boot the engine checks the vault's bytecode, `owner()`, `quoteSigner()`, `executor()`, `maxTtl()`,
+and that `quoteDigest()` matches the shared EIP-712 types. Any mismatch keeps it in shadow mode, journals
+`live_blocked` and lists the reasons in `/status.liveBlocked`.
+
+Live quotes have their own minimum (`quote.liveMinNotionalUsd`, $0.50), so the paper minimum and the
+Arena's simulated flow don't change. They are clamped to each route's `enabled` and `maxAmountIn`, stay
+open for at least 60 seconds and at most `maxTtl()`, and are priced from `balanceOf(vault)` minus open quotes. Paper quotes keep the
+zero-address domain, and the Arena and tape replay keep running on paper. `/fills` doesn't show on-chain
+fills yet, because the fill watcher isn't built.
+
+Run it locally with `bun run dev:live-testnet`. Public values come from `packages/contracts/.env`, and
+the hot keys are read from their keystores into the process environment, never into a file.

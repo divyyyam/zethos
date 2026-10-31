@@ -12,5 +12,10 @@ export function nonceKey(quote: SignedQuote): string {
 }
 
 export function tokenView(token: Token) {
-  return { symbol: token.symbol, address: token.address, decimals: token.decimals };
+  return {
+    symbol: token.symbol,
+    label: token.label ?? token.symbol,
+    address: token.address,
+    decimals: token.decimals,
+  };
 }

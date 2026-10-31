@@ -139,11 +139,11 @@ export function SwapForm({
           <button
             type="button"
             className="p-token-select"
-            aria-label={`Choose token to pay, ${from.symbol}`}
+            aria-label={`Choose token to pay, ${from.label}`}
             onClick={() => setPicker("from")}
           >
             <TokenIcon symbol={from.symbol} />
-            <span>{from.symbol}</span>
+            <span>{from.label}</span>
             <ChevronDown size={15} />
           </button>
         </div>
@@ -179,11 +179,11 @@ export function SwapForm({
           <button
             type="button"
             className="p-token-select"
-            aria-label={`Choose token to receive, ${to.symbol}`}
+            aria-label={`Choose token to receive, ${to.label}`}
             onClick={() => setPicker("to")}
           >
             <TokenIcon symbol={to.symbol} />
-            <span>{to.symbol}</span>
+            <span>{to.label}</span>
             <ChevronDown size={15} />
           </button>
         </div>
@@ -198,7 +198,7 @@ export function SwapForm({
             Zethos
           </span>
           <strong>
-            {out ? `${formatNumber(out, to.symbol === "WETH" ? 6 : 4)} ${to.symbol}` : "—"}
+            {out ? `${formatNumber(out, to.symbol === "WETH" ? 6 : 4)} ${to.label}` : "—"}
           </strong>
         </div>
         <div>
@@ -208,8 +208,8 @@ export function SwapForm({
           </span>
           <span>
             {poolOut
-              ? `${formatNumber(poolOut, to.symbol === "WETH" ? 6 : 4)} ${to.symbol}`
-              : live?.route === "paper"
+              ? `${formatNumber(poolOut, to.symbol === "WETH" ? 6 : 4)} ${to.label}`
+              : live
                 ? "No venue with depth for this size"
                 : "—"}
           </span>
@@ -221,7 +221,7 @@ export function SwapForm({
               You receive more
             </span>
             <strong>
-              {formatNumber(saving, 5)} {to.symbol}
+              {formatNumber(saving, 5)} {to.label}
               <small>+{formatNumber(savingPct, 2)}%</small>
             </strong>
           </div>

@@ -23,3 +23,12 @@ DATABASE_URL=
 USDT_ADDRESS=
 WHSK_ADDRESS=
 WETH_ADDRESS=
+
+# --- Live mode, HSK testnet only. `bun run dev:live-testnet` sets all of these for you, reading the
+# keys from their encrypted keystores, so prefer it to putting keys in this file. ---
+# ENGINE_MODE=live
+# CHAIN_ID=133
+# HSK_RPC_URL=https://testnet.hsk.xyz
+# VAULT_ADDRESS=
+# QUOTE_SIGNER_KEY=
+# EXECUTOR_KEY=

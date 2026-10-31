@@ -3,10 +3,15 @@ import { type AgentState, initialState } from "../agent/types";
 import type { Pair } from "../config";
 import type { Fill } from "../db";
 import { Volatility } from "../feeds/vol";
+<<<<<<< HEAD
 import { createV0, type Policy, type PolicyRecord } from "../policy";
 import { defaultMandate, loadMandate, type Mandate } from "../policy/mandate";
+||||||| 94d6717
+=======
+import type { VaultSnapshot } from "../live";
+>>>>>>> a6cc28d17a97636cf089a066d80f0999d06993b3
 import type { SignedQuote } from "../quotes";
-import type { Inventory } from "../tokens";
+import type { Inventory, TokenSymbol } from "../tokens";
 import type { EngineDeps, Issued, Market } from "./types";
 
 /** Shared by every collaborator; the queue remains the only write serialization boundary. */
@@ -30,10 +35,20 @@ export class EngineState {
   readonly seenTrades = new Map<string, number>();
   readonly cooldowns = new Map<string, number>();
   modeledGasUsd = 0;
+  snapshot: VaultSnapshot | null = null;
+  readonly openLiveQuotes = new Map<
+    string,
+    { token: TokenSymbol; amountOut: bigint; expiresAtMs: number }
+  >();
   constructor(readonly deps: EngineDeps) {
+<<<<<<< HEAD
     this.mandate = loadMandate(deps.mandate ?? defaultMandate);
     if (this.mandate.pairs.some((pair) => !deps.params.pairs.includes(pair)))
       throw new Error("Every mandate pair must be enabled in engine params");
+||||||| 94d6717
+=======
+    this.snapshot = deps.live?.initial ?? null;
+>>>>>>> a6cc28d17a97636cf089a066d80f0999d06993b3
     for (const pair of deps.params.pairs) {
       this.markets.set(pair, {
         venues: new Map(),

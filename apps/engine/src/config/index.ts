@@ -17,12 +17,8 @@ const address = z.preprocess(
 );
 
 const envSchema = z.object({
-  ENGINE_MODE: z.preprocess(
-    blank,
-    z
-      .literal("shadow", "Only ENGINE_MODE=shadow exists until the vault is deployed")
-      .default("shadow"),
-  ),
+  ENGINE_MODE: z.preprocess(blank, z.enum(["shadow", "live"]).default("shadow")),
+  VAULT_ADDRESS: address,
   CHAIN_ID: z.coerce.number().pipe(z.union([z.literal(177), z.literal(133)])),
   HSK_RPC_URL: z.url(),
   CORS_ORIGIN: z.string().min(1),
@@ -59,7 +55,15 @@ const envSchema = z.object({
   WETH_ADDRESS: address,
 });
 
+export interface LiveConfig {
+  vault: Address;
+  owner: Address;
+  quoteSignerKey: Hex;
+  executorKey: Hex;
+}
+
 export interface Config {
+  live: LiveConfig | null;
   chainId: 177 | 133;
   rpcUrl: string;
   corsOrigins: string[];
@@ -99,6 +103,28 @@ export function loadConfig(env: Record<string, unknown>): Config {
   if (vars.OPERATOR_ADDRESS && !vars.SESSION_SECRET) {
     throw new Error("Set SESSION_SECRET (at least 32 characters) when OPERATOR_ADDRESS is set");
   }
+  let live: LiveConfig | null = null;
+  if (vars.ENGINE_MODE === "live") {
+    // Deliberate checkpoint: lift this only when the owner moves to mainnet.
+    if (vars.CHAIN_ID !== 133)
+      throw new Error("ENGINE_MODE=live is limited to CHAIN_ID=133 for now");
+    if (
+      !vars.VAULT_ADDRESS ||
+      !vars.OPERATOR_ADDRESS ||
+      !vars.QUOTE_SIGNER_KEY ||
+      !vars.EXECUTOR_KEY
+    ) {
+      throw new Error(
+        "ENGINE_MODE=live requires VAULT_ADDRESS, OPERATOR_ADDRESS, QUOTE_SIGNER_KEY and EXECUTOR_KEY",
+      );
+    }
+    live = {
+      vault: vars.VAULT_ADDRESS as Address,
+      owner: vars.OPERATOR_ADDRESS as Address,
+      quoteSignerKey: vars.QUOTE_SIGNER_KEY as Hex,
+      executorKey: vars.EXECUTOR_KEY as Hex,
+    };
+  }
   const fallback = vars.CHAIN_ID === 177 ? MAINNET_TOKEN_ADDRESSES : null;
   const token = (symbol: TokenSymbol, override: string | undefined): Address => {
     const value = override ?? fallback?.[symbol];
@@ -106,6 +132,7 @@ export function loadConfig(env: Record<string, unknown>): Config {
     return value as Address;
   };
   return {
+    live,
     chainId: vars.CHAIN_ID,
     rpcUrl: vars.HSK_RPC_URL,
     corsOrigins: corsOrigins(vars.CORS_ORIGIN),
@@ -161,6 +188,8 @@ export const paramsSchema = z
       maxTtlSec: z.number().int().positive().max(120),
       ttlVolK: z.number().positive(),
       minNotionalUsd: z.number().positive(),
+      // Separate, so a small real swap is possible without changing which trades the Arena simulates.
+      liveMinNotionalUsd: z.number().positive().default(0.5),
       maxNotionalUsd: perPair(z.number().positive()),
       rateLimitPerMin: z.number().int().positive(),
     }),

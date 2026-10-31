@@ -1,6 +1,7 @@
 import { DurableObject } from "cloudflare:workers";
 import { hskMainnet, hskTestnet } from "@zethos/shared";
 import { createPublicClient, http } from "viem";
+import { privateKeyToAccount } from "viem/accounts";
 import { createApp } from "../api";
 import { OperatorAuth } from "../auth";
 import { corsOrigins, DEFAULT_GEMINI_MODEL, loadConfig, defaultParams as params } from "../config";
@@ -8,6 +9,7 @@ import { memoryStore } from "../db/memory";
 import { neonStore } from "../db/neon";
 import { Engine, EngineError, type Frame } from "../engine";
 import { pollBooks, pollTrades } from "../feeds";
+import { checkVault, type LiveVault, vaultReader } from "../live";
 import { Assistant } from "../llm";
 import { paperSigner } from "../quotes";
 import { loadTokens } from "../tokens";
@@ -68,11 +70,12 @@ export class Market extends DurableObject<Env> {
       const tape = Promise.allSettled(
         params.pairs.map(async (pair) => ({ pair, trades: await pollTrades(pair, params.feeds) })),
       );
-      await Promise.all(
-        params.pairs.map(async (pair) =>
+      await Promise.all([
+        engine.syncLive(started),
+        ...params.pairs.map(async (pair) =>
           engine.ingest(pair, await pollBooks(pair, params.feeds), Date.now()),
         ),
-      );
+      ]);
       await engine.ensureArena(Date.now());
       for (const result of await tape) {
         if (result.status === "rejected") console.warn("Trade feed unavailable");
@@ -140,6 +143,30 @@ export class Market extends DurableObject<Env> {
     }
     const store = config.databaseUrl ? neonStore(config.databaseUrl) : memoryStore();
     if (!config.databaseUrl) console.warn("DATABASE_URL not set: using in-memory store");
+    let live: LiveVault | undefined;
+    let liveBlocked: string[] = [];
+    if (config.live) {
+      const quoteSigner = privateKeyToAccount(config.live.quoteSignerKey);
+      const read = vaultReader(client, config.live.vault, tokens, params.pairs);
+      const { reasons, snapshot } = await checkVault(
+        client,
+        read,
+        {
+          vault: config.live.vault,
+          chainId: config.chainId,
+          owner: config.live.owner,
+          quoteSigner: quoteSigner.address,
+          executor: privateKeyToAccount(config.live.executorKey).address,
+        },
+        Date.now(),
+      );
+      if (snapshot && reasons.length === 0)
+        live = { vault: config.live.vault, signer: quoteSigner, read, initial: snapshot };
+      else {
+        liveBlocked = reasons;
+        console.error(`ENGINE_MODE=live refused, staying in shadow: ${reasons.join("; ")}`);
+      }
+    }
     const engine = new Engine({
       chainId: config.chainId,
       params,
@@ -147,6 +174,8 @@ export class Market extends DurableObject<Env> {
       store,
       signer,
       operator: config.operator,
+      ...(live ? { live } : {}),
+      liveBlocked,
       emit: (frame) => this.broadcast(frame),
       onDecision: (decision) => {
         this.ctx.waitUntil(this.assistant.narrate(decision, engine));

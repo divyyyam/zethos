@@ -1,4 +1,615 @@
-// Bootstrap ABI stubs for the empty Solidity shells. Replaced by `bun run codegen`.
-export const zethosVaultAbi = [] as const;
-export const iUniswapV3PoolAbi = [] as const;
-export const iSwapRouterAbi = [] as const;
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// IUniswapV3Pool
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+export const iUniswapV3PoolAbi = [
+  {
+    type: 'function',
+    inputs: [],
+    name: 'slot0',
+    outputs: [
+      { name: 'sqrtPriceX96', internalType: 'uint160', type: 'uint160' },
+      { name: 'tick', internalType: 'int24', type: 'int24' },
+      { name: 'observationIndex', internalType: 'uint16', type: 'uint16' },
+      {
+        name: 'observationCardinality',
+        internalType: 'uint16',
+        type: 'uint16',
+      },
+      {
+        name: 'observationCardinalityNext',
+        internalType: 'uint16',
+        type: 'uint16',
+      },
+      { name: 'feeProtocol', internalType: 'uint8', type: 'uint8' },
+      { name: 'unlocked', internalType: 'bool', type: 'bool' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'token0',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'token1',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+] as const
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// ZethosVault
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+export const zethosVaultAbi = [
+  {
+    type: 'constructor',
+    inputs: [
+      { name: 'owner_', internalType: 'address', type: 'address' },
+      { name: 'quoteSigner_', internalType: 'address', type: 'address' },
+      { name: 'executor_', internalType: 'address', type: 'address' },
+      { name: 'maxTtl_', internalType: 'uint64', type: 'uint64' },
+    ],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'DOMAIN_SEPARATOR',
+    outputs: [{ name: '', internalType: 'bytes32', type: 'bytes32' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'MAX_CLOCK_SKEW',
+    outputs: [{ name: '', internalType: 'uint64', type: 'uint64' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'MAX_TTL_CEILING',
+    outputs: [{ name: '', internalType: 'uint64', type: 'uint64' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'QUOTE_TYPEHASH',
+    outputs: [{ name: '', internalType: 'bytes32', type: 'bytes32' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'acceptOwnership',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'token', internalType: 'address', type: 'address' },
+      { name: 'amount', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'deposit',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'eip712Domain',
+    outputs: [
+      { name: 'fields', internalType: 'bytes1', type: 'bytes1' },
+      { name: 'name', internalType: 'string', type: 'string' },
+      { name: 'version', internalType: 'string', type: 'string' },
+      { name: 'chainId', internalType: 'uint256', type: 'uint256' },
+      { name: 'verifyingContract', internalType: 'address', type: 'address' },
+      { name: 'salt', internalType: 'bytes32', type: 'bytes32' },
+      { name: 'extensions', internalType: 'uint256[]', type: 'uint256[]' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'executor',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      {
+        name: 'quote',
+        internalType: 'struct IZethosVault.Quote',
+        type: 'tuple',
+        components: [
+          { name: 'taker', internalType: 'address', type: 'address' },
+          { name: 'tokenIn', internalType: 'address', type: 'address' },
+          { name: 'tokenOut', internalType: 'address', type: 'address' },
+          { name: 'amountIn', internalType: 'uint256', type: 'uint256' },
+          { name: 'amountOut', internalType: 'uint256', type: 'uint256' },
+          { name: 'nonce', internalType: 'uint256', type: 'uint256' },
+          { name: 'issuedAt', internalType: 'uint64', type: 'uint64' },
+          { name: 'expiry', internalType: 'uint64', type: 'uint64' },
+        ],
+      },
+      { name: 'signature', internalType: 'bytes', type: 'bytes' },
+    ],
+    name: 'fill',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'taker', internalType: 'address', type: 'address' },
+      { name: 'nonce', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'isNonceUsed',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'maxTtl',
+    outputs: [{ name: '', internalType: 'uint64', type: 'uint64' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'owner',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'pause',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'paused',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'pendingOwner',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      {
+        name: 'quote',
+        internalType: 'struct IZethosVault.Quote',
+        type: 'tuple',
+        components: [
+          { name: 'taker', internalType: 'address', type: 'address' },
+          { name: 'tokenIn', internalType: 'address', type: 'address' },
+          { name: 'tokenOut', internalType: 'address', type: 'address' },
+          { name: 'amountIn', internalType: 'uint256', type: 'uint256' },
+          { name: 'amountOut', internalType: 'uint256', type: 'uint256' },
+          { name: 'nonce', internalType: 'uint256', type: 'uint256' },
+          { name: 'issuedAt', internalType: 'uint64', type: 'uint64' },
+          { name: 'expiry', internalType: 'uint64', type: 'uint64' },
+        ],
+      },
+    ],
+    name: 'quoteDigest',
+    outputs: [{ name: '', internalType: 'bytes32', type: 'bytes32' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'quoteSigner',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'renounceOwnership',
+    outputs: [],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'tokenIn', internalType: 'address', type: 'address' },
+      { name: 'tokenOut', internalType: 'address', type: 'address' },
+    ],
+    name: 'routeOf',
+    outputs: [
+      {
+        name: '',
+        internalType: 'struct IZethosVault.Route',
+        type: 'tuple',
+        components: [
+          { name: 'pool', internalType: 'address', type: 'address' },
+          { name: 'poolToleranceBps', internalType: 'uint16', type: 'uint16' },
+          { name: 'enabled', internalType: 'bool', type: 'bool' },
+          { name: 'maxAmountIn', internalType: 'uint256', type: 'uint256' },
+        ],
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'executor_', internalType: 'address', type: 'address' }],
+    name: 'setExecutor',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'maxTtl_', internalType: 'uint64', type: 'uint64' }],
+    name: 'setMaxTtl',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'quoteSigner_', internalType: 'address', type: 'address' },
+    ],
+    name: 'setQuoteSigner',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'tokenIn', internalType: 'address', type: 'address' },
+      { name: 'tokenOut', internalType: 'address', type: 'address' },
+      {
+        name: 'route',
+        internalType: 'struct IZethosVault.Route',
+        type: 'tuple',
+        components: [
+          { name: 'pool', internalType: 'address', type: 'address' },
+          { name: 'poolToleranceBps', internalType: 'uint16', type: 'uint16' },
+          { name: 'enabled', internalType: 'bool', type: 'bool' },
+          { name: 'maxAmountIn', internalType: 'uint256', type: 'uint256' },
+        ],
+      },
+    ],
+    name: 'setRoute',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'newOwner', internalType: 'address', type: 'address' }],
+    name: 'transferOwnership',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'unpause',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'token', internalType: 'address', type: 'address' },
+      { name: 'to', internalType: 'address', type: 'address' },
+      { name: 'amount', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'withdraw',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'token',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'amount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+    ],
+    name: 'Deposit',
+  },
+  { type: 'event', anonymous: false, inputs: [], name: 'EIP712DomainChanged' },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'executor',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+    ],
+    name: 'ExecutorUpdated',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'taker',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'tokenIn',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'tokenOut',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'amountIn',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'amountOut',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'nonce',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'poolOut',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+    ],
+    name: 'Fill',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'maxTtl',
+        internalType: 'uint64',
+        type: 'uint64',
+        indexed: false,
+      },
+    ],
+    name: 'MaxTtlUpdated',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'previousOwner',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'newOwner',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+    ],
+    name: 'OwnershipTransferStarted',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'previousOwner',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'newOwner',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+    ],
+    name: 'OwnershipTransferred',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'account',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'Paused',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'quoteSigner',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+    ],
+    name: 'QuoteSignerUpdated',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'tokenIn',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'tokenOut',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'route',
+        internalType: 'struct IZethosVault.Route',
+        type: 'tuple',
+        components: [
+          { name: 'pool', internalType: 'address', type: 'address' },
+          { name: 'poolToleranceBps', internalType: 'uint16', type: 'uint16' },
+          { name: 'enabled', internalType: 'bool', type: 'bool' },
+          { name: 'maxAmountIn', internalType: 'uint256', type: 'uint256' },
+        ],
+        indexed: false,
+      },
+    ],
+    name: 'RouteUpdated',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'account',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'Unpaused',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'token',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      { name: 'to', internalType: 'address', type: 'address', indexed: true },
+      {
+        name: 'amount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+    ],
+    name: 'Withdraw',
+  },
+  { type: 'error', inputs: [], name: 'EnforcedPause' },
+  { type: 'error', inputs: [], name: 'ExpectedPause' },
+  {
+    type: 'error',
+    inputs: [{ name: 'available', internalType: 'uint256', type: 'uint256' }],
+    name: 'InsufficientInventory',
+  },
+  { type: 'error', inputs: [], name: 'InvalidAmount' },
+  { type: 'error', inputs: [], name: 'InvalidConfig' },
+  { type: 'error', inputs: [], name: 'InvalidShortString' },
+  { type: 'error', inputs: [], name: 'InvalidSignature' },
+  { type: 'error', inputs: [], name: 'NonceUsed' },
+  {
+    type: 'error',
+    inputs: [{ name: 'account', internalType: 'address', type: 'address' }],
+    name: 'NotAContract',
+  },
+  { type: 'error', inputs: [], name: 'NotOwnerOrExecutor' },
+  { type: 'error', inputs: [], name: 'NotTaker' },
+  {
+    type: 'error',
+    inputs: [{ name: 'owner', internalType: 'address', type: 'address' }],
+    name: 'OwnableInvalidOwner',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'account', internalType: 'address', type: 'address' }],
+    name: 'OwnableUnauthorizedAccount',
+  },
+  { type: 'error', inputs: [], name: 'PoolTokensMismatch' },
+  { type: 'error', inputs: [], name: 'PoolUnavailable' },
+  {
+    type: 'error',
+    inputs: [{ name: 'expiry', internalType: 'uint64', type: 'uint64' }],
+    name: 'QuoteExpired',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'issuedAt', internalType: 'uint64', type: 'uint64' }],
+    name: 'QuoteNotYetValid',
+  },
+  { type: 'error', inputs: [], name: 'ReentrancyGuardReentrantCall' },
+  { type: 'error', inputs: [], name: 'RenounceDisabled' },
+  { type: 'error', inputs: [], name: 'RolesMustDiffer' },
+  { type: 'error', inputs: [], name: 'RouteDisabled' },
+  {
+    type: 'error',
+    inputs: [{ name: 'token', internalType: 'address', type: 'address' }],
+    name: 'SafeERC20FailedOperation',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'maxAmountIn', internalType: 'uint256', type: 'uint256' }],
+    name: 'SizeCapExceeded',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'str', internalType: 'string', type: 'string' }],
+    name: 'StringTooLong',
+  },
+  { type: 'error', inputs: [], name: 'TtlTooLong' },
+  { type: 'error', inputs: [], name: 'UnsupportedToken' },
+  {
+    type: 'error',
+    inputs: [{ name: 'minimumOut', internalType: 'uint256', type: 'uint256' }],
+    name: 'WorseThanPool',
+  },
+  { type: 'error', inputs: [], name: 'ZeroAddress' },
+] as const

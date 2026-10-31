@@ -8,6 +8,8 @@ export interface Token {
   symbol: TokenSymbol;
   address: Address;
   decimals: number;
+  /** The token's on-chain symbol, for display. `symbol` stays the engine's internal key. */
+  label?: string;
 }
 export type Tokens = Record<TokenSymbol, Token>;
 export type Inventory = Record<TokenSymbol, bigint>;
@@ -26,12 +28,14 @@ export async function loadTokens(
     TOKEN_SYMBOLS.map(async (symbol): Promise<Token> => {
       const address = getAddress(addresses[symbol]);
       let decimals: number;
+      let label: string | undefined;
       try {
         const [readDecimals, readSymbol] = await Promise.all([
           client.readContract({ address, abi: erc20Abi, functionName: "decimals" }),
           client.readContract({ address, abi: erc20Abi, functionName: "symbol" }),
         ]);
         decimals = readDecimals;
+        label = readSymbol;
         if (readSymbol.toUpperCase() !== symbol)
           console.warn(`Shadow token symbol mismatch: expected ${symbol}, read ${readSymbol}`);
       } catch (error) {
@@ -44,7 +48,7 @@ export async function loadTokens(
           ].join(""),
         );
       }
-      return { symbol, address, decimals };
+      return { symbol, address, decimals, ...(label ? { label } : {}) };
     }),
   );
   return Object.fromEntries(tokens.map((token) => [token.symbol, token])) as Tokens;

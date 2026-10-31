@@ -9,7 +9,8 @@ import { arenaView, ensureArena, resetArena } from "./arena";
 import { deskCompliance } from "./compliance";
 import { diagnose } from "./diagnosis";
 import { tick } from "./heartbeat";
-import { decisions, narrate } from "./journal";
+import { decision, decisions, narrate } from "./journal";
+import { syncLive } from "./live";
 import { getStatus, ingest, prune } from "./market";
 import { pause, reloadParams, setTaker } from "./operator";
 import { fills, init } from "./persistence";
@@ -28,15 +29,16 @@ import { paperFill } from "./settlement";
 import { EngineState } from "./state";
 import { ingestTrades } from "./tape";
 import { takers } from "./toxicity";
-import type { EngineDeps, PaperQuote } from "./types";
+import type { EngineDeps, LiveQuote, PaperQuote } from "./types";
 
 export { EngineError } from "./errors";
 export { flowOf } from "./helpers";
-export type { EngineDeps, Frame, PaperQuote, PriceBreakdown } from "./types";
+export type { EngineDeps, Frame, LiveQuote, PaperQuote, PriceBreakdown } from "./types";
 
 /** Public engine facade. Collaborators operate on one state and share one write queue. */
 export class Engine {
   private readonly context: EngineState;
+  private reportedLiveBlocked = false;
   constructor(deps: EngineDeps) {
     this.context = new EngineState(deps);
   }
@@ -47,12 +49,24 @@ export class Engine {
     return init(this.context);
   }
 
+  syncLive(now: number): Promise<void> {
+    return syncLive(this.context, now);
+  }
+
   ingest(pair: Pair, results: BookResult[], now: number): void {
     ingest(this.context, pair, results, now);
   }
 
-  ensureArena(now: number): Promise<void> {
-    return ensureArena(this.context, now);
+  async ensureArena(now: number): Promise<void> {
+    await ensureArena(this.context, now);
+    // After the arena exists, because creating one starts a fresh journal.
+    const reasons = this.context.deps.liveBlocked ?? [];
+    if (reasons.length > 0 && !this.reportedLiveBlocked) {
+      this.reportedLiveBlocked = true;
+      decision(this.context, "live_blocked", now, "Vault checks failed: staying in shadow", {
+        reasons: reasons.join("; "),
+      });
+    }
   }
 
   quote(
@@ -60,7 +74,7 @@ export class Engine {
     client: string | undefined,
     now: number,
     ip?: string,
-  ): Promise<{ response: PaperQuote; saved: Promise<void> }> {
+  ): Promise<{ response: PaperQuote | LiveQuote; saved: Promise<void> }> {
     return quote(this.context, input, client, now, ip);
   }
 

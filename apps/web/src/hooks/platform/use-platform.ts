@@ -50,7 +50,7 @@ export function useTokenBalance(token: PlatformToken, enabled = true) {
         client.readContract({ address: token.address, abi: erc20Abi, functionName: "decimals" }),
         client.readContract({ address: token.address, abi: erc20Abi, functionName: "symbol" }),
       ]);
-      if (symbol.toUpperCase() !== token.symbol || decimals > 36)
+      if (symbol.toUpperCase() !== token.label.toUpperCase() || decimals > 36)
         throw new Error("The configured token doesn’t match this asset.");
       return { value, decimals, symbol, formatted: formatUnits(value, decimals) };
     },

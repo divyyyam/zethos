@@ -3,8 +3,9 @@ import { privateKeyToAccount } from "viem/accounts";
 import { defaultParams, type Pair, type Params } from "../src/config";
 import type { Store } from "../src/db";
 import { memoryStore } from "../src/db/memory";
-import { Engine, type Frame } from "../src/engine";
+import { Engine, type Frame, type LiveQuote, type PaperQuote } from "../src/engine";
 import type { Book } from "../src/feeds/types";
+import type { LiveVault } from "../src/live";
 import type { Tokens } from "../src/tokens";
 
 export const SIGNER_KEY = "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d";
@@ -15,6 +16,11 @@ export const tokens: Tokens = {
   WHSK: { symbol: "WHSK", address: "0xB210D2120d57b758EE163cFfb43e73728c471Cf1", decimals: 18 },
   WETH: { symbol: "WETH", address: "0xefd4bC9afD210517803f293ABABd701CaeeCdfd0", decimals: 18 },
 };
+
+export function paperOf(response: PaperQuote | LiveQuote): PaperQuote {
+  if (response.route !== "paper") throw new Error("expected a paper quote");
+  return response;
+}
 
 // A symmetric book around `mid`: 10 levels each side, 1 bp apart, `size` base units per level.
 export function bookAround(mid: number, size = 100_000): Book {
@@ -28,7 +34,13 @@ export function bookAround(mid: number, size = 100_000): Book {
 export const MIDS: Record<Pair, number> = { "HSK/USDT": 0.1, "ETH/USDT": 3000 };
 
 export async function readyEngine(
-  options: { params?: Params; store?: Store; now?: number } = {},
+  options: {
+    params?: Params;
+    store?: Store;
+    now?: number;
+    live?: LiveVault;
+    liveBlocked?: string[];
+  } = {},
 ): Promise<{ engine: Engine; frames: Frame[]; store: Store; now: number }> {
   const params = options.params ?? defaultParams;
   const store = options.store ?? memoryStore();
@@ -40,6 +52,8 @@ export async function readyEngine(
     tokens,
     store,
     signer: privateKeyToAccount(SIGNER_KEY),
+    ...(options.live ? { live: options.live } : {}),
+    ...(options.liveBlocked ? { liveBlocked: options.liveBlocked } : {}),
     emit: (frame) => frames.push(frame),
   });
   await engine.init();
