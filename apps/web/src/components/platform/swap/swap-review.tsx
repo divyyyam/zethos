@@ -24,7 +24,6 @@ type Props = Pick<
   | "sample"
   | "wrongNetwork"
   | "amountValue"
-  | "quote"
   | "out"
 >;
 
@@ -44,7 +43,6 @@ export function SwapReview({
   sample,
   wrongNetwork,
   amountValue,
-  quote,
   out,
 }: Props) {
   return (

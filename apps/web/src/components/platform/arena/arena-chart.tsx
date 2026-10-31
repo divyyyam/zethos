@@ -16,12 +16,12 @@ import { EmptyState } from "../primitives";
 import { flowColors, flowNames, time } from "./presentation";
 import type { ArenaPageContentState } from "./use-arena-controller";
 
-type Props = Pick<ArenaPageContentState, "filter" | "decisions"> & {
+type Props = Pick<ArenaPageContentState, "decisions"> & {
   data: Arena;
   rows: (Arena["series"][number] & Arena["byFlow"])[];
 };
 
-export function ArenaChart({ filter, decisions, data, rows }: Props) {
+export function ArenaChart({ decisions, data, rows }: Props) {
   return (
     <section className="p-card p-arena-chart">
       <div className="p-card-header">

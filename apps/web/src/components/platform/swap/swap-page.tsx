@@ -126,7 +126,6 @@ export function SwapPageContent() {
         sample={sample}
         wrongNetwork={wrongNetwork}
         amountValue={amountValue}
-        quote={quote}
         out={out}
       />
     </>

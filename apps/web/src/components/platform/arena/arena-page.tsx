@@ -125,7 +125,7 @@ export function ArenaPageContent() {
           </div>
         </section>
         <div className="p-arena-grid">
-          <ArenaChart filter={filter} decisions={decisions} data={data} rows={rows} />
+          <ArenaChart decisions={decisions} data={data} rows={rows} />
           <section className="p-card p-arena-takers">
             <div className="p-card-header">
               <h2>Takers</h2>

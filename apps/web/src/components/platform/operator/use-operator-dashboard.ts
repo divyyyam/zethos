@@ -14,7 +14,6 @@ import { useToast } from "../primitives";
 
 export function useOperatorDashboard({
   preview,
-  onExit,
   onSessionExpired,
 }: {
   preview: boolean;
