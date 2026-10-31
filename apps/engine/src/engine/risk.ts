@@ -18,7 +18,13 @@ export function checkRisk(context: EngineState, now: number): void {
         context,
         "pause",
         now,
-        `Equity drawdown ${(drawdown * 100).toFixed(2)}% exceeds ${(params.risk.maxDrawdownPct * 100).toFixed(2)}%; operator resume required`,
+        [
+          "Equity drawdown ",
+          `${(drawdown * 100).toFixed(2)}`,
+          "% exceeds ",
+          `${(params.risk.maxDrawdownPct * 100).toFixed(2)}`,
+          "%; operator resume required",
+        ].join(""),
         { equity, peak: context.state.peakEquity, drawdown },
       );
     }
@@ -94,7 +100,15 @@ export function checkRisk(context: EngineState, now: number): void {
         context,
         "spread_widen",
         now,
-        `${pair} 5-minute mean markout ${mean.toFixed(1)} bps breached alarm; multiplier ${before.toFixed(2)} → ${after.toFixed(2)}`,
+        [
+          `${pair}`,
+          " 5-minute mean markout ",
+          `${mean.toFixed(1)}`,
+          " bps breached alarm; multiplier ",
+          `${before.toFixed(2)}`,
+          " → ",
+          `${after.toFixed(2)}`,
+        ].join(""),
         { meanBps: mean, alarmBps: params.risk.markoutAlarm * 10000 },
         pair,
         null,

@@ -38,7 +38,13 @@ export async function loadTokens(
         if (!assumeDecimals) throw error;
         decimals = symbol === "USDT" ? 6 : 18;
         console.warn(
-          `SHADOW_ASSUME_DECIMALS=true: RPC metadata unavailable for ${symbol}; explicitly assuming ${decimals} decimals for paper trading`,
+          [
+            "SHADOW_ASSUME_DECIMALS=true: RPC metadata unavailable for ",
+            `${symbol}`,
+            "; explicitly assuming ",
+            `${decimals}`,
+            " decimals for paper trading",
+          ].join(""),
         );
       }
       return { symbol, address, decimals };

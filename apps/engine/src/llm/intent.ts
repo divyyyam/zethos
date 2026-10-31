@@ -34,8 +34,12 @@ export const preparedSwap = z
 
 export const prepareDeclaration = {
   name: "prepare_quote",
-  description:
-    "Understand ordinary English and prepare one reviewable swap or quote. Never executes. Quotes/questions set dryRun true. Preserve every requested constraint; ask for clarification instead of inventing an amount, pair or limit.",
+  description: [
+    "Understand ordinary English and prepare one reviewable swap or quote. ",
+    "Never executes. Quotes/questions set dryRun true. Preserve every requested ",
+    "constraint; ask for clarification instead of inventing an amount, pair or ",
+    "limit.",
+  ].join(""),
   parameters: {
     type: "OBJECT",
     properties: {
@@ -45,13 +49,18 @@ export const prepareDeclaration = {
       amountIn: {
         type: "STRING",
         enum: ["base", "quote"],
-        description:
-          "Unit of the user's stated amount. Buying 100 HSK uses base; spending $500 uses quote. Selling 0.1 ETH uses base.",
+        description: [
+          "Unit of the user's stated amount. Buying 100 HSK uses base; spending $500 ",
+          "uses quote. Selling 0.1 ETH uses base.",
+        ].join(""),
       },
       dryRun: {
         type: "BOOLEAN",
-        description:
-          "True for a quote, estimate, how-much question or price check. False for an explicit request to trade; that still creates a draft requiring human authorization.",
+        description: [
+          "True for a quote, estimate, how-much question or price check. False for an ",
+          "explicit request to trade; that still creates a draft requiring human ",
+          "authorization.",
+        ].join(""),
       },
       maxCostBps: { type: "NUMBER", nullable: true },
       expiresInMs: { type: "NUMBER", nullable: true },
