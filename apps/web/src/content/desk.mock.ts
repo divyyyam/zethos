@@ -29,7 +29,7 @@ export const sampleDeskPolicies = [
     status: "incumbent" as const,
     parent: "v0",
     hypothesis:
-      "Incumbent depth-weighted reference with volatility, inventory skew, and tuner spread terms.",
+      "Incumbent baseline strategy combining depth-weighted reference mid with volatility, inventory skew, and markout tuner.",
     createdAt: 1730419200000,
     allocationPct: 90,
     liveStats: {
@@ -44,7 +44,7 @@ export const sampleDeskPolicies = [
     status: "canary" as const,
     parent: "p-20261031-v0",
     hypothesis:
-      "Widen spread on lead venue divergence to defend against lead-lag latency arbitrage.",
+      "Widen spread on lead venue divergence (HashKey Global on HSK/USDT, Binance on ETH/USDT) to defend against lead-lag latency arbitrage.",
     createdAt: 1730422800000,
     allocationPct: 10,
     liveStats: {
@@ -53,5 +53,23 @@ export const sampleDeskPolicies = [
       drawdownPct: 0.001,
       fillRate: 0.82,
     },
+  },
+  {
+    id: "p-20261031-looseclamp",
+    status: "rejected" as const,
+    parent: "p-20261031-v0",
+    hypothesis:
+      "Experiment with looser spread clamps to capture wider volatility swings without rejecting taker requests.",
+    createdAt: 1730421000000,
+    allocationPct: 0,
+  },
+  {
+    id: "p-20261101-draft-new",
+    status: "draft" as const,
+    parent: "p-20261101-leadlag1",
+    hypothesis:
+      "Draft candidate introducing restore-cost penalty component alongside lead-move defense.",
+    createdAt: 1730424600000,
+    allocationPct: 0,
   },
 ];

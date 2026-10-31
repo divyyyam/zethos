@@ -69,7 +69,7 @@ describe("desk mandate schema and sample fixtures", () => {
   test("validates sample desk policies against policySummarySchema", () => {
     for (const p of sampleDeskPolicies) {
       const parsed = policySummarySchema.parse(p);
-      assert.ok(["incumbent", "canary"].includes(parsed.status));
+      assert.ok(["incumbent", "canary", "rejected", "draft"].includes(parsed.status));
       assert.ok(parsed.id.startsWith("p-"));
     }
   });
@@ -232,7 +232,7 @@ describe("engine configuration boundary and failure behavior", () => {
   test("fetchPolicies returns sample when unconfigured and throws on engine failure", async () => {
     platformConfig.engineUrl = null;
     const samplePolicies = await fetchPolicies();
-    assert.equal(samplePolicies.length, 2);
+    assert.equal(samplePolicies.length, 4);
     assert.ok(samplePolicies[0]);
     assert.equal(samplePolicies[0].id, "p-20261031-v0");
 
