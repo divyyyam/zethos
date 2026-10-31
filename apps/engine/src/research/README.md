@@ -159,3 +159,49 @@ const heldOutScenario = await loadScenario("synthetic-heldout-leadlag", { role: 
 - **Deterministic partitioning**: Supports explicit `devWindow` and `heldOutWindow` from manifests, explicit `timeWindow` filtering, and pure helpers `splitRecordsByTime` / `splitRecordsByRatio`.
 - **CLI tool**: `bun scripts/research-scenarios.ts <scenario-name> [--role=research|evaluator] [--list]`.
 - **Test fixtures**: Uses explicitly labelled synthetic test fixtures (`scenarios/synthetic-dev-tape`, `scenarios/synthetic-heldout-leadlag`). Real recordings remain a pending dependency on stream 06.
+
+## R4A Policy Proposer (`propose.ts` & `scripts/research-propose.ts`)
+
+Generates candidate market-making policies from validated loss diagnoses and development performance statistics using Gemini, without executable candidate code or live-loop LLMs.
+
+```ts
+import { proposePolicy } from "./research";
+
+const result = await proposePolicy({
+  diagnosis: validatedDiagnosis,
+  devStats: developmentStatistics,
+  incumbent: currentIncumbentSpec,
+  date: "20261101", // explicit UTC date
+  apiKey: process.env.GEMINI_API_KEY,
+});
+
+console.log(result.candidate.id); // e.g. "p-20261101-a1b2c3d4"
+console.log(result.hypothesis);
+```
+
+### Proposer guarantees and invariants
+
+- **Strict candidate construction**: The model returns a proposed `PolicyBody` and hypothesis. The canonical `specHash` and `id: p-<yyyymmdd>-<8hex>` are constructed locally with an explicit UTC date. LLM-generated IDs or hashes are never trusted.
+- **Bounded validation retries**: On malformed JSON or schema/bounds/mandate/compilation failures, concise errors are fed back to Gemini for up to 3 retries (4 attempts total). After 3 retries, the process halts with `ProposerRetryExhaustedError`.
+- **Fail-closed held-out protection**: The proposer strictly checks inputs for `heldOut: true` or `kind: "heldout"`. Held-out data triggers `HeldOutAccessError` immediately before contacting the provider.
+- **Audit trail & secret redaction**: Saves prompts, model responses, validation issues, candidates, and run summaries under `research-runs/<run-id>/`. Credentials, `x-goog-api-key`, and authorization headers are automatically redacted with `[REDACTED]`. `process.env` is never serialized.
+- **Provider failure handling**: Missing credentials (`ProposerConfigError`), provider 5xx/4xx errors (`ProposerProviderError`), and timeouts (`ProposerTimeoutError`) fail immediately and are never treated as candidate validation retries.
+
+### CLI Tool (`scripts/research-propose.ts`)
+
+```sh
+bun scripts/research-propose.ts \
+  --diagnosis=diagnosis.json \
+  --dev-stats=dev-stats.json \
+  --date=20261101 \
+  --incumbent=v0 \
+  --out=candidate.json \
+  --runs-dir=research-runs
+```
+
+#### Input formats:
+
+- **`--diagnosis`**: S6 loss diagnosis JSON (from `attributeLosses` or `GET /diagnosis`), containing `totalLossUsd`, `causes` (`stale_reference`, `inventory_imbalance`, `selective_execution`, `adverse_size`), `shares`, and example fill evidence.
+- **`--dev-stats`**: Aggregate development statistics JSON (e.g. from `scripts/research-eval.ts` on dev tape), containing fill counts, net USD, spread capture, drawdown, and fill/reject rates. Must not contain held-out data.
+- **`--incumbent`**: Path to incumbent PolicySpec JSON, or `"v0"` for the built-in declarative baseline.
+- **`--out`**: Destination path for the generated candidate PolicySpec JSON.

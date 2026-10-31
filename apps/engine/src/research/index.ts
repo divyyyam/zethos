@@ -34,6 +34,24 @@ export {
 } from "./eval";
 export { createV0Spec } from "./incumbent";
 export {
+  type AuditStepRecord,
+  type AuditWriter,
+  assertNotHeldOut,
+  COMPONENT_LIBRARY_DOCUMENTATION,
+  createFileAuditWriter,
+  extractJsonText,
+  type ProposeOptions,
+  type ProposeResult,
+  ProposerConfigError,
+  ProposerError,
+  ProposerProviderError,
+  ProposerRetryExhaustedError,
+  ProposerTimeoutError,
+  ProposerValidationError,
+  proposePolicy,
+  redactSecrets,
+} from "./propose";
+export {
   defaultScenariosDir,
   HeldOutAccessError,
   type LoadedScenario,
@@ -66,5 +84,6 @@ export {
   type PolicySpec,
   type PolicyTerm,
   policyBodySchema,
+  policyDateSchema,
   policySpecSchema,
 } from "./schema";
