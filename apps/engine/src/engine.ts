@@ -1,3 +1,8 @@
+import { flowOf, nonceKey, tokenView } from "./engine/helpers";
+import { baseShare, equityUsd, halfSpread } from "./engine/valuation";
+
+export { flowOf } from "./engine/helpers";
+
 import { EngineError } from "./engine/errors";
 import type { EngineDeps, Issued, Market, PaperQuote, PriceBreakdown } from "./engine/types";
 
@@ -29,12 +34,6 @@ import { newTaker, nextTier, observeFill, observeMarkout, scoreTaker } from "./t
 
 const HISTORY_POINTS = 1800;
 const MAX_TTL_SEC = 120n;
-
-export function flowOf(client: string | undefined): Flow {
-  if (client === "web") return "user";
-  if (client?.startsWith("sniper")) return "attacker";
-  return "agent";
-}
 
 function parse<T extends z.ZodType>(schema: T, input: unknown): z.infer<T> {
   const result = schema.safeParse(input);
@@ -1268,59 +1267,25 @@ export class Engine {
   }
 
   private baseShare(pair: Pair, mid: number, inventory: Inventory): number {
-    const { base, quote } = this.pairTokens(pair);
-    const baseValue = units(inventory[base.symbol], base.decimals) * mid;
-    // USDT is shared across pairs; each pair is treated as owning an equal slice of it.
-    const quoteValue =
-      units(inventory[quote.symbol], quote.decimals) / this.deps.params.pairs.length;
-    const total = baseValue + quoteValue;
-    return total > 0 ? baseValue / total : 0.5;
+    return baseShare(mid, inventory, this.pairTokens(pair), this.deps.params.pairs.length);
   }
 
   private halfSpread(pair: Pair, side: Side, mid: number, inventory: Inventory): number {
-    const { params } = this.deps;
-    const market = this.market(pair);
-    const tier = params.toxicity.tiers.normal;
-    return priceSwap(
-      {
-        side,
-        ref: mid,
-        sigma1: market.vol.sigma1,
-        ttlSec: ttlSeconds(market.vol.sigma1, tier.ttlSec, params.quote),
-        baseShare: this.baseShare(pair, mid, inventory),
-        degraded: market.fused.health === "degraded",
-        tier,
-        tuner: this.state.tuner[pair] ?? 1,
-        baseSpread: params.spread.base[pair],
-      },
-      params.spread,
-      params.inventory.targetShare,
-    ).half;
+    return halfSpread(
+      pair,
+      side,
+      mid,
+      inventory,
+      this.deps.params,
+      this.market(pair),
+      this.pairTokens(pair),
+      this.state.tuner[pair] ?? 1,
+    );
   }
 
   private equityUsd(inventory: Inventory): number | null {
-    let total = 0;
-    for (const symbol of TOKEN_SYMBOLS) {
-      const token = this.deps.tokens[symbol];
-      const amount = units(inventory[symbol], token.decimals);
-      if (symbol === "USDT") {
-        total += amount;
-        continue;
-      }
-      const pair = this.deps.params.pairs.find((item) => PAIR_TOKENS[item].base === symbol);
-      if (!pair) continue;
-      const mid = this.market(pair).fused.mid;
-      if (mid === null) return null;
-      total += amount * mid;
-    }
-    return total;
+    return equityUsd(inventory, this.deps.tokens, this.deps.params.pairs, (pair) =>
+      this.market(pair),
+    );
   }
-}
-
-function nonceKey(quote: SignedQuote): string {
-  return `${quote.taker.toLowerCase()}:${quote.nonce}`;
-}
-
-function tokenView(token: Token) {
-  return { symbol: token.symbol, address: token.address, decimals: token.decimals };
 }
