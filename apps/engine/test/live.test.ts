@@ -242,6 +242,25 @@ describe("live quotes", () => {
     expect(BigInt(response.quote.expiry) - BigInt(response.quote.issuedAt)).toBe(2n);
   });
 
+  test("has its own minimum, well below the paper one", async () => {
+    const { engine } = await readyEngine({ now: NOW, live: vault() });
+    const { response } = await engine.quote(buy("500000"), "web", NOW);
+    expect(response.route).toBe("conduit");
+    await expect(engine.quote(buy("499999"), "web", NOW)).rejects.toMatchObject({
+      code: "invalid_request",
+      message: "Minimum swap is $0.5",
+    });
+  });
+
+  test("the paper minimum doesn't change", async () => {
+    const { engine } = await readyEngine({ now: NOW });
+    await engine.quote(buy("5000000"), "web", NOW);
+    await expect(engine.quote(buy("4999999"), "web", NOW)).rejects.toMatchObject({
+      code: "invalid_request",
+      message: "Minimum swap is $5",
+    });
+  });
+
   test("stays open long enough for a person to confirm in a wallet", async () => {
     const { engine } = await readyEngine({ now: NOW, live: vault() });
     const { response } = await engine.quote(buy(), "web", NOW);

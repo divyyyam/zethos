@@ -14,6 +14,7 @@
     "maxTtlSec": 120,
     "ttlVolK": 0.0015,
     "minNotionalUsd": 5,
+    "liveMinNotionalUsd": 0.5,
     "maxNotionalUsd": { "HSK/USDT": 25000, "ETH/USDT": 50000 },
     "rateLimitPerMin": 60
   },

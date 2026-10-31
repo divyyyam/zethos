@@ -59,7 +59,7 @@ function priceRequest(
   inventoryOf: () => Inventory,
   now: number,
   ip?: string,
-  ttlBounds: { min: number; max: number } = { min: 0, max: Number.POSITIVE_INFINITY },
+  limits: { minNotionalUsd?: number; minTtlSec?: number; maxTtlSec?: number } = {},
 ): PricedRequest {
   const { pair, side, base, quote } = route(context, request.tokenIn, request.tokenOut);
   refresh(context, pair, now);
@@ -77,12 +77,9 @@ function priceRequest(
   const amountIn = BigInt(request.amountIn);
   const notional =
     side === "buy" ? units(amountIn, quote.decimals) : units(amountIn, base.decimals) * mid;
-  if (notional < params.quote.minNotionalUsd) {
-    throw new EngineError(
-      "invalid_request",
-      400,
-      `Minimum swap is $${params.quote.minNotionalUsd}`,
-    );
+  const minNotionalUsd = limits.minNotionalUsd ?? params.quote.minNotionalUsd;
+  if (notional < minNotionalUsd) {
+    throw new EngineError("invalid_request", 400, `Minimum swap is $${minNotionalUsd}`);
   }
   if (notional > params.quote.maxNotionalUsd[pair] * tier.sizeCap) {
     throw new EngineError("vault_capacity", 422, "Amount is above the per-swap limit");
@@ -101,8 +98,8 @@ function priceRequest(
 
   const sigma1 = market.vol.sigma1;
   const ttlSec = Math.min(
-    Math.max(ttlSeconds(sigma1, tier.ttlSec, params.quote), ttlBounds.min),
-    ttlBounds.max,
+    Math.max(ttlSeconds(sigma1, tier.ttlSec, params.quote), limits.minTtlSec ?? 0),
+    limits.maxTtlSec ?? Number.POSITIVE_INFINITY,
   );
   const priced = priceSwap(
     {
@@ -247,7 +244,11 @@ export async function issueLiveQuote(
     () => availableInventory(context, snapshot, now),
     now,
     ip,
-    { min: LIVE_MIN_TTL_SEC, max: snapshot.maxTtl },
+    {
+      minNotionalUsd: context.deps.params.quote.liveMinNotionalUsd,
+      minTtlSec: LIVE_MIN_TTL_SEC,
+      maxTtlSec: snapshot.maxTtl,
+    },
   );
   const signature = await signVaultQuote(live.signer, context.deps.chainId, live.vault, signed);
   const id = `q_${crypto.randomUUID()}`;

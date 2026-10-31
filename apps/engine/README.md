@@ -207,8 +207,9 @@ At boot the engine checks the vault's bytecode, `owner()`, `quoteSigner()`, `exe
 and that `quoteDigest()` matches the shared EIP-712 types. Any mismatch keeps it in shadow mode, journals
 `live_blocked` and lists the reasons in `/status.liveBlocked`.
 
-Live quotes are clamped to each route's `enabled` and `maxAmountIn`, stay open for at least 60 seconds
-and at most `maxTtl()`, and are priced from `balanceOf(vault)` minus open quotes. Paper quotes keep the
+Live quotes have their own minimum (`quote.liveMinNotionalUsd`, $0.50), so the paper minimum and the
+Arena's simulated flow don't change. They are clamped to each route's `enabled` and `maxAmountIn`, stay
+open for at least 60 seconds and at most `maxTtl()`, and are priced from `balanceOf(vault)` minus open quotes. Paper quotes keep the
 zero-address domain, and the Arena and tape replay keep running on paper. `/fills` doesn't show on-chain
 fills yet, because the fill watcher isn't built.
 

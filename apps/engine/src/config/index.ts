@@ -185,6 +185,8 @@ export const paramsSchema = z
       maxTtlSec: z.number().int().positive().max(120),
       ttlVolK: z.number().positive(),
       minNotionalUsd: z.number().positive(),
+      // Separate, so a small real swap is possible without changing which trades the Arena simulates.
+      liveMinNotionalUsd: z.number().positive().default(0.5),
       maxNotionalUsd: perPair(z.number().positive()),
       rateLimitPerMin: z.number().int().positive(),
     }),
