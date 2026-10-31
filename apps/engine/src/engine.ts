@@ -1,19 +1,17 @@
-import {
-  type Address,
-  getAddress,
-  type Hex,
-  keccak256,
-  type LocalAccount,
-  toBytes,
-  zeroAddress,
-} from "viem";
+import { EngineError } from "./engine/errors";
+import type { EngineDeps, Issued, Market, PaperQuote, PriceBreakdown } from "./engine/types";
+
+export { EngineError } from "./engine/errors";
+export type { EngineDeps, Frame, PaperQuote, PriceBreakdown } from "./engine/types";
+
+import { type Address, getAddress, type Hex, keccak256, toBytes, zeroAddress } from "viem";
 import type { z } from "zod";
 import { type AgentState, type Decision, emptyFlow, HORIZONS, initialState } from "./agent/types";
-import { type Pair, type Params, paramsSchema, type Side, type TierName } from "./config";
-import type { Fill, Flow, QuoteRecord, Store } from "./db";
+import { type Pair, paramsSchema, type Side, type TierName } from "./config";
+import type { Fill, Flow, QuoteRecord } from "./db";
 import type { BookResult } from "./feeds";
-import { type Fused, fuse, type VenueState, vwap, vwapForQuote } from "./feeds/fuse";
-import type { Health, Source, Trade } from "./feeds/types";
+import { fuse, vwap, vwapForQuote } from "./feeds/fuse";
+import type { Trade } from "./feeds/types";
 import { Volatility } from "./feeds/vol";
 import { baseQuantity, markoutBps, spreadCapture } from "./markouts";
 import { amountOut, priceSwap, ttlSeconds } from "./pricing";
@@ -26,97 +24,8 @@ import {
   signQuote,
   verifyQuote,
 } from "./quotes";
-import {
-  type Inventory,
-  PAIR_TOKENS,
-  TOKEN_SYMBOLS,
-  type Token,
-  type Tokens,
-  toUnits,
-  units,
-} from "./tokens";
+import { type Inventory, PAIR_TOKENS, TOKEN_SYMBOLS, type Token, toUnits, units } from "./tokens";
 import { newTaker, nextTier, observeFill, observeMarkout, scoreTaker } from "./toxicity";
-
-export class EngineError extends Error {
-  constructor(
-    readonly code: string,
-    readonly status: number,
-    message?: string,
-  ) {
-    super(message ?? code);
-  }
-}
-
-export interface PriceBreakdown {
-  mid: number;
-  ref: number;
-  sources: Source[];
-  base: number;
-  vol: number;
-  inventory: number;
-  toxicity: number;
-  degraded: number;
-  tuner: number;
-  half: number;
-  sigmaT: number;
-  ttlSec: number;
-  tier: TierName;
-}
-
-export interface PaperQuote {
-  route: "paper";
-  id: string;
-  quote: SignedQuote;
-  signature: Hex;
-  paperOut: string;
-  poolOut: string | null;
-  poolVenue: string | null;
-  spotOut: string;
-  savingVsPoolPct: number | null;
-  vsMidBps: number;
-  expiresAt: number;
-  breakdown: PriceBreakdown;
-}
-
-export type Frame =
-  | { type: "price"; pair: Pair; mid: number | null; health: Health; ts: number }
-  | { type: "fill"; fill: Fill }
-  | { type: "decision"; decision: Decision }
-  | { type: "risk"; paused: boolean; riskState: "paused" | "degraded" | "normal"; halted: Pair[] }
-  | { type: "takerTier"; address: Address; tier: TierName; score: number }
-  | { type: "params"; ts: number; changed: string[] }
-  | { type: "arena"; arena: Omit<ReturnType<Engine["arenaView"]>, "series"> };
-
-export interface EngineDeps {
-  chainId: 177 | 133;
-  params: Params;
-  tokens: Tokens;
-  store: Store;
-  signer: LocalAccount;
-  emit?: (frame: Frame) => void;
-  random?: () => number;
-  onDecision?: (decision: Decision) => void;
-  operator?: Address | null;
-  dataSource?: "live" | "replay";
-}
-
-interface Market {
-  venues: Map<string, VenueState>;
-  fused: Fused;
-  vol: Volatility;
-  updatedAt: number | null;
-  history: { t: number; mid: number; sources?: Record<string, number> }[];
-}
-
-interface Issued {
-  id: string;
-  pair: Pair;
-  side: Side;
-  quote: SignedQuote;
-  mid: number;
-  expiresAtMs: number;
-  record: QuoteRecord;
-}
 
 const HISTORY_POINTS = 1800;
 const MAX_TTL_SEC = 120n;
