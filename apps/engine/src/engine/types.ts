@@ -6,6 +6,7 @@ import type { Engine } from "../engine";
 import type { Fused, VenueState } from "../feeds/fuse";
 import type { Health, Source } from "../feeds/types";
 import type { Volatility } from "../feeds/vol";
+import type { LiveVault } from "../live";
 import type { SignedQuote } from "../quotes";
 import type { Tokens } from "../tokens";
 
@@ -40,6 +41,21 @@ export interface PaperQuote {
   breakdown: PriceBreakdown;
 }
 
+/** Settles on the vault. No on-chain pool is configured, so there is no pool comparison to report. */
+export interface LiveQuote {
+  route: "conduit";
+  id: string;
+  quote: SignedQuote;
+  signature: Hex;
+  conduitOut: string;
+  hskswapOut: null;
+  spotOut: string;
+  savingPct: null;
+  vsMidBps: number;
+  expiresAt: number;
+  breakdown: PriceBreakdown;
+}
+
 export type Frame =
   | { type: "price"; pair: Pair; mid: number | null; health: Health; ts: number }
   | { type: "fill"; fill: Fill }
@@ -60,6 +76,9 @@ export interface EngineDeps {
   onDecision?: (decision: Decision) => void;
   operator?: Address | null;
   dataSource?: "live" | "replay";
+  live?: LiveVault;
+  /** Why ENGINE_MODE=live was refused. The engine runs in shadow and reports these. */
+  liveBlocked?: string[];
 }
 
 export interface Market {

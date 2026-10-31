@@ -9,6 +9,7 @@ import { usePublicClient } from "wagmi";
 import { getAccount, getWalletClient } from "wagmi/actions";
 import { useToast } from "../../components/platform/primitives";
 import { failureMessage, zethos } from "../../lib/engine/sdk";
+import { retryWhileAllowanceLags } from "../../lib/engine/stale-read";
 import { toContractQuote, verifyQuoteSignature } from "../../lib/engine/verify-quote";
 import { platformConfig } from "../../lib/platform-config";
 import { wagmiConfig } from "../../lib/wagmi";
@@ -90,7 +91,7 @@ export function useSwapExecution() {
         notify({
           title: "Paper fill",
           description: received
-            ? `Received ${formatUnits(BigInt(fill.amountOut), received.decimals)} ${received.symbol}. No funds moved.`
+            ? `Received ${formatUnits(BigInt(fill.amountOut), received.decimals)} ${received.label ?? received.symbol}. No funds moved.`
             : "Paper settlement complete. No funds moved.",
           tone: "success",
           href: `/arena#${fill.id}`,
@@ -192,13 +193,18 @@ export function useSwapExecution() {
       }
       assertAccount();
       assertFresh();
-      const simulation = await client.simulateContract({
-        account: address,
-        address: platformConfig.vaultAddress,
-        abi: vaultAbi,
-        functionName: "fill",
-        args: [quote, response.signature],
-      });
+      const vaultAddress = platformConfig.vaultAddress;
+      const simulation = await retryWhileAllowanceLags(
+        () =>
+          client.simulateContract({
+            account: address,
+            address: vaultAddress,
+            abi: vaultAbi,
+            functionName: "fill",
+            args: [quote, response.signature],
+          }),
+        { beforeRetry: assertFresh },
+      );
       assertAccount();
       assertFresh();
       setPhase("signature");

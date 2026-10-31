@@ -3,8 +3,9 @@ import { type AgentState, initialState } from "../agent/types";
 import type { Pair } from "../config";
 import type { Fill } from "../db";
 import { Volatility } from "../feeds/vol";
+import type { VaultSnapshot } from "../live";
 import type { SignedQuote } from "../quotes";
-import type { Inventory } from "../tokens";
+import type { Inventory, TokenSymbol } from "../tokens";
 import type { EngineDeps, Issued, Market } from "./types";
 
 /** Shared by every collaborator; the queue remains the only write serialization boundary. */
@@ -24,7 +25,13 @@ export class EngineState {
   readonly seenTrades = new Map<string, number>();
   readonly cooldowns = new Map<string, number>();
   modeledGasUsd = 0;
+  snapshot: VaultSnapshot | null = null;
+  readonly openLiveQuotes = new Map<
+    string,
+    { token: TokenSymbol; amountOut: bigint; expiresAtMs: number }
+  >();
   constructor(readonly deps: EngineDeps) {
+    this.snapshot = deps.live?.initial ?? null;
     for (const pair of deps.params.pairs) {
       this.markets.set(pair, {
         venues: new Map(),

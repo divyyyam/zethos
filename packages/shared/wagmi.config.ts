@@ -7,10 +7,7 @@ export default defineConfig({
     foundry({
       project: "../contracts",
       artifacts: "out",
-      include: [
-        "ZethosVault.sol/ZethosVault.json",
-        "IUniswapV3Pool.sol/*.json",
-      ],
+      include: ["ZethosVault.sol/ZethosVault.json", "IUniswapV3Pool.sol/*.json"],
       forge: { build: false, rebuild: false },
     }),
   ],

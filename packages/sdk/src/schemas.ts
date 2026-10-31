@@ -99,9 +99,9 @@ export const vaultQuote = z.object({
   quote: signedQuote,
   signature: hex,
   conduitOut: uint(256),
-  hskswapOut: uint(256),
+  hskswapOut: uint(256).nullable(),
   spotOut: uint(256),
-  savingPct: num,
+  savingPct: num.nullable(),
   expiresAt: num,
   breakdown: priceBreakdown,
 });
@@ -124,6 +124,8 @@ export const quoteRequest = z.object({
 
 const token = z.object({
   symbol: z.string(),
+  /** The on-chain symbol. Test tokens must be displayed by this, not by `symbol`. */
+  label: z.string().optional(),
   address,
   decimals: z.int().min(0).max(255),
 });
@@ -138,6 +140,14 @@ export const pairStatus = z.object({
   sources: z.array(source),
   halfSpread: z.object({ buy: num, sell: num }).nullable(),
   updatedAt: num.nullable(),
+  /** Live mode only: what the vault itself allows for this pair. */
+  vaultRoutes: z
+    .object({
+      buy: z.object({ enabled: z.boolean(), maxAmountIn: uint(256) }),
+      sell: z.object({ enabled: z.boolean(), maxAmountIn: uint(256) }),
+    })
+    .nullable()
+    .optional(),
 });
 
 export const status = z.object({
@@ -149,6 +159,8 @@ export const status = z.object({
   verifyingContract: address,
   paused: z.boolean(),
   riskState,
+  /** Why ENGINE_MODE=live was refused, leaving the engine in shadow mode. */
+  liveBlocked: z.array(z.string()).optional(),
   pairs: z.array(pairStatus),
   inventory: z.record(z.string(), uint(256)),
   equityUsd: num.nullable(),

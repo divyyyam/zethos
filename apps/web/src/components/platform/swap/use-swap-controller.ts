@@ -74,7 +74,7 @@ export function useSwapController() {
     if ((debouncedAmount.split(".")[1]?.length || 0) > inputDecimals)
       return {
         raw: 0n,
-        error: `${from.symbol} supports up to ${inputDecimals} decimal places.`,
+        error: `${from.label} supports up to ${inputDecimals} decimal places.`,
       };
     try {
       const raw = parseUnits(debouncedAmount, inputDecimals);
@@ -82,13 +82,13 @@ export function useSwapController() {
         raw,
         error:
           !sample && !isShadow && balance.data && raw > balance.data.value
-            ? `Your ${from.symbol} balance is lower than this amount.`
+            ? `Your ${from.label} balance is lower than this amount.`
             : null,
       };
     } catch {
       return { raw: 0n, error: "Enter a valid token amount." };
     }
-  }, [balance.data, inputDecimals, debouncedAmount, amountValue, from.symbol, sample, isShadow]);
+  }, [balance.data, inputDecimals, debouncedAmount, amountValue, from.label, sample, isShadow]);
   const inputAddress = isShadow ? inputToken?.address : from.address;
   const outputAddress = isShadow ? outputToken?.address : to.address;
   const request: QuoteRequest | null =
@@ -197,7 +197,7 @@ export function useSwapController() {
   else if (!validAmount) action = "Enter an amount";
   else if (status.data?.paused) action = "Vault is paused";
   else if (inputValidation.error)
-    action = inputValidation.raw > 0n ? `Not enough ${from.symbol}` : "Check the amount";
+    action = inputValidation.raw > 0n ? `Not enough ${from.label}` : "Check the amount";
   else if (sample) action = "View swap preview";
   else if (!from.address || !to.address) action = "This pair isn’t available yet";
   else if (!isShadow && (balance.isPending || outputBalance.isPending))

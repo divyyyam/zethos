@@ -96,7 +96,7 @@ export function Sidebar({
         <div className="d-sidebar-foot">
           <Link href="/arena" className="d-vault d-hide-collapsed" data-cursor="hover">
             <span className="d-vault-head">
-              <span>Paper vault</span>
+              <span>{status.data?.mode === "live" ? "Vault" : "Paper vault"}</span>
               <ArrowUpRight size={13} aria-hidden />
             </span>
             <strong className="num">{equity === null ? "—" : formatUsd(equity)}</strong>

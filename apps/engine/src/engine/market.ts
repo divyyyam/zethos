@@ -2,10 +2,12 @@ import { zeroAddress } from "viem";
 import type { Pair, Side } from "../config";
 import type { BookResult } from "../feeds";
 import { fuse } from "../feeds/fuse";
+import { routeKey } from "../live";
 import { type Inventory, PAIR_TOKENS, TOKEN_SYMBOLS, type Token } from "../tokens";
 import { HISTORY_POINTS } from "./constants";
 import { EngineError } from "./errors";
 import { tokenView } from "./helpers";
+import { availableInventory } from "./live";
 import type { EngineState } from "./state";
 import type { Market } from "./types";
 import { baseShare, equityUsd, halfSpread } from "./valuation";
@@ -120,8 +122,12 @@ export function equityUsdFor(context: EngineState, inventory: Inventory): number
 
 export function getStatus(context: EngineState) {
   for (const pair of context.deps.params.pairs) refresh(context, pair, Date.now());
-  const { params } = context.deps;
-  const inventory = context.inventory;
+  const { params, live } = context.deps;
+  const snapshot = live ? context.snapshot : null;
+  const inventory = snapshot
+    ? availableInventory(context, snapshot, Date.now())
+    : context.inventory;
+  const paused = context.paused || Boolean(snapshot?.paused);
   const pairs = params.pairs.map((pair) => {
     const market = getMarket(context, pair);
     const { base, quote } = pairTokens(context, pair);
@@ -142,24 +148,35 @@ export function getStatus(context: EngineState) {
             }
           : null,
       updatedAt: market.updatedAt,
+      vaultRoutes: snapshot
+        ? {
+            buy: routeView(snapshot.routes[routeKey(quote.address, base.address)]),
+            sell: routeView(snapshot.routes[routeKey(base.address, quote.address)]),
+          }
+        : null,
     };
   });
   const degraded = pairs.some((pair) => pair.health !== "ok" || pair.halted);
   return {
-    mode: "shadow" as const,
+    mode: live ? ("live" as const) : ("shadow" as const),
     dataSource: context.deps.dataSource ?? "live",
     chainId: context.deps.chainId,
-    signer: context.signerAddress,
+    signer: live ? live.signer.address : context.signerAddress,
     operator: context.deps.operator ?? null,
-    verifyingContract: zeroAddress,
-    paused: context.paused,
-    riskState: context.paused ? "paused" : degraded ? "degraded" : "normal",
+    verifyingContract: live ? live.vault : zeroAddress,
+    paused,
+    riskState: paused ? "paused" : degraded ? "degraded" : "normal",
+    liveBlocked: context.deps.liveBlocked ?? [],
     pairs,
     inventory: inventory
       ? Object.fromEntries(TOKEN_SYMBOLS.map((symbol) => [symbol, inventory[symbol].toString()]))
       : {},
     equityUsd: inventory ? equityUsdFor(context, inventory) : null,
   };
+}
+
+function routeView(route: { enabled: boolean; maxAmountIn: bigint } | undefined) {
+  return { enabled: route?.enabled ?? false, maxAmountIn: (route?.maxAmountIn ?? 0n).toString() };
 }
 
 export function prune(context: EngineState, now: number): void {

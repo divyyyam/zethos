@@ -80,7 +80,7 @@ export function SwapReview({
           <div>
             <span>You pay</span>
             <strong>
-              {formatNumber(amountValue, 6)} {from.symbol}
+              {formatNumber(amountValue, 6)} {from.label}
             </strong>
           </div>
         </div>
@@ -98,7 +98,7 @@ export function SwapReview({
                     6,
                   )
                 : formatNumber(out || 0, 6)}{" "}
-              {to.symbol}
+              {to.label}
             </strong>
           </div>
         </div>

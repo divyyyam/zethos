@@ -5,7 +5,8 @@ import { setArena } from "./arena";
 import { EngineError } from "./errors";
 import { nonceKey } from "./helpers";
 import { decision } from "./journal";
-import { getMarket } from "./market";
+import { isLiveRecord, reserveOpenQuote } from "./live";
+import { getMarket, pairTokens } from "./market";
 import type { EngineState } from "./state";
 import { accountFill, observeQuote } from "./toxicity";
 import type { PriceBreakdown } from "./types";
@@ -31,6 +32,13 @@ export async function init(context: EngineState): Promise<void> {
   ).reverse();
   const records = await context.deps.store.loadQuotes(arena.epoch);
   for (const record of records) {
+    if (isLiveRecord(record)) {
+      // Vault quotes aren't part of the paper analytics, but they still hold inventory until expiry.
+      const { base, quote } = pairTokens(context, record.pair);
+      if (context.deps.live)
+        reserveOpenQuote(context, record, record.side === "buy" ? base.symbol : quote.symbol);
+      continue;
+    }
     restoreQuote(context, record);
     observeQuote(context, record);
   }

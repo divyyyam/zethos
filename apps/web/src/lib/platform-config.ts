@@ -16,17 +16,23 @@ export const platformConfig = {
 
 export type TokenSymbol = "USDT" | "WHSK" | "WETH";
 export interface PlatformToken {
+  /** Internal key, shared with the engine. Display `label`, so test tokens stay labelled. */
   symbol: TokenSymbol;
+  /** The token's expected on-chain symbol. */
+  label: string;
   name: string;
   address: Address | undefined;
   samplePrice: number;
   color: "mint" | "lavender" | "sky";
 }
 
+const testnet = targetChain.id === 133;
+
 export const platformTokens: readonly [PlatformToken, PlatformToken, PlatformToken] = [
   {
     symbol: "USDT",
-    name: "Tether USD",
+    label: testnet ? "tUSDT" : "USDT",
+    name: testnet ? "Zethos Test USDT (no value)" : "Tether USD",
     address:
       configuredAddress(process.env.NEXT_PUBLIC_USDT_ADDRESS) ??
       (targetChain.id === 177 ? MAINNET_TOKEN_ADDRESSES.USDT : undefined),
@@ -35,6 +41,7 @@ export const platformTokens: readonly [PlatformToken, PlatformToken, PlatformTok
   },
   {
     symbol: "WHSK",
+    label: "WHSK",
     name: "Wrapped HashKey",
     address:
       configuredAddress(process.env.NEXT_PUBLIC_WHSK_ADDRESS) ??
@@ -44,7 +51,8 @@ export const platformTokens: readonly [PlatformToken, PlatformToken, PlatformTok
   },
   {
     symbol: "WETH",
-    name: "Wrapped Ether",
+    label: testnet ? "tWETH" : "WETH",
+    name: testnet ? "Zethos Test WETH (no value)" : "Wrapped Ether",
     address:
       configuredAddress(process.env.NEXT_PUBLIC_WETH_ADDRESS) ??
       (targetChain.id === 177 ? MAINNET_TOKEN_ADDRESSES.WETH : undefined),

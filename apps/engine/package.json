@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
+    "dev:live-testnet": "bash scripts/dev-live-testnet.sh",
     "deploy": "wrangler deploy",
     "test": "bun test",
     "lint": "biome check .",

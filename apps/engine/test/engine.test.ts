@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { zeroAddress } from "viem";
 import { memoryStore } from "../src/db/memory";
 import { EngineError, flowOf } from "../src/engine";
-import { readyEngine, TAKER, tokens, usdt, whsk } from "./helpers";
+import { paperOf, readyEngine, TAKER, tokens, usdt, whsk } from "./helpers";
 
 const buyHsk = (amount = 100) => ({
   taker: TAKER,
@@ -46,7 +46,7 @@ describe("quote", () => {
     const { engine, now } = await readyEngine();
     const { response } = await engine.quote(buyHsk(), "web", now);
     expect(response.route).toBe("paper");
-    expect(BigInt(response.paperOut)).toBeLessThan(BigInt(response.spotOut));
+    expect(BigInt(paperOf(response).paperOut)).toBeLessThan(BigInt(response.spotOut));
     expect(response.vsMidBps).toBeGreaterThan(0);
     expect(response.expiresAt).toBe(Number(response.quote.expiry));
     expect(Number(response.quote.expiry) - Number(response.quote.issuedAt)).toBe(
@@ -99,11 +99,13 @@ describe("paper fill", () => {
       now + 1000,
     );
     expect(fill.flow).toBe("user");
-    expect(fill.amountOut).toBe(response.paperOut);
+    expect(fill.amountOut).toBe(paperOf(response).paperOut);
     expect(fill.price).toBeGreaterThan(0.1);
     const inventory = engine.status().inventory;
     expect(inventory.USDT).toBe((BigInt(usdt(50_000)) + BigInt(usdt(100))).toString());
-    expect(inventory.WHSK).toBe((BigInt(whsk(250_000)) - BigInt(response.paperOut)).toString());
+    expect(inventory.WHSK).toBe(
+      (BigInt(whsk(250_000)) - BigInt(paperOf(response).paperOut)).toString(),
+    );
     expect(frames.some((frame) => frame.type === "fill")).toBe(true);
     expect(await engine.fills(TAKER, 10)).toHaveLength(1);
   });
@@ -130,7 +132,7 @@ describe("paper fill", () => {
     const third = await engine.quote(buyHsk(), undefined, now);
     const tampered = {
       ...third.response.quote,
-      amountOut: (BigInt(third.response.paperOut) * 2n).toString(),
+      amountOut: (BigInt(paperOf(third.response).paperOut) * 2n).toString(),
     };
     expect(
       await code(

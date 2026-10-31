@@ -21,7 +21,7 @@ export function TokenPicker({
     if (open) setSearch("");
   }, [open]);
   const tokens = platformTokens.filter((token) =>
-    `${token.symbol} ${token.name} ${token.address || ""}`
+    `${token.symbol} ${token.label} ${token.name} ${token.address || ""}`
       .toLowerCase()
       .includes(search.toLowerCase()),
   );
@@ -51,7 +51,7 @@ export function TokenPicker({
             >
               <TokenIcon symbol={token.symbol} />
               <span>
-                <strong>{token.symbol}</strong>
+                <strong>{token.label}</strong>
                 <small>{token.name}</small>
               </span>
               {selected.symbol === token.symbol ? (

@@ -84,7 +84,3 @@ The owner, quote-signer and executor must be three different keys.
 Turborepo · Bun · TypeScript · Next.js · Tailwind CSS · wagmi · viem · RainbowKit ·
 TanStack Query · Recharts · Hono · SQLite · Gemini · Solidity · Foundry · OpenZeppelin
 
-## Status
-
-The web app UI is complete and runs on clearly labeled sample data. The vault contract and
-engine trading modules are being implemented now. See [AGENTS.md](./AGENTS.md) for module status.

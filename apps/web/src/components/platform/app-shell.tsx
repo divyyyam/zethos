@@ -115,7 +115,9 @@ export function AppShell({ children }: { children: ReactNode }) {
             <span>
               {status.data?.mode === "shadow"
                 ? `Shadow mode: ${status.data.dataSource === "replay" ? "replayed" : "live"} exchange prices, paper settlement. No funds move.`
-                : platformConfig.chain.name}
+                : platformConfig.chain.testnet
+                  ? `${platformConfig.chain.name}: real settlement with test tokens that have no market value.`
+                  : platformConfig.chain.name}
             </span>
             {platformConfig.vaultAddress && (
               <a

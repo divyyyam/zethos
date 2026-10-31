@@ -69,7 +69,7 @@ export function paperDomain(chainId: number) {
   return { ...quoteDomain, chainId, verifyingContract: zeroAddress };
 }
 
-function message(quote: SignedQuote) {
+export function contractQuote(quote: SignedQuote) {
   return {
     taker: quote.taker as Address,
     tokenIn: quote.tokenIn as Address,
@@ -88,7 +88,7 @@ export function signQuote(signer: LocalAccount, chainId: number, quote: SignedQu
     domain: paperDomain(chainId),
     types: quoteTypes,
     primaryType: "Quote",
-    message: message(quote),
+    message: contractQuote(quote),
   });
 }
 
@@ -103,7 +103,7 @@ export function verifyQuote(
     domain: paperDomain(chainId),
     types: quoteTypes,
     primaryType: "Quote",
-    message: message(quote),
+    message: contractQuote(quote),
     signature,
   }).catch(() => false);
 }

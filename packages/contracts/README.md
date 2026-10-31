@@ -4,7 +4,28 @@
 proposes prices; this contract decides whether a trade is allowed. Read the root
 [AGENTS.md](../../AGENTS.md) for how it fits into the product.
 
-**Status: not audited and not deployed.** See [Before mainnet](#before-mainnet).
+**Status: not audited. Deployed on HSK testnet only.** See [Before mainnet](#before-mainnet).
+
+## Testnet deployment
+
+Chain `133`, on `https://testnet-explorer.hskchain.net`. `tUSDT` and `tWETH` are test tokens with no
+market value.
+
+| Contract | Address |
+|----------|---------|
+| `ZethosVault` | `0x8deB013d7A8f5f5C6C2d8fb12506fab506721d01` |
+| `tUSDT` (6 decimals) | `0x1095085CAf22cEEa130f73a99234dd2C9216fb72` |
+| `tWETH` (18 decimals) | `0x6ab12f10d4f0ef5B3faae774abb724A958f5BD80` |
+| `WHSK` (predeploy) | `0x4200000000000000000000000000000000000006` |
+
+First fill:
+`0xd370a644a5b7564e45a5d66d766eb5754fd0e2225032f78ab5ee1a1548234085`
+
+The explorer refuses the vault's source through `--verify` with HTTP 413, because it is about 200 KB,
+so `deploy:testnet` exits 1 after the deploy itself has succeeded. Check `broadcast/` before
+redeploying. The vault is verified from flattened source with comments stripped through
+`/api/v2/smart-contracts/<address>/verification/via/flattened-code`, which the explorer reports as a
+partial match because comments change the metadata hash. The bytecode is otherwise identical.
 
 ## Layout
 
@@ -166,5 +187,5 @@ execute `PUSH0`, `MCOPY`, `TLOAD` and `TSTORE`. Testnet's explorer is
 - [ ] Decide whether a rolling volume limit is needed for the signer-key risk above.
 - [ ] Owner is a hardware wallet or multisig. Signer and executor are separate hot keys.
 - [ ] Full flow rehearsed on testnet: deposit, fill, pause, unpause, withdraw, key rotation.
-- [ ] Engine live mode built. It only signs paper quotes today, so it can't sign for this vault.
+- [x] Engine live mode built and rehearsed on testnet. Lift its `CHAIN_ID=133` guard for mainnet.
 - [ ] Monitoring and a pause runbook in place. Start with small caps and small inventory.
