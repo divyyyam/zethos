@@ -748,6 +748,16 @@ test("CLI scripts/research-propose.ts > enforces flags, exit codes, and usage", 
     assert.equal(noKeyCode, 1);
     assert.ok(noKeyStderr.includes("GEMINI_API_KEY must be provided"));
 
+    const rejectedKeyFlag = Bun.spawn(["bun", cliPath, "--api-key=should-not-be-echoed"], {
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+    const rejectedKeyFlagCode = await rejectedKeyFlag.exited;
+    const rejectedKeyFlagStderr = await new Response(rejectedKeyFlag.stderr).text();
+    assert.equal(rejectedKeyFlagCode, 2);
+    assert.ok(!rejectedKeyFlagStderr.includes("should-not-be-echoed"));
+    assert.ok(rejectedKeyFlagStderr.includes("Unknown option '--api-key'"));
+
     // 5. Held-out input rejection exits 1 with HeldOutAccessError
     const heldOutDiagPath = path.resolve(tmpDir, "heldout-diag.json");
     await fs.writeFile(heldOutDiagPath, JSON.stringify({ ...SAMPLE_DIAGNOSIS, heldOut: true }));
@@ -759,9 +769,9 @@ test("CLI scripts/research-propose.ts > enforces flags, exit codes, and usage", 
         `--diagnosis=${heldOutDiagPath}`,
         `--dev-stats=${statsPath}`,
         "--date=20261101",
-        "--api-key=dummy-key",
       ],
       {
+        env: { ...process.env, GEMINI_API_KEY: "dummy-key" },
         stdout: "pipe",
         stderr: "pipe",
       },

@@ -27,9 +27,9 @@ Optional Options:
   --out=<path>          Output file path to save proposed candidate PolicySpec JSON
   --runs-dir=<path>     Directory to save audit trail artifacts (default: research-runs)
   --model=<name>        Gemini model name (default: GEMINI_MODEL env or ${DEFAULT_GEMINI_MODEL})
-  --api-key=<key>       Gemini API key (default: GEMINI_API_KEY env)
   --mandate=<path>      Path to desk mandate JSON (default: engine default mandate)
   --params=<path>       Path to engine params JSON (default: engine default params)
+  GEMINI_API_KEY        Set the Gemini credential in the environment; never pass it as an argument
   --help, -h            Show this help message
 `.trim(),
   );
@@ -56,7 +56,6 @@ async function main(): Promise<void> {
   let outArg: string | null = null;
   let runsDirArg: string | null = null;
   let modelArg: string | null = null;
-  let apiKeyArg: string | null = null;
   let mandateArg: string | null = null;
   let paramsArg: string | null = null;
 
@@ -78,12 +77,14 @@ async function main(): Promise<void> {
       runsDirArg = arg.slice("--runs-dir=".length);
     } else if (arg.startsWith("--model=")) {
       modelArg = arg.slice("--model=".length);
-    } else if (arg.startsWith("--api-key=")) {
-      apiKeyArg = arg.slice("--api-key=".length);
     } else if (arg.startsWith("--mandate=")) {
       mandateArg = arg.slice("--mandate=".length);
     } else if (arg.startsWith("--params=")) {
       paramsArg = arg.slice("--params=".length);
+    } else {
+      const optionName = arg.split("=", 1)[0] ?? "(unknown)";
+      console.error(`Error: Unknown option '${optionName}'. Use --help for supported options.`);
+      process.exit(2);
     }
   }
 
@@ -102,9 +103,9 @@ async function main(): Promise<void> {
   }
   const date = dateParse.data;
 
-  const apiKey = apiKeyArg ?? process.env.GEMINI_API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey || apiKey.trim() === "") {
-    console.error("Error: GEMINI_API_KEY must be provided via --api-key or environment variable.");
+    console.error("Error: GEMINI_API_KEY must be provided via the environment.");
     process.exit(1);
   }
 
