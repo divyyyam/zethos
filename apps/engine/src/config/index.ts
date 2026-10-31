@@ -48,6 +48,7 @@ const envSchema = z.object({
       .optional(),
   ),
   OPERATOR_ADDRESS: address,
+  ADMIN_TOKEN: z.preprocess(blank, z.string().min(1).optional()),
   SESSION_SECRET: z.preprocess(blank, z.string().min(32).optional()),
   SHADOW_ASSUME_DECIMALS: z.enum(["true", "false"]).default("false"),
   GEMINI_API_KEY: z.preprocess(blank, z.string().min(1).optional()),
@@ -66,6 +67,7 @@ export interface Config {
   databaseUrl: string | null;
   tokens: Record<TokenSymbol, Address>;
   operator: Address | null;
+  adminToken: string | null;
   sessionSecret: string | null;
   assumeDecimals: boolean;
   geminiKey: string | null;
@@ -110,6 +112,7 @@ export function loadConfig(env: Record<string, unknown>): Config {
     paperSignerKey: (vars.PAPER_SIGNER_KEY as Hex | undefined) ?? null,
     databaseUrl: vars.DATABASE_URL ?? null,
     operator: (vars.OPERATOR_ADDRESS as Address | undefined) ?? null,
+    adminToken: vars.ADMIN_TOKEN ?? null,
     sessionSecret: vars.SESSION_SECRET ?? null,
     assumeDecimals: vars.SHADOW_ASSUME_DECIMALS === "true",
     geminiKey: vars.GEMINI_API_KEY ?? null,

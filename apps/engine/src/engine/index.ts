@@ -4,6 +4,7 @@ import type { Pair, TierName } from "../config";
 import type { Fill } from "../db";
 import type { BookResult } from "../feeds";
 import type { Trade } from "../feeds/types";
+import type { PolicyRecord } from "../policy";
 import { arenaView, ensureArena, resetArena } from "./arena";
 import { tick } from "./heartbeat";
 import { decisions, narrate } from "./journal";
@@ -11,6 +12,7 @@ import { getStatus, ingest, prune } from "./market";
 import { pause, reloadParams, setTaker } from "./operator";
 import { fills, init } from "./persistence";
 import { pnl, stats } from "./pnl";
+import { getPolicy, listPolicies, registerPolicy } from "./policy-registry";
 import { quote } from "./quoting";
 import { paperFill } from "./settlement";
 import { EngineState } from "./state";
@@ -119,5 +121,17 @@ export class Engine {
 
   narrate(id: string, narration: string): Promise<void> {
     return narrate(this.context, id, narration);
+  }
+
+  registerPolicy(input: unknown, now: number): Promise<PolicyRecord> {
+    return registerPolicy(this.context, input, now);
+  }
+
+  getPolicy(id: string): Promise<PolicyRecord | null> {
+    return getPolicy(this.context, id);
+  }
+
+  listPolicies(): Promise<PolicyRecord[]> {
+    return listPolicies(this.context);
   }
 }
