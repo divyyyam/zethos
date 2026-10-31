@@ -95,7 +95,7 @@ remain in the existing execution layer. Compilation alone does not qualify or ac
 Do not treat a policy result as an executable promise until execution has accepted and signed it.
 
 The nine Tier 2 components are supported. `reservationFee` is rejected while Tier 3 and its
-reservation request fields remain gated. Scenario loading, evaluation,
+reservation request fields remain gated. Evaluation,
 qualification, proposal generation and the policy registry follow in separate checkpoints.
 
 ## S6 Loss attribution (`attributeLosses`)
@@ -136,3 +136,26 @@ const result = attributeLosses({
 - **Denominator and reconciliation**: Shares use `analyzedLossUsd` as the denominator. The sum of attributed cause USD plus `unclassified.usd` equals `analyzedLossUsd` exactly; shares sum to 1.0.
 - **Evidence integrity**: Unmatched losses remain in `unclassified`. Fills missing required markout data are placed in `excludedFills` with an explicit reason. No evidence is fabricated.
 - **Purity**: Zero network, wall-clock, journal or API dependencies. Timestamps and raw amounts are preserved as strings.
+
+## R7 Scenario loader and held-out protection (`scenarios.ts`)
+
+Loads and validates S9 manifests (`<name>.json`) and NDJSON replay files (`<name>.ndjson`) containing venue book depth, trades and taker requests.
+
+```ts
+import { loadScenario, listScenarios } from "./research";
+
+// Research access (default): fails closed if scenario is held-out
+const devScenario = await loadScenario("synthetic-dev-tape", { role: "research" });
+
+// Evaluator access: explicit authorization required to read held-out payloads
+const heldOutScenario = await loadScenario("synthetic-heldout-leadlag", { role: "evaluator" });
+```
+
+### Held-out protection and security guarantees
+
+- **Fail-closed guard**: When a scenario is marked `heldOut: true` in its manifest, research access rejects with `HeldOutAccessError` **before** opening or reading the NDJSON payload. Evaluator access must be explicit (`role: "evaluator"`).
+- **Path traversal prevention**: Disallows relative path traversals (`..`), path separators (`/`, `\`), and non-alphanumeric names; resolves strictly within the scenario directory, throwing `ScenarioSecurityError`.
+- **Format validation**: Strict zod validation for both manifest and NDJSON records (`book`, `trade`, `taker_request`). Raw amounts in taker requests (`amountIn`) are strictly preserved as base-10 integer strings.
+- **Deterministic partitioning**: Supports explicit `devWindow` and `heldOutWindow` from manifests, explicit `timeWindow` filtering, and pure helpers `splitRecordsByTime` / `splitRecordsByRatio`.
+- **CLI tool**: `bun scripts/research-scenarios.ts <scenario-name> [--role=research|evaluator] [--list]`.
+- **Test fixtures**: Uses explicitly labelled synthetic test fixtures (`scenarios/synthetic-dev-tape`, `scenarios/synthetic-heldout-leadlag`). Real recordings remain a pending dependency on stream 06.

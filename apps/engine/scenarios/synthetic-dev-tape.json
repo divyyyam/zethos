@@ -1,0 +1,16 @@
+{
+  "name": "synthetic-dev-tape",
+  "source": "synthetic-generator",
+  "pair": "HSK/USDT",
+  "recordedAt": 1700000000000,
+  "heldOut": false,
+  "description": "Synthetic test fixture for scenario loader verification (not recorded exchange data)",
+  "devWindow": {
+    "fromTs": 1700000000000,
+    "toTs": 1700000005000
+  },
+  "heldOutWindow": {
+    "fromTs": 1700000005001,
+    "toTs": 1700000010000
+  }
+}

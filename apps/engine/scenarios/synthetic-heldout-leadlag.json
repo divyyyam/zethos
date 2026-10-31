@@ -1,0 +1,8 @@
+{
+  "name": "synthetic-heldout-leadlag",
+  "source": "synthetic-generator",
+  "pair": "HSK/USDT",
+  "recordedAt": 1700000000000,
+  "heldOut": true,
+  "description": "Synthetic test fixture for held-out guard verification (not recorded exchange data)"
+}

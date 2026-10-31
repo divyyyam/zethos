@@ -17,6 +17,32 @@ export { canonicalPolicySpec, createPolicySpec, hashPolicySpec } from "./canonic
 export { type CompileOptions, compile } from "./compile";
 export { createV0Spec } from "./incumbent";
 export {
+  defaultScenariosDir,
+  HeldOutAccessError,
+  type LoadedScenario,
+  type LoadScenarioOptions,
+  listScenarios,
+  loadScenario,
+  loadScenarioManifest,
+  parseScenarioRecords,
+  resolveScenarioPaths,
+  type ScenarioAccessRole,
+  type ScenarioBookRecord,
+  ScenarioFormatError,
+  type ScenarioManifest,
+  type ScenarioRecord,
+  ScenarioSecurityError,
+  type ScenarioTakerRequestRecord,
+  type ScenarioTradeRecord,
+  scenarioBookRecordSchema,
+  scenarioManifestSchema,
+  scenarioRecordSchema,
+  scenarioTakerRequestRecordSchema,
+  scenarioTradeRecordSchema,
+  splitRecordsByRatio,
+  splitRecordsByTime,
+} from "./scenarios";
+export {
   type PolicyBody,
   type PolicyReference,
   type PolicySpec,
