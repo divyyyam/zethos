@@ -143,19 +143,5 @@ bun run codegen
 
 ## Stack
 
-<<<<<<< HEAD
 Turborepo · Bun · TypeScript · Hono · Cloudflare Workers + Durable Objects · Drizzle · Neon ·
 Next.js · Tailwind CSS · wagmi · viem · Recharts · Gemini · Solidity · Foundry · OpenZeppelin
-||||||| 94d6717
-Turborepo · Bun · TypeScript · Next.js · Tailwind CSS · wagmi · viem · RainbowKit ·
-TanStack Query · Recharts · Hono · SQLite · Gemini · Solidity · Foundry · OpenZeppelin
-
-## Status
-
-The web app UI is complete and runs on clearly labeled sample data. The vault contract and
-engine trading modules are being implemented now. See [AGENTS.md](./AGENTS.md) for module status.
-=======
-Turborepo · Bun · TypeScript · Next.js · Tailwind CSS · wagmi · viem · RainbowKit ·
-TanStack Query · Recharts · Hono · SQLite · Gemini · Solidity · Foundry · OpenZeppelin
-
->>>>>>> a6cc28d17a97636cf089a066d80f0999d06993b3
