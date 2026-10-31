@@ -128,14 +128,14 @@ export type ScenarioManifest = z.infer<typeof scenarioManifestSchema>;
 
 export interface ScenarioRecorderOptions {
   name: string;
-  source?: string;
+  source?: string | undefined;
   pair: Pair;
-  heldOut?: boolean;
-  description?: string;
-  scenariosDir?: string;
-  maxBufferSize?: number;
-  flushIntervalMs?: number;
-  recordedAt?: number | string;
+  heldOut?: boolean | undefined;
+  description?: string | undefined;
+  scenariosDir?: string | undefined;
+  maxBufferSize?: number | undefined;
+  flushIntervalMs?: number | undefined;
+  recordedAt?: (number | string) | undefined;
 }
 
 export interface ScenarioRecordCounts {

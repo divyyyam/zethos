@@ -49,10 +49,10 @@ export interface VenueStatus {
 
 export interface MarketFeedCollectorOptions {
   pair: Pair;
-  venues?: VenueId[];
-  pollIntervalMs?: number;
-  timeoutMs?: number;
-  fetchFn?: typeof fetch;
+  venues?: VenueId[] | undefined;
+  pollIntervalMs?: number | undefined;
+  timeoutMs?: number | undefined;
+  fetchFn?: typeof fetch | undefined;
   recorder: ScenarioRecorder;
   bookLevels?: number | undefined;
   onObservation?: ((record: ScenarioRecord) => void) | undefined;
