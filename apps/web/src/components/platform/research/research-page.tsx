@@ -8,6 +8,7 @@ import { DiagnosisView } from "./diagnosis-view";
 import { EvaluationTable } from "./evaluation-table";
 import { PolicyList } from "./policy-list";
 import { PolicySpecView } from "./policy-spec-view";
+import styles from "./research.module.css";
 import { useResearchController } from "./use-research-controller";
 import { VerdictView } from "./verdict-view";
 
@@ -29,11 +30,11 @@ export function ResearchPage() {
   const isCanary = policyDetail?.status === "canary";
 
   return (
-    <>
+    <div className={styles.page}>
       <div className="p-page-heading">
         <div>
           <h1>Strategy Research</h1>
-          <p>Autonomous policy generation, held-out evaluation, and qualification telemetry.</p>
+          <p>How the desk tests and improves its trading strategies.</p>
         </div>
         <div className="p-page-tools">
           <span className="p-pill p-pill-neutral">
@@ -46,7 +47,7 @@ export function ResearchPage() {
             aria-label="Refresh research data"
             onClick={refresh}
           >
-            <RefreshCw size={16} />
+            <RefreshCw size={16} aria-hidden />
           </button>
         </div>
       </div>
@@ -65,7 +66,7 @@ export function ResearchPage() {
         </p>
       )}
 
-      <div className="flex flex-col gap-6">
+      <div className={styles.stack}>
         {/* Policy Registry List */}
         <PolicyList
           policies={filteredPolicies}
@@ -95,6 +96,6 @@ export function ResearchPage() {
           isError={diagnosisQuery.isError}
         />
       </div>
-    </>
+    </div>
   );
 }

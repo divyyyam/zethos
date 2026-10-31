@@ -6,14 +6,15 @@ import {
   type PolicyLifecycleStatus,
   type PolicySummary,
 } from "../../../lib/engine/policies";
+import styles from "./research.module.css";
 
 const STATUS_BADGE_CLASSES: Record<PolicyLifecycleStatus, string> = {
   incumbent: "p-pill-success",
-  canary: "p-pill-neutral font-semibold text-cyan-400 border border-cyan-800/60",
-  qualified: "p-pill-success border border-emerald-800/60",
-  rejected: "p-pill-neutral text-rose-400 border border-rose-900/60",
-  draft: "p-pill-neutral text-neutral-400 border border-neutral-700",
-  retired: "p-pill-neutral opacity-60 text-neutral-500",
+  canary: styles.canary ?? "p-pill-neutral",
+  qualified: "p-pill-success",
+  rejected: styles.rejected ?? "p-pill-neutral",
+  draft: "p-pill-neutral",
+  retired: "p-pill-neutral",
 };
 
 export function PolicyList({
@@ -44,33 +45,30 @@ export function PolicyList({
   return (
     <div className="d-card">
       <div className="d-card-head">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div>
-            <h2>Policy Registry</h2>
-            <p>Autonomous strategy pipeline: candidates, canaries, and incumbent</p>
-          </div>
+        <div>
+          <h2>Strategy library</h2>
+          <p>Explore candidates, canary trials, and the current strategy.</p>
+        </div>
 
-          <div className="flex items-center gap-2">
-            <Filter size={14} className="text-neutral-400" aria-hidden />
-            <select
-              className="bg-neutral-900 border border-neutral-700 text-xs rounded px-2.5 py-1 text-neutral-200 focus:outline-none focus:border-neutral-500"
-              value={statusFilter}
-              onChange={(e) => onFilterChange(e.target.value)}
-              aria-label="Filter policies by status"
-            >
-              <option value="all">All statuses</option>
-              {POLICY_STATUSES.map((status) => (
-                <option key={status} value={status}>
-                  {status}
-                </option>
-              ))}
-            </select>
-          </div>
+        <div className={styles.filter}>
+          <Filter size={14} aria-hidden />
+          <select
+            value={statusFilter}
+            onChange={(e) => onFilterChange(e.target.value)}
+            aria-label="Filter policies by status"
+          >
+            <option value="all">All statuses</option>
+            {POLICY_STATUSES.map((status) => (
+              <option key={status} value={status}>
+                {status}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
 
       <div className="p-table-wrap">
-        <table className="p-table" aria-label="Policy pipeline registry table">
+        <table className={`p-table ${styles.table}`} aria-label="Policy pipeline registry table">
           <thead>
             <tr>
               <th scope="col">Policy ID</th>
@@ -78,7 +76,7 @@ export function PolicyList({
               <th scope="col">Parent</th>
               <th scope="col">Hypothesis</th>
               <th scope="col">Created</th>
-              <th scope="col" className="text-right">
+              <th scope="col" className={styles.right}>
                 Action
               </th>
             </tr>
@@ -86,13 +84,13 @@ export function PolicyList({
           <tbody>
             {isLoading ? (
               <tr>
-                <td colSpan={6} className="text-center py-6 text-neutral-400">
+                <td colSpan={6} className={styles.muted}>
                   Loading policy registry...
                 </td>
               </tr>
             ) : policies.length === 0 ? (
               <tr>
-                <td colSpan={6} className="text-center py-6 text-neutral-400">
+                <td colSpan={6} className={styles.muted}>
                   No policies found matching filter
                 </td>
               </tr>
@@ -104,50 +102,42 @@ export function PolicyList({
                 return (
                   <tr
                     key={policy.id}
-                    className={`cursor-pointer transition-colors ${
-                      isSelected
-                        ? "bg-neutral-800/40 hover:bg-neutral-800/60"
-                        : "hover:bg-neutral-900/40"
-                    }`}
+                    className={`${styles.registryRow} ${isSelected ? styles.selected : ""}`}
                     onClick={() => onSelect(policy.id)}
                   >
                     <td>
-                      <div className="flex items-center gap-1.5">
-                        {isSelected && (
-                          <CheckCircle2 size={13} className="text-cyan-400 shrink-0" aria-hidden />
-                        )}
+                      <div className={styles.policyId}>
+                        {isSelected && <CheckCircle2 size={13} aria-hidden />}
                         <strong className="font-mono text-xs">{policy.id}</strong>
                       </div>
                     </td>
                     <td>
-                      <span className={`p-pill ${badgeClass} capitalize text-xs`}>
+                      <span className={`p-pill ${styles.status} ${badgeClass}`}>
                         {policy.status}
                       </span>
                     </td>
                     <td>
-                      <span className="font-mono text-xs text-neutral-400">{policy.parent}</span>
+                      <span className={`font-mono text-xs ${styles.muted}`}>{policy.parent}</span>
                     </td>
-                    <td className="max-w-xs md:max-w-md">
-                      <p
-                        className="text-xs text-neutral-300 line-clamp-2"
-                        title={policy.hypothesis}
-                      >
+                    <td>
+                      <p className={`${styles.hypothesis} line-clamp-2`} title={policy.hypothesis}>
                         {policy.hypothesis}
                       </p>
                     </td>
                     <td>
-                      <time className="text-xs text-neutral-400 whitespace-nowrap">
+                      <time
+                        className={styles.date}
+                        dateTime={new Date(policy.createdAt).toISOString()}
+                      >
                         {formatDate(policy.createdAt)}
                       </time>
                     </td>
-                    <td className="text-right">
+                    <td className={styles.right}>
                       <button
                         type="button"
-                        className={`text-xs px-2.5 py-1 rounded inline-flex items-center gap-1 ${
-                          isSelected
-                            ? "bg-cyan-900/40 text-cyan-300 border border-cyan-700/50"
-                            : "text-neutral-400 hover:text-neutral-200"
-                        }`}
+                        className={styles.inspect}
+                        aria-pressed={isSelected}
+                        aria-label={`Inspect policy ${policy.id}`}
                         onClick={(e) => {
                           e.stopPropagation();
                           onSelect(policy.id);
