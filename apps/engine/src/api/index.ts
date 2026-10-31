@@ -9,12 +9,20 @@ import { registerAuthRoutes } from "./routes/auth";
 import { registerChatRoutes } from "./routes/chat";
 import { registerOperatorRoutes } from "./routes/operator";
 import { registerPaperRoutes } from "./routes/paper";
+import { registerPolicyRoutes } from "./routes/policies";
 import { registerPublicRoutes } from "./routes/public";
 import type { AppOptions } from "./types";
 
 export type { AppOptions } from "./types";
 
-export function createApp({ engine, corsOrigins, auth, assistant, clock = Date.now }: AppOptions) {
+export function createApp({
+  engine,
+  corsOrigins,
+  auth,
+  assistant,
+  clock = Date.now,
+  adminToken,
+}: AppOptions) {
   const app = new Hono();
 
   app.use(
@@ -22,14 +30,14 @@ export function createApp({ engine, corsOrigins, auth, assistant, clock = Date.n
     cors({
       origin: corsOrigins,
       credentials: true,
-      allowHeaders: ["Content-Type", CLIENT_HEADER],
+      allowHeaders: ["Content-Type", "Authorization", CLIENT_HEADER],
     }),
   );
 
   app.use(
     "*",
     bodyLimit({
-      maxSize: 64 * 1024,
+      maxSize: 512 * 1024,
       onError: (c) => c.json({ error: "invalid_request", message: "Body too large" }, 413),
     }),
   );
@@ -53,12 +61,13 @@ export function createApp({ engine, corsOrigins, auth, assistant, clock = Date.n
   });
 
   app.notFound((c) => c.json({ error: "not_found" }, 404));
-  const options = { engine, auth, assistant, clock };
+  const options = { engine, auth, assistant, clock, adminToken };
   registerPublicRoutes(app, options);
   registerPaperRoutes(app, options);
   registerArenaRoutes(app, options);
   registerChatRoutes(app, options);
   registerAuthRoutes(app, options);
   registerOperatorRoutes(app, options);
+  registerPolicyRoutes(app, options);
   return app;
 }
