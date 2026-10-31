@@ -87,3 +87,15 @@ export const fills = pgTable(
     index("fills_epoch_ts_idx").on(table.epoch, table.ts),
   ],
 );
+
+export const policies = pgTable("policies", {
+  id: text().primaryKey(),
+  parent: text().notNull(),
+  hypothesis: text().notNull(),
+  spec: jsonb().notNull(),
+  report: jsonb(),
+  status: text().notNull(),
+  allocationPct: doublePrecision("allocation_pct").notNull().default(0),
+  createdAt: ms("created_at").notNull(),
+  updatedAt: ms("updated_at").notNull(),
+});

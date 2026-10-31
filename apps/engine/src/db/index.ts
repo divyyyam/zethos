@@ -1,9 +1,11 @@
 import type { Address, Hex } from "viem";
 import type { AgentState } from "../agent/types";
 import type { Pair, Side } from "../config";
+import type { PolicyRecord } from "../policy";
 import type { SignedQuote } from "../quotes";
 import type { Inventory } from "../tokens";
 
+export type { PolicyRecord } from "../policy";
 export { createDb, type Database } from "./db";
 
 export type Flow = "tape" | "user" | "agent" | "attacker";
@@ -60,4 +62,7 @@ export interface Store {
   // Atomic: the fill, its nonce and the new inventory are written together or not at all.
   saveFill(fill: Fill, nonce: string, epoch: number, inventory: Inventory): Promise<void>;
   fills(query: { taker?: Address; limit: number; epoch?: number }): Promise<Fill[]>;
+  savePolicy(record: PolicyRecord): Promise<void>;
+  getPolicy(id: string): Promise<PolicyRecord | null>;
+  listPolicies(): Promise<PolicyRecord[]>;
 }
