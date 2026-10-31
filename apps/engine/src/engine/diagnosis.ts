@@ -54,7 +54,7 @@ export function diagnose(
   });
   decision(
     context,
-    "loss_diagnosis",
+    "diagnosis",
     now,
     `Attributed $${result.totalLossUsd.toFixed(2)} analytical markout loss over ${window}`,
     {

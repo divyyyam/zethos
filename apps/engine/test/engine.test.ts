@@ -48,7 +48,7 @@ describe("loss diagnosis", () => {
     expect(diagnosis.window).toEqual({ fromTs: now - 60 * 60_000, toTs: now });
     expect(diagnosis.totalLossUsd).toBe(0);
     expect(diagnosis.breakdown).toEqual([]);
-    expect(engine.decisions(10, "loss_diagnosis")).toHaveLength(1);
+    expect(engine.decisions(10, "diagnosis")).toHaveLength(1);
   });
 
   test("rejects unsupported analysis windows and pairs", async () => {

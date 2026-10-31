@@ -63,6 +63,10 @@ export class Engine {
     return getStatus(this.context);
   }
 
+  mandate() {
+    return structuredClone(this.context.mandate);
+  }
+
   diagnosis(now: number, pair?: string, window?: string) {
     return diagnose(this.context, now, pair, window);
   }

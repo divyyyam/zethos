@@ -25,6 +25,9 @@ describe("http", () => {
     expect(await json(await server.request("/health"))).toEqual({ status: "ok" });
     const status = await json(await server.request("/status"));
     expect(status.mode).toBe("shadow");
+    const mandate = await json(await server.request("/mandate"));
+    expect(mandate.pairs).toContain("HSK/USDT");
+    expect(mandate.canary).toBeDefined();
   });
 
   test("diagnosis exposes attributed paper losses and validates filters", async () => {
