@@ -101,7 +101,8 @@ export class Market extends DurableObject<Env> {
   async webSocketMessage(): Promise<void> {}
 
   async webSocketClose(socket: WebSocket, code: number): Promise<void> {
-    socket.close(code, "closing");
+    // 1005 and 1006 only describe how a socket closed, and close() refuses to send them.
+    socket.close(code === 1005 || code === 1006 ? 1000 : code, "closing");
   }
 
   private async wake(): Promise<void> {
