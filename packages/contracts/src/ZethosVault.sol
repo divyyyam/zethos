@@ -1,18 +1,18 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.24;
 
+import {IZethosVault} from "./interfaces/IZethosVault.sol";
+import {PoolPrice} from "./libraries/PoolPrice.sol";
+import {QuoteLib} from "./libraries/QuoteLib.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import {EIP712} from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
-import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
-import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
-import {IZethosVault} from "./interfaces/IZethosVault.sol";
-import {PoolPrice} from "./libraries/PoolPrice.sol";
-import {QuoteLib} from "./libraries/QuoteLib.sol";
 
 /// @title ZethosVault
 /// @notice The engine proposes prices; this contract decides whether a trade is allowed. It trusts
@@ -116,7 +116,9 @@ contract ZethosVault is IZethosVault, Ownable2Step, Pausable, ReentrancyGuard, E
 
     /// @inheritdoc IZethosVault
     function setRoute(address tokenIn, address tokenOut, Route calldata route) external onlyOwner {
-        if (tokenIn == tokenOut || route.poolToleranceBps > BPS_DENOMINATOR) revert InvalidConfig();
+        if (tokenIn == tokenOut || route.poolToleranceBps > BPS_DENOMINATOR) {
+            revert InvalidConfig();
+        }
         if (tokenIn.code.length == 0) revert NotAContract(tokenIn);
         if (tokenOut.code.length == 0) revert NotAContract(tokenOut);
         if (route.pool != address(0)) PoolPrice.requireTokens(route.pool, tokenIn, tokenOut);

@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.24;
 
-import {Test} from "forge-std/Test.sol";
 import {IZethosVault} from "../../src/interfaces/IZethosVault.sol";
 import {PoolPrice} from "../../src/libraries/PoolPrice.sol";
 import {MockPool} from "../mocks/MockPool.sol";
+import {Test} from "forge-std/Test.sol";
 
 contract PoolPriceTest is Test {
     uint160 private constant PRICE_ONE = uint160(2 ** 96);
@@ -27,14 +27,14 @@ contract PoolPriceTest is Test {
 
     function test_OneToOne() public {
         MockPool pool = new MockPool(tokenA, tokenB, PRICE_ONE);
-        assertEq(this.spotOutput(address(pool), tokenA, 1_000), 1_000);
-        assertEq(this.spotOutput(address(pool), tokenB, 1_000), 1_000);
+        assertEq(this.spotOutput(address(pool), tokenA, 1000), 1000);
+        assertEq(this.spotOutput(address(pool), tokenB, 1000), 1000);
     }
 
     function test_AppliesPriceByDirection() public {
         MockPool pool = new MockPool(tokenA, tokenB, PRICE_FOUR);
-        assertEq(this.spotOutput(address(pool), pool.token0(), 1_000), 4_000);
-        assertEq(this.spotOutput(address(pool), pool.token1(), 1_000), 250);
+        assertEq(this.spotOutput(address(pool), pool.token0(), 1000), 4000);
+        assertEq(this.spotOutput(address(pool), pool.token1(), 1000), 250);
     }
 
     function test_HandlesLargeAmountsWithoutOverflow() public {

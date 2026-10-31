@@ -1,6 +1,12 @@
 version = 2
 
 [[dependencies]]
+name = "forge-std"
+version = "1.9.7"
+git = "https://github.com/foundry-rs/forge-std.git"
+rev = "v1.9.7"
+
+[[dependencies]]
 name = "openzeppelin-contracts"
 version = "5.7.0"
 git = "https://github.com/OpenZeppelin/openzeppelin-contracts.git"

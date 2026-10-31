@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.24;
 
-import {Test} from "forge-std/Test.sol";
-import {IZethosVault} from "../../src/interfaces/IZethosVault.sol";
 import {ZethosVault} from "../../src/ZethosVault.sol";
+import {IZethosVault} from "../../src/interfaces/IZethosVault.sol";
 import {MockERC20} from "../mocks/MockERC20.sol";
+import {Test} from "forge-std/Test.sol";
 
 /// @notice Drives the vault with valid fills, replays and outsiders, and keeps its own ledger.
 contract VaultHandler is Test {
@@ -30,7 +30,7 @@ contract VaultHandler is Test {
     }
 
     function fill(uint256 amountIn, uint256 amountOut) external {
-        amountIn = bound(amountIn, 1, 1_000e6);
+        amountIn = bound(amountIn, 1, 1000e6);
         uint256 balance = whsk.balanceOf(address(vault));
         if (balance == 0 || usdt.balanceOf(taker) < amountIn) return;
         amountOut = bound(amountOut, 1, balance);
@@ -78,7 +78,7 @@ contract VaultHandler is Test {
 }
 
 contract SolvencyInvariantTest is Test {
-    uint256 private constant VAULT_USDT = 5_000e6;
+    uint256 private constant VAULT_USDT = 5000e6;
     uint256 private constant VAULT_WHSK = 50_000e18;
     uint256 private constant TAKER_USDT = 1_000_000e6;
 
@@ -98,10 +98,7 @@ contract SolvencyInvariantTest is Test {
             address(usdt),
             address(whsk),
             IZethosVault.Route({
-                pool: address(0),
-                poolToleranceBps: 0,
-                enabled: true,
-                maxAmountIn: 1_000e6
+                pool: address(0), poolToleranceBps: 0, enabled: true, maxAmountIn: 1000e6
             })
         );
         usdt.mint(address(vault), VAULT_USDT);

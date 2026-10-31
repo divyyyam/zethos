@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.24;
 
-import {Test} from "forge-std/Test.sol";
 import {DeployTestTokens} from "../../script/DeployTestTokens.s.sol";
 import {ZethosTestToken} from "../../src/testnet/ZethosTestToken.sol";
+import {Test} from "forge-std/Test.sol";
 
 contract DeployTestTokensTest is Test {
     uint256 private constant MINT_USDT = 100_000e6;

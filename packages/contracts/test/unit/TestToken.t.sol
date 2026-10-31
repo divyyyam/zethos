@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.24;
 
+import {ZethosTestToken} from "../../src/testnet/ZethosTestToken.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {Test} from "forge-std/Test.sol";
-import {ZethosTestToken} from "../../src/testnet/ZethosTestToken.sol";
 
 contract TestTokenTest is Test {
     address private owner = makeAddr("owner");
@@ -20,10 +20,10 @@ contract TestTokenTest is Test {
 
     function test_OwnerMints() public {
         vm.prank(owner);
-        token.mint(outsider, 1_000);
+        token.mint(outsider, 1000);
 
-        assertEq(token.balanceOf(outsider), 1_000);
-        assertEq(token.totalSupply(), 1_000);
+        assertEq(token.balanceOf(outsider), 1000);
+        assertEq(token.totalSupply(), 1000);
     }
 
     function test_OutsiderCannotMint() public {
@@ -31,7 +31,7 @@ contract TestTokenTest is Test {
         vm.expectRevert(
             abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, outsider)
         );
-        token.mint(outsider, 1_000);
+        token.mint(outsider, 1000);
     }
 
     function test_ZeroOwnerIsRefused() public {

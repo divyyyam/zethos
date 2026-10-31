@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.24;
 
-import {Test} from "forge-std/Test.sol";
-import {IZethosVault} from "../../src/interfaces/IZethosVault.sol";
 import {ZethosVault} from "../../src/ZethosVault.sol";
+import {IZethosVault} from "../../src/interfaces/IZethosVault.sol";
 import {MockERC20} from "../mocks/MockERC20.sol";
+import {Test} from "forge-std/Test.sol";
 
 /// @notice A funded vault with both USDT/WHSK routes open, and helpers for signed quotes.
 abstract contract VaultTest is Test {
@@ -13,10 +13,10 @@ abstract contract VaultTest is Test {
     uint256 internal constant START_TIME = 1_800_000_000;
     uint256 internal constant ONE_USDT = 1e6;
     uint256 internal constant ONE_WHSK = 1e18;
-    uint256 internal constant USDT_CAP = 1_000 * ONE_USDT;
-    uint256 internal constant VAULT_USDT = 5_000 * ONE_USDT;
+    uint256 internal constant USDT_CAP = 1000 * ONE_USDT;
+    uint256 internal constant VAULT_USDT = 5000 * ONE_USDT;
     uint256 internal constant VAULT_WHSK = 50_000 * ONE_WHSK;
-    uint256 internal constant TAKER_USDT = 5_000 * ONE_USDT;
+    uint256 internal constant TAKER_USDT = 5000 * ONE_USDT;
     uint64 internal constant TTL = 30;
 
     address internal owner = makeAddr("owner");
@@ -63,10 +63,7 @@ abstract contract VaultTest is Test {
         returns (IZethosVault.Route memory)
     {
         return IZethosVault.Route({
-            pool: pool,
-            poolToleranceBps: poolToleranceBps,
-            enabled: true,
-            maxAmountIn: maxAmountIn
+            pool: pool, poolToleranceBps: poolToleranceBps, enabled: true, maxAmountIn: maxAmountIn
         });
     }
 
@@ -77,7 +74,7 @@ abstract contract VaultTest is Test {
             tokenIn: address(usdt),
             tokenOut: address(whsk),
             amountIn: 100 * ONE_USDT,
-            amountOut: 1_000 * ONE_WHSK,
+            amountOut: 1000 * ONE_WHSK,
             nonce: nonce,
             issuedAt: uint64(block.timestamp),
             expiry: uint64(block.timestamp) + TTL

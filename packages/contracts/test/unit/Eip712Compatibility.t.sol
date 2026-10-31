@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.24;
 
-import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import {IZethosVault} from "../../src/interfaces/IZethosVault.sol";
 import {QuoteLib} from "../../src/libraries/QuoteLib.sol";
 import {VaultTest} from "../base/VaultTest.sol";
+import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
 /// @notice Pins the vault to what the off-chain stack produces. The expected values were generated
 /// with viem from `packages/shared/src/eip712.ts`, and the SDK accepts the signature below.

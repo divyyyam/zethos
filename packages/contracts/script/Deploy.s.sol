@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.24;
 
+import {ZethosVault} from "../src/ZethosVault.sol";
+import {IZethosVault} from "../src/interfaces/IZethosVault.sol";
 import {Script} from "forge-std/Script.sol";
 import {console2} from "forge-std/console2.sol";
-import {IZethosVault} from "../src/interfaces/IZethosVault.sol";
-import {ZethosVault} from "../src/ZethosVault.sol";
 
 /// @notice Deploys the vault and configures its four routes.
 /// @dev Only public addresses come from the environment. The key stays in the encrypted keystore

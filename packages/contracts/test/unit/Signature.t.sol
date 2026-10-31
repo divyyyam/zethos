@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.24;
 
-import {IZethosVault} from "../../src/interfaces/IZethosVault.sol";
 import {ZethosVault} from "../../src/ZethosVault.sol";
+import {IZethosVault} from "../../src/interfaces/IZethosVault.sol";
 import {QuoteLib} from "../../src/libraries/QuoteLib.sol";
 import {VaultTest} from "../base/VaultTest.sol";
 
@@ -92,8 +92,7 @@ contract SignatureTest is VaultTest {
                 address(0)
             )
         );
-        bytes32 digest =
-            keccak256(abi.encodePacked(hex"1901", paperDomain, _structHash(quote)));
+        bytes32 digest = keccak256(abi.encodePacked(hex"1901", paperDomain, _structHash(quote)));
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(SIGNER_KEY, digest);
         _expectInvalid(quote, abi.encodePacked(r, s, v));
     }

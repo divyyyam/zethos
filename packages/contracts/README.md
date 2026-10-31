@@ -148,9 +148,10 @@ cast send "$USDT_ADDRESS" "mint(address,uint256)" <taker> <raw amount> \
   --rpc-url hsk_testnet --account "$FOUNDRY_ACCOUNT"
 ```
 
-Without Bun in the shell, load `.env` with `set -a; source .env; set +a` and run the `forge script`
-command from the matching entry in `package.json`. Don't run `bun install` from WSL in a folder
-Windows also uses, because `node_modules` holds platform-specific binaries.
+The package scripts load `.env` themselves, because Bun doesn't pass it to them. Without Bun in the
+shell, load it with `set -a; source .env; set +a` and run the `forge script` command from the
+matching entry in `package.json`. Don't run `bun install` from WSL in a folder Windows also uses,
+because `node_modules` holds platform-specific binaries.
 
 The EVM target is `cancun`, because OpenZeppelin 5.7 uses `MCOPY`. HSK mainnet and testnet both
 execute `PUSH0`, `MCOPY`, `TLOAD` and `TSTORE`. Testnet's explorer is
@@ -158,8 +159,8 @@ execute `PUSH0`, `MCOPY`, `TLOAD` and `TSTORE`. Testnet's explorer is
 
 ## Before mainnet
 
-- [ ] `forge build` and `forge test` pass against real OpenZeppelin 5.7, forge-std and solc 0.8.24.
-- [ ] `forge fmt --check` passes.
+- [x] `forge build` and `forge test` pass against real OpenZeppelin 5.7, forge-std and solc 0.8.24.
+- [x] `forge fmt --check` passes.
 - [ ] Token addresses and decimals confirmed on-chain. `constants.ts` marks them unconfirmed.
 - [ ] Independent audit.
 - [ ] Decide whether a rolling volume limit is needed for the signer-key risk above.

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.24;
 
-import {IZethosVault} from "../../src/interfaces/IZethosVault.sol";
 import {ZethosVault} from "../../src/ZethosVault.sol";
+import {IZethosVault} from "../../src/interfaces/IZethosVault.sol";
 import {VaultTest} from "../base/VaultTest.sol";
 import {MockPool} from "../mocks/MockPool.sol";
 
@@ -65,9 +65,7 @@ contract AccessControlTest is VaultTest {
         assertFalse(ok);
         assertEq(
             result,
-            abi.encodeWithSelector(
-                bytes4(keccak256("OwnableUnauthorizedAccount(address)")), caller
-            )
+            abi.encodeWithSelector(bytes4(keccak256("OwnableUnauthorizedAccount(address)")), caller)
         );
     }
 }

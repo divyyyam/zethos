@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.24;
 
+import {ZethosVault} from "../src/ZethosVault.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {Script} from "forge-std/Script.sol";
 import {console2} from "forge-std/console2.sol";
-import {ZethosVault} from "../src/ZethosVault.sol";
 
 /// @notice Moves inventory from the owner into the vault: one exact approval and deposit per token.
 /// @dev Amounts are raw token units, so this script never assumes a token's decimals. A zero amount
@@ -73,8 +72,10 @@ contract Fund is Script {
         vault.deposit(token, amount);
     }
 
+    /// @dev Logs the address, not `symbol()`: that's optional in ERC-20, and a log line shouldn't be
+    /// able to abort a funding run.
     function _logBalance(ZethosVault vault, address token) private view {
         uint256 balance = IERC20(token).balanceOf(address(vault));
-        console2.log(IERC20Metadata(token).symbol(), "held by the vault (raw units):", balance);
+        console2.log("Vault balance (raw units) of", token, balance);
     }
 }

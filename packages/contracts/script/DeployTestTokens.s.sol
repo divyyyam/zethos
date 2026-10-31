@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.24;
 
+import {ZethosTestToken} from "../src/testnet/ZethosTestToken.sol";
 import {Script} from "forge-std/Script.sol";
 import {console2} from "forge-std/console2.sol";
-import {ZethosTestToken} from "../src/testnet/ZethosTestToken.sol";
 
 /// @notice Deploys test USDT and WETH for HSK testnet and mints starting inventory to the owner.
 /// @dev Testnet only, enforced below. WHSK isn't deployed here: testnet already has one at the

@@ -12,9 +12,9 @@ contract FillTest is VaultTest {
         _fill(_quote(1));
 
         assertEq(usdt.balanceOf(taker), TAKER_USDT - 100 * ONE_USDT);
-        assertEq(whsk.balanceOf(taker), 1_000 * ONE_WHSK);
+        assertEq(whsk.balanceOf(taker), 1000 * ONE_WHSK);
         assertEq(usdt.balanceOf(address(vault)), VAULT_USDT + 100 * ONE_USDT);
-        assertEq(whsk.balanceOf(address(vault)), VAULT_WHSK - 1_000 * ONE_WHSK);
+        assertEq(whsk.balanceOf(address(vault)), VAULT_WHSK - 1000 * ONE_WHSK);
         assertTrue(vault.isNonceUsed(taker, 1));
     }
 
@@ -97,7 +97,7 @@ contract FillTest is VaultTest {
         quote.taker = outsider;
         _fill(quote);
 
-        assertEq(whsk.balanceOf(outsider), 1_000 * ONE_WHSK);
+        assertEq(whsk.balanceOf(outsider), 1000 * ONE_WHSK);
     }
 
     function test_RevertsWhilePaused() public {
@@ -167,7 +167,7 @@ contract FillTest is VaultTest {
 
     function test_RevertsForFeeOnTransferInput() public {
         FeeOnTransferToken token = new FeeOnTransferToken();
-        _setRoute(address(token), address(whsk), 1_000 * ONE_WHSK, address(0), 0);
+        _setRoute(address(token), address(whsk), 1000 * ONE_WHSK, address(0), 0);
         token.mint(taker, 100 * ONE_WHSK);
         vm.prank(taker);
         token.approve(address(vault), type(uint256).max);
@@ -183,7 +183,7 @@ contract FillTest is VaultTest {
     function test_GuardStopsReentrantTaker() public {
         ContractTaker attacker = new ContractTaker();
         ReentrantToken token = new ReentrantToken();
-        _setRoute(address(token), address(whsk), 1_000 * ONE_WHSK, address(0), 0);
+        _setRoute(address(token), address(whsk), 1000 * ONE_WHSK, address(0), 0);
         token.mint(address(attacker), 200 * ONE_WHSK);
         attacker.execute(
             address(token), abi.encodeCall(token.approve, (address(vault), type(uint256).max))
@@ -207,6 +207,6 @@ contract FillTest is VaultTest {
         assertTrue(token.attempted());
         assertFalse(token.succeeded());
         assertFalse(vault.isNonceUsed(address(attacker), 2));
-        assertEq(whsk.balanceOf(address(attacker)), 1_000 * ONE_WHSK);
+        assertEq(whsk.balanceOf(address(attacker)), 1000 * ONE_WHSK);
     }
 }

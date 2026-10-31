@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.24;
 
-import {Test} from "forge-std/Test.sol";
 import {Fund} from "../../script/Fund.s.sol";
+import {ZethosVault} from "../../src/ZethosVault.sol";
 import {IZethosVault} from "../../src/interfaces/IZethosVault.sol";
 import {ZethosTestToken} from "../../src/testnet/ZethosTestToken.sol";
-import {ZethosVault} from "../../src/ZethosVault.sol";
+import {Test} from "forge-std/Test.sol";
 
 /// @dev Calls `fund` directly rather than `run`: token addresses are shared environment variables,
 /// and tests run in parallel. `Deploy.t.sol` covers the environment wiring.
 contract FundTest is Test {
     uint256 private constant SIGNER_KEY = 0xA11CE;
-    uint256 private constant FUND_USDT = 5_000e6;
+    uint256 private constant FUND_USDT = 5000e6;
     uint256 private constant FUND_WHSK = 50_000e18;
     uint256 private constant FUND_WETH = 2e18;
 
@@ -109,10 +109,7 @@ contract FundTest is Test {
             address(usdt),
             address(weth),
             IZethosVault.Route({
-                pool: address(0),
-                poolToleranceBps: 0,
-                enabled: true,
-                maxAmountIn: 1_000e6
+                pool: address(0), poolToleranceBps: 0, enabled: true, maxAmountIn: 1000e6
             })
         );
         usdt.mint(taker, 100e6);
