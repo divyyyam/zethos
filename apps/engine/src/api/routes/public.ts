@@ -7,6 +7,15 @@ export function registerPublicRoutes(app: Hono, { engine, clock }: RouteOptions)
 
   app.get("/status", async (c) => c.json((await engine()).status()));
 
+  app.get("/diagnosis", async (c) => {
+    const diagnosis = (await engine()).diagnosis(
+      clock(),
+      c.req.query("pair"),
+      c.req.query("window"),
+    );
+    return c.json(diagnosis);
+  });
+
   app.get("/fills", async (c) => {
     const fills = await (await engine()).fills(
       c.req.query("taker"),

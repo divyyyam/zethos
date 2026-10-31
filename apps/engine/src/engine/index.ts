@@ -6,6 +6,7 @@ import type { BookResult } from "../feeds";
 import type { Trade } from "../feeds/types";
 import type { PolicyRecord } from "../policy";
 import { arenaView, ensureArena, resetArena } from "./arena";
+import { diagnose } from "./diagnosis";
 import { tick } from "./heartbeat";
 import { decisions, narrate } from "./journal";
 import { getStatus, ingest, prune } from "./market";
@@ -60,6 +61,10 @@ export class Engine {
 
   status() {
     return getStatus(this.context);
+  }
+
+  diagnosis(now: number, pair?: string, window?: string) {
+    return diagnose(this.context, now, pair, window);
   }
 
   async fills(taker: string | undefined, limit: number, epoch?: number): Promise<Fill[]> {

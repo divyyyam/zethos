@@ -27,6 +27,18 @@ describe("http", () => {
     expect(status.mode).toBe("shadow");
   });
 
+  test("diagnosis exposes attributed paper losses and validates filters", async () => {
+    const server = await app();
+    const response = await server.request("/diagnosis?pair=HSK%2FUSDT&window=1h");
+    expect(response.status).toBe(200);
+    const diagnosis = await json(response);
+    expect(diagnosis.totalLossUsd).toBe(0);
+    expect(diagnosis.window).toBeDefined();
+    const invalid = await server.request("/diagnosis?window=30d");
+    expect(invalid.status).toBe(400);
+    expect((await json(invalid)).error).toBe("invalid_request");
+  });
+
   test("quote then fill over HTTP with CORS", async () => {
     const server = await app();
     const quoteResponse = await server.request("/quote", {

@@ -41,6 +41,23 @@ describe("arena", () => {
   });
 });
 
+describe("loss diagnosis", () => {
+  test("returns honest empty evidence and journals the analysis window", async () => {
+    const { engine, now } = await readyEngine();
+    const diagnosis = engine.diagnosis(now, "HSK/USDT", "1h");
+    expect(diagnosis.window).toEqual({ fromTs: now - 60 * 60_000, toTs: now });
+    expect(diagnosis.totalLossUsd).toBe(0);
+    expect(diagnosis.breakdown).toEqual([]);
+    expect(engine.decisions(10, "loss_diagnosis")).toHaveLength(1);
+  });
+
+  test("rejects unsupported analysis windows and pairs", async () => {
+    const { engine, now } = await readyEngine();
+    expect(() => engine.diagnosis(now, undefined, "30d")).toThrow("window must be one of");
+    expect(() => engine.diagnosis(now, "NOPE/USDT", "1h")).toThrow("pair is not enabled");
+  });
+});
+
 describe("quote", () => {
   test("returns a signed paper quote priced above mid", async () => {
     const { engine, now } = await readyEngine();
