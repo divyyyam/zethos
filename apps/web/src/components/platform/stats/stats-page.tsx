@@ -14,11 +14,11 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { sampleSeries } from "../../content/platform.mock";
-import { useEngineStatus } from "../../hooks/platform/use-platform";
-import { failureMessage, zethos } from "../../lib/engine/sdk";
-import { formatNumber, formatUsd, platformConfig } from "../../lib/platform-config";
-import { EmptyState, ExternalLink, StatusDot } from "./primitives";
+import { sampleSeries } from "../../../content/platform.mock";
+import { useEngineStatus } from "../../../hooks/platform/use-platform";
+import { failureMessage, zethos } from "../../../lib/engine/sdk";
+import { formatNumber, formatUsd, platformConfig } from "../../../lib/platform-config";
+import { EmptyState, ExternalLink, StatusDot } from "../primitives";
 
 const chartTime = (ts: number) =>
   new Date(ts).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
