@@ -3,6 +3,7 @@ import { baseQuantity, markoutBps } from "../markouts";
 import { observeMarkout } from "../toxicity";
 import { arenaView } from "./arena";
 import { EngineError } from "./errors";
+import { checkOperatingLoss } from "./mandate";
 import { equityUsdFor, getMarket, pairTokens, prune, refresh } from "./market";
 import { checkpoint, withMarkouts } from "./persistence";
 import { checkRisk } from "./risk";
@@ -70,6 +71,7 @@ export function tick(context: EngineState, now: number, gasPrice?: bigint): Prom
     }
     if (now - context.lastTick >= context.deps.params.agent.tickMs) {
       checkRisk(context, now);
+      await checkOperatingLoss(context, now);
       rescore(context, now);
       tune(context, now);
       context.lastTick = now;

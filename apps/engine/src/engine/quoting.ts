@@ -1,11 +1,15 @@
 import { getAddress } from "viem";
 import type { QuoteRecord } from "../db";
+import type { PolicyQuote } from "../policy";
+import { enforceExecution, MandateBreach } from "../policy/execution";
+import { POLICY_REJECTIONS } from "../policy/types";
 import { amountOut } from "../pricing";
 import { quoteRequestSchema, randomNonce, type SignedQuote, signQuote } from "../quotes";
 import { units } from "../tokens";
 import { EngineError } from "./errors";
 import { nonceKey } from "./helpers";
-import { baseShareFor, refresh, requireInventory, route, tradable } from "./market";
+import { recordMandateBreach, requireOperatingCapacity } from "./mandate";
+import { baseShareFor, getMarket, refresh, requireInventory, route, tradable } from "./market";
 import { policyInputs } from "./policy";
 import type { EngineState } from "./state";
 import { getTaker, observeQuote } from "./toxicity";
@@ -32,7 +36,8 @@ export async function issueQuote(
 ): Promise<{ response: PaperQuote; saved: Promise<void> }> {
   const request = parse(quoteRequestSchema, input);
   const { pair, side, base, quote } = route(context, request.tokenIn, request.tokenOut);
-  refresh(context, pair, now);
+  for (const enabled of context.deps.params.pairs) refresh(context, enabled, now);
+  await requireOperatingCapacity(context, now, pair);
   const { market, mid } = tradable(context, pair);
   const inventory = requireInventory(context);
   rateLimit(context, request.taker, now);
@@ -69,9 +74,11 @@ export async function issueQuote(
     market,
     now,
   );
-  const priced = context.policy.decide(inputs.market, inputs.inventory, inputs.request);
-  if (priced.kind === "reject") {
-    throw new EngineError(priced.reason === "halted" ? "pair_halted" : priced.reason, 422);
+  const proposed = context.policy.decide(inputs.market, inputs.inventory, inputs.request);
+  if (!proposed || typeof proposed !== "object") throw new EngineError("policy_invalid", 422);
+  if (proposed.kind === "reject") {
+    if (!POLICY_REJECTIONS.includes(proposed.reason)) throw new EngineError("policy_invalid", 422);
+    throw new EngineError(proposed.reason === "halted" ? "pair_halted" : proposed.reason, 422);
   }
 
   const share = baseShareFor(context, pair, mid, inventory);
@@ -79,12 +86,50 @@ export async function issueQuote(
     throw new EngineError("vault_capacity", 422, "The vault is not taking this side right now");
   }
 
+  // Policies choose prices; execution retains every tier, risk and owner limit.
+  tradable(context, pair);
+  let priced: PolicyQuote;
+  let out: bigint;
+  try {
+    const execution = enforceExecution(
+      {
+        pair,
+        side,
+        amountIn: request.amountIn,
+        tier: tierName,
+        params,
+        mandate: context.mandate,
+        tokens: context.deps.tokens,
+        inventory,
+        mids: Object.fromEntries(
+          params.pairs.map((enabled) => [enabled, getMarket(context, enabled).fused.mid]),
+        ),
+        book: market.fused.book ?? { bids: [], asks: [] },
+        sourceMids: market.fused.sources
+          .filter((source) => source.status === "ok")
+          .map((source) => source.mid),
+        outstanding: [...context.issued.values()]
+          .filter(
+            (issued) =>
+              issued.record.status !== "filled" &&
+              BigInt(issued.quote.expiry) >= BigInt(Math.floor(now / 1000)),
+          )
+          .map((issued) => ({
+            pair: issued.pair,
+            side: issued.side,
+            amountIn: issued.quote.amountIn,
+            amountOut: issued.quote.amountOut,
+          })),
+      },
+      proposed,
+    );
+    priced = execution.quote;
+    out = BigInt(execution.amountOut);
+  } catch (error) {
+    if (error instanceof MandateBreach) await recordMandateBreach(context, error, now);
+    throw error;
+  }
   const { ttlSec, ref } = priced;
-
-  const out = amountOut(side, amountIn, priced.price, base.decimals, quote.decimals);
-  const tokenOut = side === "buy" ? base : quote;
-  if (out <= 0n) throw new EngineError("invalid_request", 400, "Amount is too small");
-  if (out > inventory[tokenOut.symbol]) throw new EngineError("vault_capacity", 422);
 
   const issuedAt = BigInt(Math.floor(now / 1000));
   const signed: SignedQuote = {

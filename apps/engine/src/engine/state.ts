@@ -4,12 +4,14 @@ import type { Pair } from "../config";
 import type { Fill } from "../db";
 import { Volatility } from "../feeds/vol";
 import { createV0, type Policy } from "../policy";
+import { defaultMandate, loadMandate, type Mandate } from "../policy/mandate";
 import type { SignedQuote } from "../quotes";
 import type { Inventory } from "../tokens";
 import type { EngineDeps, Issued, Market } from "./types";
 
 /** Shared by every collaborator; the queue remains the only write serialization boundary. */
 export class EngineState {
+  readonly mandate: Mandate;
   readonly markets = new Map<Pair, Market>();
   readonly issued = new Map<string, Issued>();
   readonly usedNonces = new Set<string>();
@@ -17,6 +19,7 @@ export class EngineState {
   arena: { epoch: number; startedAt: number } | null = null;
   inventory: Inventory | null = null;
   paused = false;
+  operatingLossStopped = false;
   state: AgentState = initialState(0, 0);
   ledger: Fill[] = [];
   private queue: Promise<unknown> = Promise.resolve();
@@ -26,6 +29,9 @@ export class EngineState {
   readonly cooldowns = new Map<string, number>();
   modeledGasUsd = 0;
   constructor(readonly deps: EngineDeps) {
+    this.mandate = loadMandate(deps.mandate ?? defaultMandate);
+    if (this.mandate.pairs.some((pair) => !deps.params.pairs.includes(pair)))
+      throw new Error("Every mandate pair must be enabled in engine params");
     for (const pair of deps.params.pairs) {
       this.markets.set(pair, {
         venues: new Map(),

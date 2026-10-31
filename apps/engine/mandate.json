@@ -1,0 +1,23 @@
+{
+  "pairs": ["HSK/USDT", "ETH/USDT"],
+  "inventory": { "minShare": 0.15, "maxShare": 0.85 },
+  "service": {
+    "maxHalfSpreadBps": [{ "maxNotionalUsd": 50000, "maxBps": 1000 }],
+    "minQuoteNotionalUsd": 5,
+    "uptimeTargetPct": 99
+  },
+  "loss": { "maxOperatingLossUsd": 25000 },
+  "canary": {
+    "maxAllocationPct": 10,
+    "minFillsBeforePromote": 100,
+    "retireDrawdownPct": 0.02,
+    "retireFillRateDrop": 0.2
+  },
+  "qualification": {
+    "mustBeatHeldOut": true,
+    "maxDrawdownDeltaPct": 0.01,
+    "honestFillTolerance": 0.05,
+    "minHonestFillRate": 0.5,
+    "maxRejectRate": 0.5
+  }
+}

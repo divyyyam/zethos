@@ -24,6 +24,11 @@ export async function init(context: EngineState): Promise<void> {
           context.deps.params.arena.initialUsdPerSide * context.deps.params.pairs.length * 2,
         );
   context.paused = context.state.paused;
+  context.operatingLossStopped =
+    context.paused &&
+    context.state.decisions.some(
+      (entry) => entry.type === "mandate_breach" && entry.inputs.rule === "operating_loss",
+    );
   for (const pair of context.deps.params.pairs)
     getMarket(context, pair).history = context.state.prices[pair] ?? [];
   context.ledger = (

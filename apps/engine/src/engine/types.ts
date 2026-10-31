@@ -62,6 +62,7 @@ export interface EngineDeps {
   operator?: Address | null;
   dataSource?: "live" | "replay";
   policy?: Policy;
+  mandate?: unknown;
 }
 
 export interface Market {

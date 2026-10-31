@@ -18,7 +18,12 @@ export function decision(
 ): Decision | null {
   const key = `${type}:${pair}:${taker}:${reason}`;
   const last = context.cooldowns.get(key);
-  if (last !== undefined && now - last < context.deps.params.agent.cooldownMs) return null;
+  if (
+    type !== "mandate_breach" &&
+    last !== undefined &&
+    now - last < context.deps.params.agent.cooldownMs
+  )
+    return null;
   const decision: Decision = {
     id: `d_${crypto.randomUUID()}`,
     ts: now,
