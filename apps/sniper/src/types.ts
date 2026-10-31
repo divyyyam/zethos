@@ -6,7 +6,14 @@ export type Pair = (typeof PAIRS)[number];
 export const VENUE_IDS = ["hashkey-global", "gate", "kucoin", "mexc", "binance", "okx"] as const;
 export type VenueId = (typeof VENUE_IDS)[number];
 
-export const SNIPER_MODES = ["naive", "sniper", "latecomer", "rotating", "capture-only"] as const;
+export const SNIPER_MODES = [
+  "naive",
+  "sniper",
+  "latecomer",
+  "rotating",
+  "capture-only",
+  "lead-lag",
+] as const;
 export type SniperMode = (typeof SNIPER_MODES)[number];
 
 export const TAKER_TIERS = [

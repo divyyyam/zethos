@@ -59,6 +59,51 @@ interface QueuedItem {
   seq: number;
 }
 
+function compareQueuedItems(a: QueuedItem, b: QueuedItem): number {
+  if (a.record.ts !== b.record.ts) {
+    return a.record.ts - b.record.ts;
+  }
+  const typeA = TYPE_ORDER[a.record.type];
+  const typeB = TYPE_ORDER[b.record.type];
+  if (typeA !== typeB) {
+    return typeA - typeB;
+  }
+  if (a.record.type === "book" && b.record.type === "book") {
+    const venueCmp = a.record.venue.localeCompare(b.record.venue);
+    if (venueCmp !== 0) return venueCmp;
+  } else if (a.record.type === "trade" && b.record.type === "trade") {
+    const idCmp = a.record.trade.id.localeCompare(b.record.trade.id);
+    if (idCmp !== 0) return idCmp;
+  } else if (a.record.type === "taker_request" && b.record.type === "taker_request") {
+    const takerCmp = a.record.taker.localeCompare(b.record.taker);
+    if (takerCmp !== 0) return takerCmp;
+    const idA = a.record.id ?? "";
+    const idB = b.record.id ?? "";
+    const idCmp = idA.localeCompare(idB);
+    if (idCmp !== 0) return idCmp;
+  }
+  return a.seq - b.seq;
+}
+
+async function writeManifestFile(
+  manifestPath: string,
+  payloadPath: string,
+  manifest: ScenarioManifest,
+): Promise<void> {
+  const validatedManifest = scenarioManifestSchema.parse(manifest);
+
+  try {
+    const manifestHandle = await fs.open(manifestPath, "wx");
+    await manifestHandle.write(`${JSON.stringify(validatedManifest, null, 2)}\n`);
+    await manifestHandle.sync();
+    await manifestHandle.close();
+  } catch (err: unknown) {
+    await fs.unlink(payloadPath).catch(() => {});
+    await fs.unlink(manifestPath).catch(() => {});
+    throw new Error(`Failed to write scenario manifest: ${(err as Error).message}`);
+  }
+}
+
 export class ScenarioRecorder {
   readonly name: string;
   readonly pair: Pair;
@@ -224,33 +269,21 @@ export class ScenarioRecorder {
     }
 
     const batch = this.queue.splice(0, this.queue.length);
+    batch.sort(compareQueuedItems);
 
-    batch.sort((a, b) => {
-      if (a.record.ts !== b.record.ts) {
-        return a.record.ts - b.record.ts;
-      }
-      const typeA = TYPE_ORDER[a.record.type];
-      const typeB = TYPE_ORDER[b.record.type];
-      if (typeA !== typeB) {
-        return typeA - typeB;
-      }
-      if (a.record.type === "book" && b.record.type === "book") {
-        const venueCmp = a.record.venue.localeCompare(b.record.venue);
-        if (venueCmp !== 0) return venueCmp;
-      } else if (a.record.type === "trade" && b.record.type === "trade") {
-        const idCmp = a.record.trade.id.localeCompare(b.record.trade.id);
-        if (idCmp !== 0) return idCmp;
-      } else if (a.record.type === "taker_request" && b.record.type === "taker_request") {
-        const takerCmp = a.record.taker.localeCompare(b.record.taker);
-        if (takerCmp !== 0) return takerCmp;
-        const idA = a.record.id ?? "";
-        const idB = b.record.id ?? "";
-        const idCmp = idA.localeCompare(idB);
-        if (idCmp !== 0) return idCmp;
-      }
-      return a.seq - b.seq;
-    });
+    const buffer = this.serializeBatch(batch);
 
+    try {
+      await this.fileHandle.write(buffer);
+      await this.fileHandle.sync();
+    } catch (err: unknown) {
+      this.failed = true;
+      this.failureError = err instanceof Error ? err : new Error(String(err));
+      throw this.failureError;
+    }
+  }
+
+  private serializeBatch(batch: QueuedItem[]): string {
     let buffer = "";
     for (const item of batch) {
       const rec = item.record;
@@ -271,15 +304,7 @@ export class ScenarioRecorder {
       else if (rec.type === "trade") this.counts.trades++;
       else if (rec.type === "taker_request") this.counts.takerRequests++;
     }
-
-    try {
-      await this.fileHandle.write(buffer);
-      await this.fileHandle.sync();
-    } catch (err: unknown) {
-      this.failed = true;
-      this.failureError = err instanceof Error ? err : new Error(String(err));
-      throw this.failureError;
-    }
+    return buffer;
   }
 
   async stop(): Promise<ScenarioRecordSummary> {
@@ -328,18 +353,7 @@ export class ScenarioRecorder {
       description: this.description,
     };
 
-    const validatedManifest = scenarioManifestSchema.parse(manifest);
-
-    try {
-      const manifestHandle = await fs.open(this.manifestPath, "wx");
-      await manifestHandle.write(`${JSON.stringify(validatedManifest, null, 2)}\n`);
-      await manifestHandle.sync();
-      await manifestHandle.close();
-    } catch (err: unknown) {
-      await fs.unlink(this.payloadPath).catch(() => {});
-      await fs.unlink(this.manifestPath).catch(() => {});
-      throw new Error(`Failed to write scenario manifest: ${(err as Error).message}`);
-    }
+    await writeManifestFile(this.manifestPath, this.payloadPath, manifest);
 
     const timeRange =
       this.firstRecordTs !== null && this.lastRecordTs !== null

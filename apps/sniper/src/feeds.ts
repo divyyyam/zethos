@@ -159,6 +159,88 @@ export class MarketFeedCollector {
     }
   }
 
+  private async fetchVenueBook(venueId: VenueId, venue: Venue): Promise<number> {
+    const bookSignal = AbortSignal.any([
+      this.abortController.signal,
+      AbortSignal.timeout(this.timeoutMs),
+    ]);
+
+    const bookRes = await this.fetchFn(venue.bookUrl(this.pair, this.bookLevels), {
+      signal: bookSignal,
+    });
+
+    if (!bookRes.ok) {
+      throw new Error(`HTTP ${bookRes.status} from ${venueId} orderbook`);
+    }
+
+    const bookJson = await bookRes.json();
+    const parsedBook = venue.parseBook(bookJson);
+
+    if (parsedBook.bids.length > 0 && parsedBook.asks.length > 0) {
+      const bookRecord: ScenarioBookRecord = {
+        type: "book",
+        ts: Date.now(),
+        pair: this.pair,
+        venue: venueId,
+        book: {
+          bids: parsedBook.bids.slice(0, this.bookLevels) as [number, number][],
+          asks: parsedBook.asks.slice(0, this.bookLevels) as [number, number][],
+        },
+      };
+
+      this.recorder.recordBook(bookRecord);
+      this.onObservation?.(bookRecord);
+      return 1;
+    }
+
+    return 0;
+  }
+
+  private async fetchVenueTrades(venueId: VenueId, venue: Venue): Promise<number> {
+    const tradeSignal = AbortSignal.any([
+      this.abortController.signal,
+      AbortSignal.timeout(this.timeoutMs),
+    ]);
+
+    const tradesRes = await this.fetchFn(venue.tradesUrl(this.pair), {
+      signal: tradeSignal,
+    });
+
+    if (!tradesRes.ok) {
+      return 0;
+    }
+
+    const tradesJson = await tradesRes.json();
+    const parsedTrades = venue.parseTrades(tradesJson);
+    let count = 0;
+
+    for (const t of parsedTrades) {
+      if (!this.seenTradeIds.has(t.id)) {
+        this.seenTradeIds.add(t.id);
+
+        const tradeRecord: ScenarioTradeRecord = {
+          type: "trade",
+          ts: Math.min(t.ts, Date.now()),
+          pair: this.pair,
+          venue: venueId,
+          trade: {
+            id: t.id,
+            ts: t.ts,
+            side: t.side,
+            price: t.price,
+            size: t.size,
+          },
+        };
+
+        this.recorder.recordTrade(tradeRecord);
+        this.onObservation?.(tradeRecord);
+        count++;
+      }
+    }
+
+    return count;
+  }
+
   private async pollVenue(venueId: VenueId): Promise<number> {
     const venue = VENUES[venueId] as Venue | undefined;
     if (!venue) return 0;
@@ -167,78 +249,8 @@ export class MarketFeedCollector {
     let count = 0;
 
     try {
-      // 1. Fetch Order Book
-      const bookSignal = AbortSignal.any([
-        this.abortController.signal,
-        AbortSignal.timeout(this.timeoutMs),
-      ]);
-
-      const bookRes = await this.fetchFn(venue.bookUrl(this.pair, this.bookLevels), {
-        signal: bookSignal,
-      });
-
-      if (!bookRes.ok) {
-        throw new Error(`HTTP ${bookRes.status} from ${venueId} orderbook`);
-      }
-
-      const bookJson = await bookRes.json();
-      const parsedBook = venue.parseBook(bookJson);
-
-      if (parsedBook.bids.length > 0 && parsedBook.asks.length > 0) {
-        const bookRecord: ScenarioBookRecord = {
-          type: "book",
-          ts: Date.now(),
-          pair: this.pair,
-          venue: venueId,
-          book: {
-            bids: parsedBook.bids.slice(0, this.bookLevels) as [number, number][],
-            asks: parsedBook.asks.slice(0, this.bookLevels) as [number, number][],
-          },
-        };
-
-        this.recorder.recordBook(bookRecord);
-        this.onObservation?.(bookRecord);
-        count++;
-      }
-
-      // 2. Fetch Public Trades
-      const tradeSignal = AbortSignal.any([
-        this.abortController.signal,
-        AbortSignal.timeout(this.timeoutMs),
-      ]);
-
-      const tradesRes = await this.fetchFn(venue.tradesUrl(this.pair), {
-        signal: tradeSignal,
-      });
-
-      if (tradesRes.ok) {
-        const tradesJson = await tradesRes.json();
-        const parsedTrades = venue.parseTrades(tradesJson);
-
-        for (const t of parsedTrades) {
-          if (!this.seenTradeIds.has(t.id)) {
-            this.seenTradeIds.add(t.id);
-
-            const tradeRecord: ScenarioTradeRecord = {
-              type: "trade",
-              ts: Math.min(t.ts, Date.now()),
-              pair: this.pair,
-              venue: venueId,
-              trade: {
-                id: t.id,
-                ts: t.ts,
-                side: t.side,
-                price: t.price,
-                size: t.size,
-              },
-            };
-
-            this.recorder.recordTrade(tradeRecord);
-            this.onObservation?.(tradeRecord);
-            count++;
-          }
-        }
-      }
+      count += await this.fetchVenueBook(venueId, venue);
+      count += await this.fetchVenueTrades(venueId, venue);
 
       if (status) {
         status.healthy = true;

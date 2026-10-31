@@ -1,6 +1,13 @@
 import { parseUnits } from "viem";
 import { z } from "zod";
-import { PAIRS, type Pair, type SniperMode, VENUE_IDS, type VenueId } from "./types.js";
+import {
+  PAIRS,
+  type Pair,
+  SNIPER_MODES,
+  type SniperMode,
+  VENUE_IDS,
+  type VenueId,
+} from "./types.js";
 
 const uint256Regex = /^[1-9]\d*$/;
 const UINT256_MAX = 2n ** 256n - 1n;
@@ -22,6 +29,9 @@ export interface ParsedSniperOptions {
   maxRecords?: number | undefined;
   maxFills?: number | undefined;
   captureOnly: boolean;
+  thresholdBps: number;
+  leadPollMs: number;
+  maxQuotesPerMinute: number;
 }
 
 export function parseRawFlags(argv: string[]): Map<string, string> {
@@ -64,27 +74,32 @@ export function resolveAmountIn(amount: string, decimals: number, symbol = "toke
   return raw;
 }
 
+export function parseVenueList(venuesRaw: string | undefined): VenueId[] | undefined {
+  if (!venuesRaw) return undefined;
+  const list = venuesRaw.split(",").map((v) => v.trim());
+  for (const v of list) {
+    if (!VENUE_IDS.includes(v as VenueId)) {
+      throw new Error(`Unknown venue: ${v}. Supported: ${VENUE_IDS.join(", ")}`);
+    }
+  }
+  return list as VenueId[];
+}
+
+export function resolveSniperMode(flags: Map<string, string>, captureOnlyFlag: boolean): string {
+  let modeRaw = flags.get("mode") ?? (captureOnlyFlag ? "capture-only" : "sniper");
+  if (modeRaw === "quiet") modeRaw = "capture-only";
+  return modeRaw;
+}
+
 export function parseSniperOptions(argv: string[] = process.argv.slice(2)): ParsedSniperOptions {
   const flags = parseRawFlags(argv);
 
   const captureOnlyFlag = flags.get("capture-only") === "true" || flags.get("quiet") === "true";
-  let modeRaw = flags.get("mode") ?? (captureOnlyFlag ? "capture-only" : "sniper");
-  if (modeRaw === "quiet") modeRaw = "capture-only";
-
-  const venuesRaw = flags.get("venues");
-  let parsedVenues: VenueId[] | undefined;
-  if (venuesRaw) {
-    const list = venuesRaw.split(",").map((v) => v.trim());
-    for (const v of list) {
-      if (!VENUE_IDS.includes(v as VenueId)) {
-        throw new Error(`Unknown venue: ${v}. Supported: ${VENUE_IDS.join(", ")}`);
-      }
-    }
-    parsedVenues = list as VenueId[];
-  }
+  const modeRaw = resolveSniperMode(flags, captureOnlyFlag);
+  const parsedVenues = parseVenueList(flags.get("venues"));
 
   const schema = z.object({
-    mode: z.enum(["naive", "sniper", "latecomer", "rotating", "capture-only"]),
+    mode: z.enum(SNIPER_MODES),
     pair: z.enum(PAIRS),
     amount: z.string().regex(/^\d+(\.\d+)?$/, "Amount must be a decimal string"),
     edge: z.coerce.number().nonnegative(),
@@ -99,6 +114,9 @@ export function parseSniperOptions(argv: string[] = process.argv.slice(2)): Pars
     maxRecords: z.coerce.number().int().positive().optional(),
     maxFills: z.coerce.number().int().positive().optional(),
     captureOnly: z.boolean(),
+    thresholdBps: z.coerce.number().positive().max(500),
+    leadPollMs: z.coerce.number().int().min(100).max(5000),
+    maxQuotesPerMinute: z.coerce.number().int().positive().max(55),
   });
 
   const parsed = schema.parse({
@@ -117,7 +135,16 @@ export function parseSniperOptions(argv: string[] = process.argv.slice(2)): Pars
     maxRecords: flags.get("max-records"),
     maxFills: flags.get("max-fills"),
     captureOnly: captureOnlyFlag || modeRaw === "capture-only",
+    thresholdBps: flags.get("threshold-bps") ?? 8,
+    leadPollMs: flags.get("lead-poll-ms") ?? 250,
+    maxQuotesPerMinute: flags.get("max-quotes-per-min") ?? 20,
   });
+
+  if (parsed.mode === "lead-lag") {
+    // Held-out attacker runs are always recorded and always held out.
+    parsed.heldOut = true;
+    parsed.record ??= `heldout-${parsed.pair.replace("/", "-").toLowerCase()}-${Date.now()}`;
+  }
 
   return {
     ...parsed,
