@@ -12,6 +12,10 @@ GEMINI_MODEL=gemini-3.5-flash-lite
 # ERC-20 decimals are otherwise read from chain. Never used for live settlement.
 SHADOW_ASSUME_DECIMALS=false
 
+# Bearer token for POST /policies (research-cycle registration). Use a long random value;
+# never commit it. Without it, registration fails closed.
+ADMIN_TOKEN=
+
 # Neon Postgres connection string. Without it the engine keeps everything in memory.
 DATABASE_URL=
 

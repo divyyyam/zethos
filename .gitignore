@@ -20,3 +20,4 @@ broadcast/
 .dev.vars
 AGENTS.md 
 CLAUDE.md
+*.txt
