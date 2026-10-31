@@ -2,62 +2,27 @@ import { z } from "zod";
 import { defaultParams, type Params } from "../config";
 import { EngineError } from "../engine/errors";
 import { hashPolicySpec } from "../research/canonical";
+import {
+  type EvaluationReport as S4EvaluationReport,
+  datasetSummarySchema as s4DatasetSchema,
+  evaluationReportSchema as s4EvaluationReportSchema,
+  policyResultsSchema as s4PolicyResultsSchema,
+  qualificationReasonSchema as s4VerdictReasonSchema,
+} from "../research/eval";
 import { createV0Spec } from "../research/incumbent";
 import { type PolicySpec, policySpecSchema } from "../research/schema";
 import type { PolicyLifecycleStatus } from "./types";
 
-export const evaluationDatasetResultSchema = z.strictObject({
-  netUsd: z.number().finite(),
-  spreadCaptureUsd: z.number().finite().optional(),
-  inventoryPnlUsd: z.number().finite().optional(),
-  maxDrawdownPct: z.number().finite(),
-  avgHalfSpreadBps: z.number().finite(),
-  honestFillRate: z.number().finite(),
-  rejectRate: z.number().finite(),
-  attackerTakeUsd: z.number().finite().optional(),
-  fills: z.number().finite(),
-});
-
-export type EvaluationDatasetResult = z.infer<typeof evaluationDatasetResultSchema>;
-
-export const evaluationVerdictReasonSchema = z.strictObject({
-  rule: z.string().min(1),
-  passed: z.boolean(),
-  candidate: z.union([z.number().finite(), z.string(), z.boolean()]),
-  incumbent: z.union([z.number().finite(), z.string(), z.boolean()]).optional(),
-  threshold: z.union([z.number().finite(), z.string(), z.boolean()]),
-  detail: z.string().optional(),
-});
-
-export type EvaluationVerdictReason = z.infer<typeof evaluationVerdictReasonSchema>;
-
-export const evaluationDatasetSchema = z.strictObject({
-  name: z.string().min(1),
-  kind: z.enum(["dev", "scenario", "heldout"]),
-  from: z.number().finite().optional(),
-  to: z.number().finite().optional(),
-  requests: z.number().finite().optional(),
-});
-
-export type EvaluationDataset = z.infer<typeof evaluationDatasetSchema>;
-
-export const evaluationReportSchema = z.strictObject({
-  candidateId: z.string().min(1),
-  incumbentId: z.string().min(1),
-  specHash: z.string().regex(/^0x[0-9a-fA-F]{64}$/, "specHash must be a 32-byte hex string"),
-  codeRevision: z.string().optional(),
-  rulesVersion: z.string().optional(),
-  seed: z.number().int().optional(),
-  createdAt: z.union([z.number().finite(), z.string().min(1)]),
-  datasets: z.array(evaluationDatasetSchema).min(1),
-  results: z.record(z.string(), z.record(z.string(), evaluationDatasetResultSchema)),
-  verdict: z.strictObject({
-    qualified: z.boolean(),
-    reasons: z.array(evaluationVerdictReasonSchema).min(1),
-  }),
-});
-
-export type EvaluationReport = z.infer<typeof evaluationReportSchema>;
+// Reuse the evaluator's source-of-truth S4 schema so registration cannot accept
+// a weaker result shape than the report producer emits.
+export const evaluationDatasetResultSchema = s4PolicyResultsSchema;
+export type EvaluationDatasetResult = S4EvaluationReport["results"][string]["candidate"];
+export const evaluationVerdictReasonSchema = s4VerdictReasonSchema;
+export type EvaluationVerdictReason = S4EvaluationReport["verdict"]["reasons"][number];
+export const evaluationDatasetSchema = s4DatasetSchema;
+export type EvaluationDataset = S4EvaluationReport["datasets"][number];
+export const evaluationReportSchema = s4EvaluationReportSchema;
+export type EvaluationReport = S4EvaluationReport;
 
 export const registrationPayloadSchema = z.strictObject({
   spec: policySpecSchema,
@@ -147,6 +112,14 @@ export function validateRegistrationConsistency(spec: PolicySpec, report: Evalua
     );
   }
 
+  if (report.incumbentId !== spec.parent) {
+    throw new EngineError(
+      "invalid_report",
+      422,
+      `report.incumbentId '${report.incumbentId}' does not match spec.parent '${spec.parent}'`,
+    );
+  }
+
   const expectedHash = hashPolicySpec(spec);
   if (report.specHash.toLowerCase() !== expectedHash.toLowerCase()) {
     throw new EngineError(
@@ -219,7 +192,7 @@ export function toPolicyDetail(record: PolicyRecord): PolicyDetail {
 
 export const V0_RUNTIME_ID = "v0" as const;
 export const V0_DATE = "20261101" as const;
-export const V0_CREATED_AT = 1730419200000; // 2026-11-01 00:00:00 UTC
+export const V0_CREATED_AT = 1793491200000; // 2026-11-01 00:00:00 UTC
 
 /**
  * Builds the canonical declarative PolicyRecord for the built-in v0 incumbent.

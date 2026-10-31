@@ -4,7 +4,7 @@ import { createApp } from "../src/api";
 import { defaultParams } from "../src/config";
 import { memoryStore } from "../src/db/memory";
 import { Engine } from "../src/engine";
-import { type EvaluationReport, verifyAdminAuth } from "../src/policy";
+import { type EvaluationReport, evaluationReportSchema, verifyAdminAuth } from "../src/policy";
 import { createPolicySpec, hashPolicySpec } from "../src/research/canonical";
 import { createV0Spec } from "../src/research/incumbent";
 import type { PolicySpec } from "../src/research/schema";
@@ -25,6 +25,7 @@ interface PolicySummaryRecord {
   status: string;
   parent?: string;
   allocationPct?: number;
+  createdAt?: number;
 }
 
 const jsonList = async (res: Response): Promise<{ policies: PolicySummaryRecord[] }> => {
@@ -84,10 +85,22 @@ function makeReport(
     codeRevision: "0eabb53",
     rulesVersion: "1.0",
     seed: 42,
-    createdAt: 1730419200000,
+    createdAt: 1793491200000,
     datasets: [
-      { name: "synthetic-dev-tape", kind: "dev", requests: 100 },
-      { name: "heldout-leadlag-attack", kind: "heldout", requests: 50 },
+      {
+        name: "synthetic-dev-tape",
+        kind: "dev",
+        from: 1793490000000,
+        to: 1793491200000,
+        requests: 100,
+      },
+      {
+        name: "heldout-leadlag-attack",
+        kind: "heldout",
+        from: 1793490000000,
+        to: 1793491200000,
+        requests: 50,
+      },
     ],
     results: {
       "synthetic-dev-tape": {
@@ -117,18 +130,24 @@ function makeReport(
       "heldout-leadlag-attack": {
         candidate: {
           netUsd: 45.0,
+          spreadCaptureUsd: 55.0,
+          inventoryPnlUsd: -10.0,
           maxDrawdownPct: 0.004,
           avgHalfSpreadBps: 15.0,
           honestFillRate: 0.9,
           rejectRate: 0.02,
+          attackerTakeUsd: 3.0,
           fills: 45,
         },
         incumbent: {
           netUsd: 30.0,
+          spreadCaptureUsd: 45.0,
+          inventoryPnlUsd: -15.0,
           maxDrawdownPct: 0.007,
           avgHalfSpreadBps: 17.0,
           honestFillRate: 0.88,
           rejectRate: 0.03,
+          attackerTakeUsd: 6.0,
           fills: 44,
         },
       },
@@ -344,8 +363,20 @@ describe("R8A: Policy Registry", () => {
       const reportMissingDataset = {
         ...makeReport(spec),
         datasets: [
-          { name: "synthetic-dev-tape", kind: "dev" as const },
-          { name: "missing-dataset-name", kind: "scenario" as const },
+          {
+            name: "synthetic-dev-tape",
+            kind: "dev" as const,
+            from: 1793490000000,
+            to: 1793491200000,
+            requests: 100,
+          },
+          {
+            name: "missing-dataset-name",
+            kind: "scenario" as const,
+            from: 1793490000000,
+            to: 1793491200000,
+            requests: 50,
+          },
         ],
       };
       const resMissingDataset = await app.request("/policies", {
@@ -357,6 +388,46 @@ describe("R8A: Policy Registry", () => {
         body: JSON.stringify({ spec, report: reportMissingDataset }),
       });
       expect(resMissingDataset.status).toBe(422);
+    });
+
+    test("requires complete S4 result sides and binds incumbent to the policy parent", async () => {
+      const { app } = await createTestApp();
+      const spec = makeCandidate();
+      const validReport = makeReport(spec);
+      const datasetName = validReport.datasets[0]?.name;
+      expect(datasetName).toBeDefined();
+
+      const datasetResult = datasetName ? validReport.results[datasetName] : undefined;
+      expect(datasetResult).toBeDefined();
+      if (!datasetName || !datasetResult) throw new Error("Expected S4 fixture dataset results");
+
+      expect(
+        evaluationReportSchema.safeParse({
+          ...validReport,
+          results: { ...validReport.results, [datasetName]: {} },
+        }).success,
+      ).toBe(false);
+      expect(
+        evaluationReportSchema.safeParse({
+          ...validReport,
+          results: {
+            ...validReport.results,
+            [datasetName]: { candidate: datasetResult.candidate },
+          },
+        }).success,
+      ).toBe(false);
+
+      const mismatchedParent = { ...validReport, incumbentId: "another-policy" };
+      const response = await app.request("/policies", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${ADMIN_TOKEN}`,
+        },
+        body: JSON.stringify({ spec, report: mismatchedParent }),
+      });
+      expect(response.status).toBe(422);
+      expect((await json(response)).error).toBe("invalid_report");
     });
 
     test("compiles submitted spec against current engine params and mandate", async () => {
@@ -541,6 +612,7 @@ describe("R8A: Policy Registry", () => {
       expect(v0Summary?.parent).toBe("v0");
       expect(v0Summary?.allocationPct).toBe(100);
       expect(v0Summary?.id).toMatch(/^p-20261101-[0-9a-f]{8}$/);
+      expect(v0Summary?.createdAt).toBe(Date.UTC(2026, 10, 1));
 
       const candidateSummary = body.policies.find((p: { id: string }) => p.id === spec.id);
       expect(candidateSummary).toBeDefined();
