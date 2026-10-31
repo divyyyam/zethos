@@ -1,6 +1,6 @@
-import type { Env } from "./api/market";
+import type { Env } from "./durable/market";
 
-export { Market } from "./api/market";
+export { Market } from "./durable/market";
 
 export default {
   fetch(request: Request, env: Env): Promise<Response> {
