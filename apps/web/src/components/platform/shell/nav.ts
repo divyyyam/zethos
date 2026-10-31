@@ -3,6 +3,7 @@ import {
   ArrowLeftRight,
   BarChart3,
   Bot,
+  Gauge,
   LayoutDashboard,
   type LucideIcon,
   ShieldCheck,
@@ -67,6 +68,13 @@ export const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
   {
     title: "Operate",
     items: [
+      {
+        href: "/desk",
+        label: "Desk",
+        blurb: "Mandate bounds, active policies and live desk compliance",
+        icon: Gauge,
+        key: "d",
+      },
       {
         href: "/operator",
         label: "Workspace",
