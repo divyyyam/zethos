@@ -36,6 +36,14 @@ export const health = z.enum(["ok", "degraded", "down"]);
 export const riskState = z.enum(["normal", "degraded", "paused"]);
 export const flow = z.enum(["tape", "user", "agent", "attacker"]);
 
+/** Convenience quote input. Local to the SDK, it never crosses the wire. */
+export const quoteIntent = z.object({
+  taker: address,
+  pair,
+  side,
+  amount: z.string(),
+});
+
 export const signedQuote = z.object({
   taker: address,
   tokenIn: address,

@@ -11,13 +11,17 @@ import type {
 } from "./types.js";
 
 export const MAX_TTL_SEC = 120;
+/** How far ahead of the verifier's clock `issuedAt` may be. */
+export const MAX_CLOCK_SKEW_SEC = 30;
 
 export type VerificationReason =
+  | "invalid_options"
   | "not_signed_route"
   | "binding_mismatch"
   | "out_of_bounds"
   | "bad_signature_format"
   | "expired"
+  | "issued_in_future"
   | "ttl_too_long"
   | "display_mismatch"
   | "expiry_mismatch"
@@ -82,13 +86,19 @@ export async function verifyQuoteSignature({
   }
 }
 
-/** Checks a quote locally. Never throws for an invalid quote; failures are listed in `reasons`. */
+/**
+ * Checks a quote locally. Accepts unparsed input and never throws for it: failures are listed in
+ * `reasons`, and unusable `options` fail closed with `invalid_options`.
+ */
 export async function verifyQuote(
-  response: QuoteResponse,
+  response: QuoteResponse | unknown,
   request: QuoteRequest | undefined,
   options: VerifyOptions,
 ): Promise<Verification> {
-  if (response.route !== "paper" && response.route !== "conduit") {
+  if (!hasValidOptions(options)) {
+    return { ok: false, trust: "none", reasons: ["invalid_options"] };
+  }
+  if (!hasSignedRoute(response)) {
     return { ok: false, trust: "none", reasons: ["not_signed_route"] };
   }
   const trust = response.route === "paper" ? "engine" : "chain";
@@ -112,11 +122,36 @@ export async function verifyQuote(
     Number(signed.expiry) <= nowSec(options) + (options.minRemainingSec ?? safetyWindow),
     "expired",
   );
+  add(Number(signed.issuedAt) > nowSec(options) + MAX_CLOCK_SKEW_SEC, "issued_in_future");
   add(uintOf(displayedOut(response)) !== signed.amountOut, "display_mismatch");
   add(toSeconds(response.expiresAt) !== Number(signed.expiry), "expiry_mismatch");
   add(isWorseThanReference(response, signed.amountOut, options), "worse_than_reference");
   if (formatOk) add(!(await hasExpectedSigner(response, quote, options)), "bad_signer");
   return { ok: reasons.size === 0, trust, reasons: [...reasons] };
+}
+
+function hasValidOptions(options: VerifyOptions): boolean {
+  if (typeof options !== "object" || options === null) return false;
+  const { chainId, status, now, minRemainingSec, maxSpreadVsMid } = options;
+  const unsetOrNonNegative = (value: unknown) =>
+    value === undefined || (typeof value === "number" && Number.isFinite(value) && value >= 0);
+  return (
+    Number.isSafeInteger(chainId) &&
+    chainId > 0 &&
+    typeof status === "object" &&
+    status !== null &&
+    unsetOrNonNegative(now) &&
+    unsetOrNonNegative(minRemainingSec) &&
+    unsetOrNonNegative(maxSpreadVsMid) &&
+    (maxSpreadVsMid ?? 0) < 1
+  );
+}
+
+// Only the route is established here. The remaining fields are still unparsed and each check below
+// tolerates a wrong shape.
+function hasSignedRoute(response: unknown): response is SignedQuoteResponse {
+  if (typeof response !== "object" || response === null || !("route" in response)) return false;
+  return response.route === "paper" || response.route === "conduit";
 }
 
 function nowSec(options: VerifyOptions): number {
@@ -149,7 +184,8 @@ function isSignatureFormat(signature: unknown): signature is Hex {
 }
 
 /** Accepts unix seconds or milliseconds. */
-function toSeconds(expiresAt: number): number {
+function toSeconds(expiresAt: unknown): number | null {
+  if (typeof expiresAt !== "number") return null;
   return expiresAt > 1e12 ? Math.floor(expiresAt / 1000) : expiresAt;
 }
 

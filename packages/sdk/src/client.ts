@@ -127,7 +127,7 @@ export function createZethos(options: ZethosOptions) {
       current,
       quote,
       request,
-      quote.route === "paper" ? { minRemainingSec: 0 } : {},
+      quote?.route === "paper" ? { minRemainingSec: 0 } : {},
     );
     if (!verification.ok) {
       throw new ZethosError("unverified_quote", "Quote failed local verification", 0, verification);
@@ -144,8 +144,9 @@ export function createZethos(options: ZethosOptions) {
 
     /** Validates the response shape only. Call `verifyQuote` before acting on it. */
     async quote(input: QuoteRequest | QuoteIntent): Promise<QuoteResponse> {
-      const request =
-        "pair" in input ? resolveQuoteIntent(input, await status()) : validateRequest(input);
+      const request = isIntent(input)
+        ? resolveQuoteIntent(parseIntent(input), await status())
+        : validateRequest(input);
       const response = await call("/quote", s.quoteResponse, request);
       sentRequests.set(response, request);
       return response;
@@ -248,7 +249,8 @@ export function createZethos(options: ZethosOptions) {
 }
 
 /** Resolves `{taker, pair, side, amount}` into a raw request. `amount` is in the sold token. */
-export function resolveQuoteIntent(intent: QuoteIntent, current: Status): QuoteRequest {
+export function resolveQuoteIntent(input: QuoteIntent, current: Status): QuoteRequest {
+  const intent = parseIntent(input);
   const pair = current.pairs.find((p) => p.pair === intent.pair);
   if (!pair) throw new ZethosError("invalid_request", `Unknown pair ${intent.pair}`);
   const [sold, bought] = intent.side === "sell" ? [pair.base, pair.quote] : [pair.quote, pair.base];
@@ -271,6 +273,22 @@ function parseAmount(amount: string, decimals: number, symbol: string): string {
     throw new ZethosError("invalid_request", `Invalid ${symbol} amount: ${amount}`);
   }
   return parseUnits(amount, decimals).toString();
+}
+
+function isIntent(input: QuoteRequest | QuoteIntent): input is QuoteIntent {
+  return typeof input === "object" && input !== null && "pair" in input;
+}
+
+// Types do not reach plain JavaScript or JSON callers: an unknown side must not become a buy.
+function parseIntent(intent: QuoteIntent): QuoteIntent {
+  const parsed = s.quoteIntent.safeParse(intent);
+  if (!parsed.success) {
+    const fields = parsed.error.issues.map((issue) => issue.path.join(".")).join(", ");
+    throw new ZethosError("invalid_request", `Invalid quote intent: ${fields}`, 0, {
+      issues: parsed.error.issues,
+    });
+  }
+  return parsed.data;
 }
 
 function validateRequest(request: QuoteRequest): QuoteRequest {

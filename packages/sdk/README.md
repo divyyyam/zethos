@@ -71,20 +71,23 @@ Standalone exports: `verifyQuote(quote, request, {chainId, status, publicClient?
 
 ## Verification
 
-`verifyQuote` returns `{ ok, trust, reasons }`.
+`verifyQuote` returns `{ ok, trust, reasons }`. It accepts unparsed input and does not throw for
+it: a bad quote or request is reported in `reasons`.
 
-| Check                                                                     | Reason                 |
-| ------------------------------------------------------------------------- | ---------------------- |
-| Route is `paper` or `conduit`                                             | `not_signed_route`     |
-| `taker`, `tokenIn`, `tokenOut`, `amountIn` equal the request              | `binding_mismatch`     |
-| Integers within `uint256`/`uint64`, `amountOut > 0`, `expiry > issuedAt`  | `out_of_bounds`        |
-| Signature is 65 bytes of hex                                              | `bad_signature_format` |
-| `expiry − issuedAt ≤ 120`                                                 | `ttl_too_long`         |
-| `expiry > now + minRemainingSec` (default 5)                              | `expired`              |
-| `paperOut` / `conduitOut` equals signed `amountOut`                       | `display_mismatch`     |
-| `expiresAt` (seconds or ms) equals `expiry`                               | `expiry_mismatch`      |
-| EIP-712 signer equals the expected signer                                 | `bad_signer`           |
-| Output ≥ pool output, and ≥ `spotOut · (1 − maxSpreadVsMid)` (default 3%) | `worse_than_reference` |
+| Check                                                                      | Reason                 |
+| -------------------------------------------------------------------------- | ---------------------- |
+| Options are usable: `now`, `minRemainingSec` ≥ 0, `0 ≤ maxSpreadVsMid < 1` | `invalid_options`      |
+| Route is `paper` or `conduit`                                              | `not_signed_route`     |
+| `taker`, `tokenIn`, `tokenOut`, `amountIn` equal the request               | `binding_mismatch`     |
+| Integers within `uint256`/`uint64`, `amountOut > 0`, `expiry > issuedAt`   | `out_of_bounds`        |
+| Signature is 65 bytes of hex                                               | `bad_signature_format` |
+| `expiry − issuedAt ≤ 120`                                                  | `ttl_too_long`         |
+| `expiry > now + minRemainingSec` (default 5; 1 for paper TTL ≤ 5)          | `expired`              |
+| `issuedAt ≤ now + 30`, the allowed clock skew                              | `issued_in_future`     |
+| `paperOut` / `conduitOut` equals signed `amountOut`                        | `display_mismatch`     |
+| `expiresAt` (seconds or ms) equals `expiry`                                | `expiry_mismatch`      |
+| EIP-712 signer equals the expected signer                                  | `bad_signer`           |
+| Output ≥ pool output, and ≥ `spotOut · (1 − maxSpreadVsMid)` (default 3%)  | `worse_than_reference` |
 
 Expected signer:
 

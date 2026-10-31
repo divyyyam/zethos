@@ -25,6 +25,7 @@ export {
 export type { FillCalls } from "./tx.js";
 export type * from "./types.js";
 export {
+  MAX_CLOCK_SKEW_SEC,
   MAX_TTL_SEC,
   toContractQuote,
   type Verification,
