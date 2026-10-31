@@ -167,8 +167,8 @@ export class Assistant {
             parts: [
               {
                 text: [
-                  "Explain this paper market-making decision in one sentence, at most 25 ",
-                  "words. Use only supplied facts. ",
+                  `Explain this paper market-making decision in one sentence, at most 25 `,
+                  `words. Use only supplied facts. `,
                   `${JSON.stringify({ reason: decision.reason, inputs: decision.inputs })}`,
                 ].join(""),
               },
@@ -191,9 +191,8 @@ export class Assistant {
   private async generate(contents: Content[], signal: AbortSignal, tools: boolean) {
     const response = await (this.options.fetcher ?? fetch)(
       [
-        "https://generativelanguage.googleapis.com/v1beta/models/",
-        `${encodeURIComponent(this.options.model)}`,
-        ":generateContent",
+        `https://generativelanguage.googleapis.com/v1beta/models/`,
+        `${encodeURIComponent(this.options.model)}:generateContent`,
       ].join(""),
       {
         method: "POST",

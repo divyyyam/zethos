@@ -7,9 +7,9 @@ root [AGENTS.md](../../AGENTS.md) first. The wire contract is binding for the en
 ## Architecture
 
 ```
-request ─▶ Worker (src/index.ts) ─▶ Durable Object "Market" (src/api/market.ts, one instance)
+request ─▶ Worker (src/index.ts) ─▶ Durable Object "Market" (src/durable/market.ts, one instance)
                                      ├─ Hono routes (src/api/index.ts)
-                                     ├─ Engine: prices, quotes, paper vault (src/engine.ts)
+                                     ├─ Engine facade and collaborators (src/engine/)
                                      ├─ heartbeat alarm every 2 s: poll exchange books → fuse → vol
                                      └─ /stream WebSockets (hibernatable)
                                               │
@@ -30,26 +30,48 @@ request ─▶ Worker (src/index.ts) ─▶ Durable Object "Market" (src/api/mar
 
 ```text
 src/
-  index.ts           Worker entry
-  engine.ts          Market state, quote flow, paper settlement, status and stats
+  index.ts             Worker entry; still exports the Market Durable Object
+  durable/market.ts    Durable Object boot, heartbeat and stream sockets
   api/
-    index.ts         Hono routes, CORS and errors
-    market.ts        Durable Object boot, heartbeat and stream sockets
-  config/index.ts    Environment and strategy validation; loads params.json
-  feeds/             REST polling, exchange adapters, fused books and volatility
-  pricing/index.ts   Spread, TTL and bigint output math
-  quotes/index.ts    Request schemas, paper signer and EIP-712 verification
-  db/
-    index.ts         Store interface, records and createDb export
-    db.ts            createDb(databaseUrl): typed Neon/Drizzle client
-    memory.ts        Local development and tests
-    neon.ts          Postgres persistence
-    schema.ts        Drizzle tables; migrations live in drizzle/
-  tokens/index.ts    On-chain decimals and token/amount helpers
+    index.ts           Hono app, CORS, body limits, errors and route registration
+    http.ts            Shared JSON, validation, pagination and authentication helpers
+    routes/            Public reads, paper swaps, Arena, auth, operator and chat
+    market.ts          Compatibility export for the Durable Object's old path
+  engine/
+    index.ts           Engine facade; unchanged public methods and return types
+    types.ts           Shared quote, stream, dependency and internal record types
+    errors.ts          EngineError
+    state.ts           One mutable state and the original promise queue for writes
+    market.ts          Book ingestion, market reads, token routing and readiness gates
+    quoting.ts         Firm paper quote issuance and request rate limits
+    settlement.ts      Paper vault signature, nonce, capacity and settlement checks
+    arena.ts           Paper epoch lifecycle, funding and Arena accounting
+    pnl.ts             Statistics and paper P&L attribution
+    heartbeat.ts       Markouts, risk, tape fills and periodic checkpoint orchestration
+    risk.ts            Drawdown, feed, markout and inventory gates
+    toxicity.ts        Behavioural taker observations, scores and tiers
+    tuner.ts           Spread adjustment from completed markouts
+    tape.ts            Exchange trade replay and quote outcome observations
+    journal.ts         Deterministic decisions and optional narration
+    operator.ts        Serialized operator controls and strategy reloads
+    persistence.ts     State restore, quote reconciliation and checkpoints
+    valuation.ts       Explicit-input inventory share, spread and equity math
+    helpers.ts         Flow attribution, nonce keys and public token metadata
+  engine.ts            Compatibility exports for existing callers
+  llm/
+    index.ts           Read-only interpretation and narration
+    prompt.ts          Unchanged system prompt in readable fragments
+  config/index.ts      Environment and strategy validation; loads params.json
+  feeds/               REST polling, adapters, fused books and volatility
+  pricing/index.ts     Spread, TTL and bigint output math
+  quotes/index.ts      Request schemas, paper signer and EIP-712 verification
+  db/                  Store interface, Neon/Drizzle and in-memory persistence
+  tokens/index.ts      On-chain decimals and token/amount helpers
 ```
 
-Each module starts at `index.ts`; helpers stay beside it. `engine.ts` owns inventory,
-issued quotes and nonces together so paper settlement has one place to enforce its rules.
+Each module starts at `index.ts`; helpers stay beside it. Engine collaborators share one
+`EngineState`, so inventory, issued quotes and nonces remain under the same serialized
+write boundary. The facade preserves the existing public API and old import paths.
 The HTTP and SDK response shapes stay aligned through `test/sdk.test.ts`.
 
 The shadow loop includes 1/5/30/300-second markouts, paper equity and P&L, honest exchange
