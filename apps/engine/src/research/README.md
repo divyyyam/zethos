@@ -224,3 +224,25 @@ Optional flags include `--pair=HSK/USDT`, `--window=1h|24h|7d`, `--scenarios-dir
 `--model`, and `--seed`. The cycle fails if there are no development scenarios, the engine diagnosis
 is unavailable, proposal/evaluation fails, or policy registration is rejected. It saves the dev
 summary, S4 report, and registration response under a cycle folder in `research-runs/`.
+
+### Evaluator market model
+
+The evaluator keeps two views of each recording:
+
+- **Engine view.** What the policy sees. A venue book recorded at `ts` becomes visible at the next
+  engine poll boundary, `ceil(ts / feeds.pollMs) * feeds.pollMs`, because the live engine polls
+  venues on that cadence. The fused mid, venue states, venue history and volatility given to the
+  policy come only from this view. So does the request's `notionalUsd` and `baseQuantity`, and
+  the inventory valuation. Pass `engineLagMs: 0` to `simulatePolicyOnScenario` to disable the lag.
+- **True market.** Every recorded book as soon as it was observed. It marks inventory (net P&L,
+  drawdown), measures spread capture and attacker take, and is the public book honest takers
+  compare against.
+
+Taker flow: requests in recordings whose `source` is an attacker mode (`naive`, `sniper`,
+`latecomer`, `rotating`, `held-out`) are attacker flow unless tagged `internal`. Requests in
+`tape` recordings are honest unless tagged `toxic`. For other sources, the tier decides as
+before. An attacker fills only when the signed price is at or through the true mid
+(edge ≥ 0 bps).
+
+A defence against a lead venue is limited by the poll cadence: a move between two polls is
+invisible to every policy until the next poll. Results reflect that honestly.

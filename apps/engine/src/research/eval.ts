@@ -19,7 +19,12 @@ import { createV0 } from "../policy/v0";
 import { type Inventory, PAIR_TOKENS, type Tokens, toUnits, units } from "../tokens";
 import { hashPolicySpec } from "./canonical";
 import { compile } from "./compile";
-import { HeldOutAccessError, type LoadedScenario, type ScenarioBookRecord } from "./scenarios";
+import {
+  HeldOutAccessError,
+  type LoadedScenario,
+  type ScenarioBookRecord,
+  type ScenarioTakerRequestRecord,
+} from "./scenarios";
 import type { PolicySpec } from "./schema";
 
 export const DEFAULT_EVAL_TOKENS: Tokens = {
@@ -99,12 +104,27 @@ export const evaluationReportSchema = z.strictObject({
 
 export type EvaluationReport = z.infer<typeof evaluationReportSchema>;
 
+/** Recording sources whose taker requests all come from an attacker bot (S9 `source`). */
+export const ATTACKER_SOURCES: ReadonlySet<string> = new Set([
+  "naive",
+  "sniper",
+  "latecomer",
+  "rotating",
+  "held-out",
+]);
+
 export interface SimulationOptions {
   mandate?: Mandate | undefined;
   params?: Params | undefined;
   tokens?: Tokens | undefined;
   modeledGasUsdPerFill?: number | undefined;
   seed?: number | undefined;
+  /**
+   * How late the engine sees each venue book. The live engine polls venues every
+   * `feeds.pollMs`, so a book recorded at `ts` reaches the policy at the next poll boundary.
+   * Defaults to `params.feeds.pollMs`; 0 makes every book visible immediately.
+   */
+  engineLagMs?: number | undefined;
 }
 
 export interface EvaluationInput {
@@ -141,6 +161,176 @@ function calculateEquity(
   const ethMid = mids["ETH/USDT"] ?? 0;
 
   return usdtUnits + whskUnits * (hskMid ?? 0) + wethUnits * (ethMid ?? 0);
+}
+
+function depthSum(levels: Level[], maxLevels: number): number {
+  return levels.slice(0, maxLevels).reduce((sum, [price, size]) => sum + price * size, 0);
+}
+
+interface SimFeedState {
+  mids: Partial<Record<Pair, number | null>>;
+  venueStates: Map<Pair, Map<VenueId, { venue: VenueId; book: Book; at: number }>>;
+  venueHistory: Map<Pair, Map<VenueId, VenueSample[]>>;
+  volatilities: Map<Pair, Volatility>;
+}
+
+function updateVenueBook(
+  record: ScenarioBookRecord,
+  feedState: SimFeedState,
+  fuseOptions: { staleMs: number; maxDisagreement: number; minSources: number },
+  bookLevels: number,
+  visibleTs: number = record.ts,
+): void {
+  const pStates = feedState.venueStates.get(record.pair);
+  if (!pStates) return;
+
+  pStates.set(record.venue, {
+    venue: record.venue,
+    book: record.book,
+    at: visibleTs,
+  });
+
+  const stateList = Array.from(pStates.values());
+  const fused = fuse(stateList, visibleTs, fuseOptions);
+
+  if (fused.mid !== null && Number.isFinite(fused.mid) && fused.mid > 0) {
+    feedState.mids[record.pair] = fused.mid;
+    const vol = feedState.volatilities.get(record.pair);
+    vol?.update(fused.mid, visibleTs);
+
+    const pHistory = feedState.venueHistory.get(record.pair);
+    if (pHistory) {
+      let vSamples = pHistory.get(record.venue);
+      if (!vSamples) {
+        vSamples = [];
+        pHistory.set(record.venue, vSamples);
+      }
+      vSamples.push({
+        t: visibleTs,
+        mid: midOf(record.book) ?? fused.mid,
+        bidDepthUsd: depthSum(record.book.bids, bookLevels),
+        askDepthUsd: depthSum(record.book.asks, bookLevels),
+      });
+      // Keep last 60 seconds
+      while (vSamples.length > 0 && vSamples[0] && vSamples[0].t < visibleTs - 60_000) {
+        vSamples.shift();
+      }
+    }
+  }
+}
+
+function buildCleanRequest(
+  record: ScenarioTakerRequestRecord,
+  isAttacker: boolean,
+  currentMid: number,
+  baseToken: { decimals: number },
+  quoteToken: { decimals: number },
+): {
+  cleanRequest: PolicyRequest;
+  notional: number;
+  baseQty: number;
+  cleanTier: Exclude<TierName, "blocked">;
+} {
+  const notional =
+    record.side === "buy"
+      ? units(BigInt(record.amountIn), quoteToken.decimals)
+      : units(BigInt(record.amountIn), baseToken.decimals) * currentMid;
+  const baseQty =
+    record.side === "sell"
+      ? units(BigInt(record.amountIn), baseToken.decimals)
+      : notional / currentMid;
+
+  const cleanTier: Exclude<TierName, "blocked"> =
+    record.tier === "blocked" || !record.tier
+      ? "normal"
+      : (record.tier as Exclude<TierName, "blocked">);
+
+  const cleanRequest: PolicyRequest = {
+    pair: record.pair,
+    side: record.side,
+    amountIn: record.amountIn,
+    baseQuantity: baseQty,
+    notionalUsd: notional,
+    tier: cleanTier,
+    score: record.score ?? (isAttacker ? 0.75 : 0.1),
+  };
+
+  return { cleanRequest, notional, baseQty, cleanTier };
+}
+
+function buildSimMarketState(
+  recordTs: number,
+  recordPair: Pair,
+  fused: ReturnType<typeof fuse> & { mid: number; book: Book },
+  pStates: Map<VenueId, { venue: VenueId; book: Book; at: number }> | undefined,
+  volatilities: Map<Pair, Volatility>,
+  pHistory: Map<VenueId, VenueSample[]> | undefined,
+  bookLevels: number,
+): PolicyMarketState {
+  const vol = volatilities.get(recordPair);
+  const sigma1 = vol ? vol.sigma1 : 0.0002;
+
+  const historyObj: Partial<Record<VenueId, VenueSample[]>> = {};
+  if (pHistory) {
+    for (const [v, samples] of pHistory) {
+      historyObj[v] = [...samples];
+    }
+  }
+
+  return {
+    now: recordTs,
+    pair: recordPair,
+    fused: {
+      mid: fused.mid,
+      health: fused.health,
+      sourceCount: fused.sources.filter((s) => s.status === "ok").length,
+      sigma1,
+    },
+    venues: fused.sources.map((s) => {
+      const vState = pStates?.get(s.venue);
+      return {
+        venue: s.venue,
+        mid: vState?.book ? midOf(vState.book) : null,
+        bidDepthUsd: vState?.book ? depthSum(vState.book.bids, bookLevels) : 0,
+        askDepthUsd: vState?.book ? depthSum(vState.book.asks, bookLevels) : 0,
+        receivedAt: vState?.at ?? 0,
+        status: s.status,
+      };
+    }),
+    history: historyObj,
+    book: structuredClone(fused.book),
+    tuner: 1.0,
+  };
+}
+
+function checkTakerFill(
+  isAttacker: boolean,
+  side: "buy" | "sell",
+  quotedPrice: number,
+  currentMid: number,
+  quotedSpreadBps: number,
+  bookWalkPrice: number | null,
+  notional: number,
+  mandate: Mandate,
+): boolean {
+  if (isAttacker) {
+    // Attackers fill only when the signed price is at or through the true mid: a quote
+    // priced from a stale engine view is exactly what they look for.
+    const edgeBps =
+      (side === "buy" ? currentMid / quotedPrice - 1 : quotedPrice / currentMid - 1) * 10_000;
+    return edgeBps >= 0;
+  }
+
+  // Honest taker fills if desk is competitive vs public order book
+  if (bookWalkPrice !== null) {
+    return side === "buy"
+      ? quotedPrice <= bookWalkPrice * 1.01
+      : quotedPrice >= bookWalkPrice * 0.99;
+  }
+
+  // If public book is thin, honest taker fills if spread is within mandate bucket
+  const bucket = mandate.service.maxHalfSpreadBps.find((b) => notional <= b.maxNotionalUsd);
+  return quotedSpreadBps <= (bucket?.maxBps ?? 300);
 }
 
 /**
@@ -181,20 +371,39 @@ export function simulatePolicyOnScenario(
     WETH: 0n,
   };
 
-  const mids: Partial<Record<Pair, number | null>> = {
-    "HSK/USDT": null,
-    "ETH/USDT": null,
+  const feedState: SimFeedState = {
+    mids: {
+      "HSK/USDT": null,
+      "ETH/USDT": null,
+    },
+    venueStates: new Map(),
+    venueHistory: new Map(),
+    volatilities: new Map(),
   };
 
-  const venueStates = new Map<Pair, Map<VenueId, { venue: VenueId; book: Book; at: number }>>();
-  const venueHistory = new Map<Pair, Map<VenueId, VenueSample[]>>();
-  const volatilities = new Map<Pair, Volatility>();
-
   for (const p of evalParams.pairs) {
-    venueStates.set(p, new Map());
-    venueHistory.set(p, new Map());
-    volatilities.set(p, new Volatility());
+    feedState.venueStates.set(p, new Map());
+    feedState.venueHistory.set(p, new Map());
+    feedState.volatilities.set(p, new Volatility());
   }
+
+  // The true market: every recorded book as soon as it was observed. It marks inventory, judges
+  // attacker edge and is the public book honest takers see. The policy never sees it directly.
+  const trueFeed: SimFeedState = {
+    mids: { "HSK/USDT": null, "ETH/USDT": null },
+    venueStates: new Map(),
+    venueHistory: new Map(),
+    volatilities: new Map(),
+  };
+  for (const p of evalParams.pairs) {
+    trueFeed.venueStates.set(p, new Map());
+    trueFeed.venueHistory.set(p, new Map());
+    trueFeed.volatilities.set(p, new Volatility());
+  }
+  const engineLagMs = Math.max(0, options.engineLagMs ?? params.feeds.pollMs);
+  const visibleAt = (ts: number) =>
+    engineLagMs > 0 ? Math.ceil(ts / engineLagMs) * engineLagMs : ts;
+  const pendingBooks: ScenarioBookRecord[] = [];
 
   const uniqueVenues = new Set(
     scenario.records.filter((r): r is ScenarioBookRecord => r.type === "book").map((r) => r.venue),
@@ -223,63 +432,39 @@ export function simulatePolicyOnScenario(
 
   const halfSpreads: number[] = [];
 
-  const depthSum = (levels: Level[]) =>
-    levels.slice(0, params.feeds.bookLevels).reduce((sum, [price, size]) => sum + price * size, 0);
-
   // Process scenario records in timestamp order
+  // Applies a book to the engine's view at the time the engine would have polled it.
+  const applyEngineBook = (record: ScenarioBookRecord, at: number) => {
+    updateVenueBook(record, feedState, fuseOptions, params.feeds.bookLevels, at);
+
+    // Initial inventory allocation once mid is known
+    if (!inventorySeeded && feedState.mids[pair] !== null && feedState.mids[pair] !== undefined) {
+      const pairMid = feedState.mids[pair] as number;
+      inventory[baseSymbol] = toUnits(initialUsdPerSide / pairMid, baseToken.decimals);
+      initialEquity = calculateEquity(inventory, trueFeed.mids, tokens);
+      peakEquity = initialEquity;
+      inventorySeeded = true;
+    }
+  };
+
   for (const record of scenario.records) {
+    while (pendingBooks.length > 0 && visibleAt(pendingBooks[0]?.ts ?? 0) <= record.ts) {
+      const next = pendingBooks.shift();
+      if (next) applyEngineBook(next, visibleAt(next.ts));
+    }
     if (record.type === "book") {
-      const pStates = venueStates.get(record.pair);
-      if (pStates) {
-        pStates.set(record.venue, {
-          venue: record.venue,
-          book: record.book,
-          at: record.ts,
-        });
-
-        const stateList = Array.from(pStates.values());
-        const fused = fuse(stateList, record.ts, fuseOptions);
-
-        if (fused.mid !== null && Number.isFinite(fused.mid) && fused.mid > 0) {
-          mids[record.pair] = fused.mid;
-          const vol = volatilities.get(record.pair);
-          vol?.update(fused.mid, record.ts);
-
-          const pHistory = venueHistory.get(record.pair);
-          if (pHistory) {
-            let vSamples = pHistory.get(record.venue);
-            if (!vSamples) {
-              vSamples = [];
-              pHistory.set(record.venue, vSamples);
-            }
-            vSamples.push({
-              t: record.ts,
-              mid: midOf(record.book) ?? fused.mid,
-              bidDepthUsd: depthSum(record.book.bids),
-              askDepthUsd: depthSum(record.book.asks),
-            });
-            // Keep last 60 seconds
-            while (vSamples.length > 0 && vSamples[0] && vSamples[0].t < record.ts - 60_000) {
-              vSamples.shift();
-            }
-          }
-
-          // Initial inventory allocation once mid is known
-          if (!inventorySeeded && mids[pair] !== null) {
-            const pairMid = mids[pair] as number;
-            inventory[baseSymbol] = toUnits(initialUsdPerSide / pairMid, baseToken.decimals);
-            initialEquity = calculateEquity(inventory, mids, tokens);
-            peakEquity = initialEquity;
-            inventorySeeded = true;
-          }
-        }
-      }
+      updateVenueBook(record, trueFeed, fuseOptions, params.feeds.bookLevels);
+      if (engineLagMs === 0) applyEngineBook(record, record.ts);
+      else pendingBooks.push(record);
     } else if (record.type === "taker_request") {
       totalRequests++;
 
       // Evaluator internal classification - NEVER passed to policy!
+      // Requests in an attacker recording are attacker flow whatever tier the engine gave the
+      // (often fresh) identity; tape requests are honest unless the engine flagged them toxic.
       const isAttacker =
         record.tier === "toxic" ||
+        (ATTACKER_SOURCES.has(scenario.manifest.source) && record.tier !== "internal") ||
         (scenario.manifest.source !== "tape" &&
           record.tier !== "normal" &&
           record.tier !== "internal");
@@ -288,8 +473,13 @@ export function simulatePolicyOnScenario(
         honestRequests++;
       }
 
-      const currentMid = mids[record.pair];
-      const pStates = venueStates.get(record.pair);
+      const currentMid = feedState.mids[record.pair];
+      const trueMid = trueFeed.mids[record.pair] ?? currentMid ?? null;
+      const trueStates = trueFeed.venueStates.get(record.pair);
+      const trueBook = trueStates
+        ? fuse(Array.from(trueStates.values()), record.ts, fuseOptions).book
+        : null;
+      const pStates = feedState.venueStates.get(record.pair);
       const stateList = pStates ? Array.from(pStates.values()) : [];
       const fused = fuse(stateList, record.ts, fuseOptions);
 
@@ -304,66 +494,23 @@ export function simulatePolicyOnScenario(
         continue;
       }
 
-      const notional =
-        record.side === "buy"
-          ? units(BigInt(record.amountIn), quoteToken.decimals)
-          : units(BigInt(record.amountIn), baseToken.decimals) * currentMid;
-      const baseQty =
-        record.side === "sell"
-          ? units(BigInt(record.amountIn), baseToken.decimals)
-          : notional / currentMid;
+      const { cleanRequest, notional, baseQty, cleanTier } = buildCleanRequest(
+        record,
+        isAttacker,
+        currentMid,
+        baseToken,
+        quoteToken,
+      );
 
-      // Clean request strictly sanitized of any scenario flow labels or metadata
-      const cleanTier: Exclude<TierName, "blocked"> =
-        record.tier === "blocked" || !record.tier
-          ? "normal"
-          : (record.tier as Exclude<TierName, "blocked">);
-
-      const cleanRequest: PolicyRequest = {
-        pair: record.pair,
-        side: record.side,
-        amountIn: record.amountIn,
-        baseQuantity: baseQty,
-        notionalUsd: notional,
-        tier: cleanTier,
-        score: record.score ?? (isAttacker ? 0.75 : 0.1),
-      };
-
-      const vol = volatilities.get(record.pair);
-      const sigma1 = vol ? vol.sigma1 : 0.0002;
-
-      const pHistory = venueHistory.get(record.pair);
-      const historyObj: Partial<Record<VenueId, VenueSample[]>> = {};
-      if (pHistory) {
-        for (const [v, samples] of pHistory) {
-          historyObj[v] = [...samples];
-        }
-      }
-
-      const policyMarket: PolicyMarketState = {
-        now: record.ts,
-        pair: record.pair,
-        fused: {
-          mid: fused.mid,
-          health: fused.health,
-          sourceCount: fused.sources.filter((s) => s.status === "ok").length,
-          sigma1,
-        },
-        venues: fused.sources.map((s) => {
-          const vState = pStates?.get(s.venue);
-          return {
-            venue: s.venue,
-            mid: vState?.book ? midOf(vState.book) : null,
-            bidDepthUsd: vState?.book ? depthSum(vState.book.bids) : 0,
-            askDepthUsd: vState?.book ? depthSum(vState.book.asks) : 0,
-            receivedAt: vState?.at ?? 0,
-            status: s.status,
-          };
-        }),
-        history: historyObj,
-        book: structuredClone(fused.book),
-        tuner: 1.0,
-      };
+      const policyMarket = buildSimMarketState(
+        record.ts,
+        record.pair,
+        fused as ReturnType<typeof fuse> & { mid: number; book: Book },
+        pStates,
+        feedState.volatilities,
+        feedState.venueHistory.get(record.pair),
+        params.feeds.bookLevels,
+      );
 
       const baseVal = units(inventory[baseSymbol], baseToken.decimals) * currentMid;
       const quoteVal = units(inventory.USDT, quoteToken.decimals) / evalParams.pairs.length;
@@ -407,7 +554,7 @@ export function simulatePolicyOnScenario(
             mandate: evalMandate,
             tokens,
             inventory,
-            mids,
+            mids: feedState.mids,
             book: fused.book,
             sourceMids: fused.sources.filter((s) => s.status === "ok").map((s) => s.mid),
           },
@@ -425,36 +572,23 @@ export function simulatePolicyOnScenario(
       halfSpreads.push(Math.max(0, quotedSpreadBps));
 
       // Taker Execution Model
-      let takerFills = false;
+      // Honest takers compare against the public book as it really is, not the engine's view.
+      const publicBook = trueBook ?? fused.book;
       const bookWalkPrice =
         record.side === "buy"
-          ? vwapForQuote(fused.book.asks, notional)
-          : vwap(fused.book.bids, baseQty);
+          ? vwapForQuote(publicBook.asks, notional)
+          : vwap(publicBook.bids, baseQty);
 
-      if (isAttacker) {
-        // Attacker fills when quote is mispriced or in-the-money relative to current mid
-        const attackerEdge =
-          record.side === "buy" ? currentMid - quotedPrice : quotedPrice - currentMid;
-        // Attacker fills if edge is positive or acceptable tolerance
-        if (attackerEdge >= -0.0001) {
-          takerFills = true;
-        }
-      } else {
-        // Honest taker fills if desk is competitive vs public order book
-        if (bookWalkPrice !== null) {
-          const competitive =
-            record.side === "buy"
-              ? quotedPrice <= bookWalkPrice * 1.01
-              : quotedPrice >= bookWalkPrice * 0.99;
-          if (competitive) takerFills = true;
-        } else {
-          // If public book is thin, honest taker fills if spread is within mandate bucket
-          const bucket = mandate.service.maxHalfSpreadBps.find((b) => notional <= b.maxNotionalUsd);
-          if (quotedSpreadBps <= (bucket?.maxBps ?? 300)) {
-            takerFills = true;
-          }
-        }
-      }
+      const takerFills = checkTakerFill(
+        isAttacker,
+        record.side,
+        quotedPrice,
+        trueMid ?? currentMid,
+        quotedSpreadBps,
+        bookWalkPrice,
+        notional,
+        mandate,
+      );
 
       if (takerFills) {
         totalFills++;
@@ -483,7 +617,7 @@ export function simulatePolicyOnScenario(
             amountIn: record.amountIn,
             amountOut: execResult.amountOut,
             price: quotedPrice,
-            midAtFill: currentMid,
+            midAtFill: trueMid ?? currentMid,
             flow: isAttacker ? "attacker" : "user",
             paper: true,
             txHash: null,
@@ -497,7 +631,7 @@ export function simulatePolicyOnScenario(
         }
 
         // Drawdown tracking
-        const currentEquity = calculateEquity(inventory, mids, tokens);
+        const currentEquity = calculateEquity(inventory, trueFeed.mids, tokens);
         const netEquity = currentEquity - totalGasUsd;
         if (netEquity > peakEquity) peakEquity = netEquity;
         const dd = peakEquity > 0 ? (peakEquity - netEquity) / peakEquity : 0;
@@ -506,7 +640,7 @@ export function simulatePolicyOnScenario(
     }
   }
 
-  const finalEquity = calculateEquity(inventory, mids, tokens);
+  const finalEquity = calculateEquity(inventory, trueFeed.mids, tokens);
   const totalPnlBeforeGas = finalEquity - initialEquity;
   const netUsd = totalPnlBeforeGas - totalGasUsd;
   const inventoryPnlUsd = totalPnlBeforeGas - spreadCaptureUsd;
@@ -528,18 +662,11 @@ export function simulatePolicyOnScenario(
   };
 }
 
-/**
- * Pure evaluation of qualification rules comparing candidate to incumbent.
- */
-export function evaluateQualification(
+function checkHeldOutRule(
   candidateResults: Record<string, PolicyResults>,
   incumbentResults: Record<string, PolicyResults>,
-  datasets: DatasetSummary[],
-  mandate: Mandate,
-): { qualified: boolean; reasons: QualificationReason[] } {
-  const reasons: QualificationReason[] = [];
-
-  const heldOutDatasets = datasets.filter((d) => d.kind === "heldout");
+  heldOutDatasets: DatasetSummary[],
+): QualificationReason {
   if (heldOutDatasets.length > 0) {
     let candHeldOutNet = 0;
     let incHeldOutNet = 0;
@@ -548,7 +675,7 @@ export function evaluateQualification(
       incHeldOutNet += incumbentResults[d.name]?.netUsd ?? 0;
     }
     const passed = candHeldOutNet >= incHeldOutNet;
-    reasons.push({
+    return {
       rule: "must_beat_held_out",
       passed,
       candidate: round(candHeldOutNet, 2),
@@ -557,19 +684,24 @@ export function evaluateQualification(
       detail: passed
         ? "Candidate beat or matched incumbent on held-out datasets"
         : "Candidate net P&L was lower than incumbent on held-out datasets",
-    });
-  } else {
-    reasons.push({
-      rule: "must_beat_held_out",
-      passed: true,
-      candidate: true,
-      incumbent: true,
-      threshold: true,
-      detail: "No held-out datasets included in evaluation",
-    });
+    };
   }
+  return {
+    rule: "must_beat_held_out",
+    passed: true,
+    candidate: true,
+    incumbent: true,
+    threshold: true,
+    detail: "No held-out datasets included in evaluation",
+  };
+}
 
-  // Max drawdown delta
+function checkDrawdownRule(
+  candidateResults: Record<string, PolicyResults>,
+  incumbentResults: Record<string, PolicyResults>,
+  datasets: DatasetSummary[],
+  mandate: Mandate,
+): QualificationReason {
   const candMaxDD = Math.max(
     0,
     ...datasets.map((d) => candidateResults[d.name]?.maxDrawdownPct ?? 0),
@@ -580,16 +712,76 @@ export function evaluateQualification(
   );
   const ddDelta = candMaxDD - incMaxDD;
   const ddPassed = ddDelta <= mandate.qualification.maxDrawdownDeltaPct;
-  reasons.push({
+  return {
     rule: "max_drawdown_delta",
     passed: ddPassed,
     candidate: round(candMaxDD, 4),
     incumbent: round(incMaxDD, 4),
     threshold: round(mandate.qualification.maxDrawdownDeltaPct, 4),
     detail: `Drawdown delta: ${round(ddDelta, 4)} (limit: ${mandate.qualification.maxDrawdownDeltaPct})`,
-  });
+  };
+}
 
-  // Honest fill tolerance
+function checkHonestFillToleranceRule(
+  candFillRateAvg: number,
+  incFillRateAvg: number,
+  mandate: Mandate,
+): QualificationReason {
+  const fillDrop = incFillRateAvg - candFillRateAvg;
+  const fillDropPassed = fillDrop <= mandate.qualification.honestFillTolerance;
+  return {
+    rule: "honest_fill_tolerance",
+    passed: fillDropPassed,
+    candidate: round(candFillRateAvg, 4),
+    incumbent: round(incFillRateAvg, 4),
+    threshold: round(mandate.qualification.honestFillTolerance, 4),
+    detail: `Honest fill rate drop: ${round(fillDrop, 4)} (limit: ${mandate.qualification.honestFillTolerance})`,
+  };
+}
+
+function checkMinHonestFillRateRule(
+  candFillRateAvg: number,
+  incFillRateAvg: number,
+  mandate: Mandate,
+): QualificationReason {
+  const minFillPassed = candFillRateAvg >= mandate.qualification.minHonestFillRate;
+  return {
+    rule: "min_honest_fill_rate",
+    passed: minFillPassed,
+    candidate: round(candFillRateAvg, 4),
+    incumbent: round(incFillRateAvg, 4),
+    threshold: round(mandate.qualification.minHonestFillRate, 4),
+    detail: `Honest fill rate: ${round(candFillRateAvg, 4)} (min required: ${mandate.qualification.minHonestFillRate})`,
+  };
+}
+
+function checkMaxRejectRateRule(
+  candRejectAvg: number,
+  incRejectAvg: number,
+  mandate: Mandate,
+): QualificationReason {
+  const rejectPassed = candRejectAvg <= mandate.qualification.maxRejectRate;
+  return {
+    rule: "max_reject_rate",
+    passed: rejectPassed,
+    candidate: round(candRejectAvg, 4),
+    incumbent: round(incRejectAvg, 4),
+    threshold: round(mandate.qualification.maxRejectRate, 4),
+    detail: `Reject rate: ${round(candRejectAvg, 4)} (max allowed: ${mandate.qualification.maxRejectRate})`,
+  };
+}
+
+/**
+ * Pure evaluation of qualification rules comparing candidate to incumbent.
+ */
+export function evaluateQualification(
+  candidateResults: Record<string, PolicyResults>,
+  incumbentResults: Record<string, PolicyResults>,
+  datasets: DatasetSummary[],
+  mandate: Mandate,
+): { qualified: boolean; reasons: QualificationReason[] } {
+  const heldOutDatasets = datasets.filter((d) => d.kind === "heldout");
+
   const candFillRateAvg =
     datasets.length > 0
       ? datasets.reduce((sum, d) => sum + (candidateResults[d.name]?.honestFillRate ?? 0), 0) /
@@ -600,29 +792,7 @@ export function evaluateQualification(
       ? datasets.reduce((sum, d) => sum + (incumbentResults[d.name]?.honestFillRate ?? 0), 0) /
         datasets.length
       : 1;
-  const fillDrop = incFillRateAvg - candFillRateAvg;
-  const fillDropPassed = fillDrop <= mandate.qualification.honestFillTolerance;
-  reasons.push({
-    rule: "honest_fill_tolerance",
-    passed: fillDropPassed,
-    candidate: round(candFillRateAvg, 4),
-    incumbent: round(incFillRateAvg, 4),
-    threshold: round(mandate.qualification.honestFillTolerance, 4),
-    detail: `Honest fill rate drop: ${round(fillDrop, 4)} (limit: ${mandate.qualification.honestFillTolerance})`,
-  });
 
-  // Min honest fill rate
-  const minFillPassed = candFillRateAvg >= mandate.qualification.minHonestFillRate;
-  reasons.push({
-    rule: "min_honest_fill_rate",
-    passed: minFillPassed,
-    candidate: round(candFillRateAvg, 4),
-    incumbent: round(incFillRateAvg, 4),
-    threshold: round(mandate.qualification.minHonestFillRate, 4),
-    detail: `Honest fill rate: ${round(candFillRateAvg, 4)} (min required: ${mandate.qualification.minHonestFillRate})`,
-  });
-
-  // Max reject rate
   const candRejectAvg =
     datasets.length > 0
       ? datasets.reduce((sum, d) => sum + (candidateResults[d.name]?.rejectRate ?? 0), 0) /
@@ -633,15 +803,14 @@ export function evaluateQualification(
       ? datasets.reduce((sum, d) => sum + (incumbentResults[d.name]?.rejectRate ?? 0), 0) /
         datasets.length
       : 0;
-  const rejectPassed = candRejectAvg <= mandate.qualification.maxRejectRate;
-  reasons.push({
-    rule: "max_reject_rate",
-    passed: rejectPassed,
-    candidate: round(candRejectAvg, 4),
-    incumbent: round(incRejectAvg, 4),
-    threshold: round(mandate.qualification.maxRejectRate, 4),
-    detail: `Reject rate: ${round(candRejectAvg, 4)} (max allowed: ${mandate.qualification.maxRejectRate})`,
-  });
+
+  const reasons: QualificationReason[] = [
+    checkHeldOutRule(candidateResults, incumbentResults, heldOutDatasets),
+    checkDrawdownRule(candidateResults, incumbentResults, datasets, mandate),
+    checkHonestFillToleranceRule(candFillRateAvg, incFillRateAvg, mandate),
+    checkMinHonestFillRateRule(candFillRateAvg, incFillRateAvg, mandate),
+    checkMaxRejectRateRule(candRejectAvg, incRejectAvg, mandate),
+  ];
 
   const qualified = reasons.every((r) => r.passed);
   return { qualified, reasons };

@@ -324,6 +324,134 @@ export function parseScenarioRecords(
   return records;
 }
 
+function validateScenarioAccess(
+  manifest: ScenarioManifest,
+  role: ScenarioAccessRole,
+  requestedSplit: "dev" | "held-out" | "all",
+  timeWindow?: { fromTs?: number | undefined; toTs?: number | undefined } | undefined,
+): void {
+  // Held-out protection gate: FAIL CLOSED BEFORE reading any payload file
+  if (manifest.heldOut && role !== "evaluator") {
+    throw new HeldOutAccessError(manifest.name);
+  }
+
+  if (requestedSplit === "held-out" && role !== "evaluator") {
+    throw new HeldOutAccessError(manifest.name);
+  }
+
+  if (manifest.heldOutWindow && role === "research") {
+    // Research access can NEVER request "all" or "held-out" when heldOutWindow exists
+    if (requestedSplit === "all") {
+      throw new HeldOutAccessError(
+        `Scenario '${manifest.name}' contains a held-out window; research role cannot request split 'all'`,
+      );
+    }
+    // Research access cannot widen timeWindow into the held-out window
+    if (
+      timeWindow?.toTs !== undefined &&
+      manifest.devWindow &&
+      timeWindow.toTs > manifest.devWindow.toTs
+    ) {
+      throw new HeldOutAccessError(
+        "Custom timeWindow extends beyond devWindow into held-out partition",
+      );
+    }
+  }
+}
+
+async function resolveTargetPayloadPath(
+  role: ScenarioAccessRole,
+  requestedSplit: "dev" | "held-out" | "all",
+  manifest: ScenarioManifest,
+  paths: ScenarioPaths,
+): Promise<string> {
+  if (role === "research") {
+    // If scenario has a heldOutWindow, it MUST read the separated devPayloadPath
+    if (manifest.heldOutWindow) {
+      try {
+        await fs.stat(paths.devPayloadPath);
+        return paths.devPayloadPath;
+      } catch {
+        throw new HeldOutAccessError(
+          `Scenario '${manifest.name}' contains a mixed payload with held-out window. ` +
+            `Research access is rejected; materialize a separate '${manifest.name}.dev.ndjson' file for dev access.`,
+        );
+      }
+    }
+    try {
+      await fs.stat(paths.devPayloadPath);
+      return paths.devPayloadPath;
+    } catch {
+      return paths.payloadPath;
+    }
+  }
+
+  // role === "evaluator"
+  if (requestedSplit === "held-out") {
+    try {
+      await fs.stat(paths.heldOutPayloadPath);
+      return paths.heldOutPayloadPath;
+    } catch {
+      return paths.payloadPath;
+    }
+  }
+  if (requestedSplit === "dev") {
+    try {
+      await fs.stat(paths.devPayloadPath);
+      return paths.devPayloadPath;
+    } catch {
+      return paths.payloadPath;
+    }
+  }
+  return paths.payloadPath;
+}
+
+function filterRecordsBySplits(
+  allRecords: ScenarioRecord[],
+  requestedSplit: "dev" | "held-out" | "all",
+  manifest: ScenarioManifest,
+  timeWindow?: { fromTs?: number | undefined; toTs?: number | undefined } | undefined,
+): ScenarioRecord[] {
+  let records = allRecords;
+
+  if (requestedSplit === "dev" && manifest.devWindow) {
+    const { fromTs, toTs } = manifest.devWindow;
+    records = records.filter((r) => r.ts >= fromTs && r.ts <= toTs);
+  } else if (requestedSplit === "held-out" && manifest.heldOutWindow) {
+    const { fromTs, toTs } = manifest.heldOutWindow;
+    records = records.filter((r) => r.ts >= fromTs && r.ts <= toTs);
+  }
+
+  if (timeWindow) {
+    const { fromTs, toTs } = timeWindow;
+    if (fromTs !== undefined) {
+      records = records.filter((r) => r.ts >= fromTs);
+    }
+    if (toTs !== undefined) {
+      records = records.filter((r) => r.ts <= toTs);
+    }
+  }
+
+  return records;
+}
+
+function countRecords(records: ScenarioRecord[]) {
+  let books = 0;
+  let trades = 0;
+  let takerRequests = 0;
+  for (const r of records) {
+    if (r.type === "book") books++;
+    else if (r.type === "trade") trades++;
+    else if (r.type === "taker_request") takerRequests++;
+  }
+  return {
+    total: records.length,
+    books,
+    trades,
+    takerRequests,
+  };
+}
+
 export async function loadScenario(
   name: string,
   options: LoadScenarioOptions = {},
@@ -337,84 +465,16 @@ export async function loadScenario(
   // 1. Read and validate manifest FIRST
   const manifest = await loadScenarioManifest(name, { scenariosDir: paths.scenariosDir });
 
-  // 2. Held-out protection gate: FAIL CLOSED BEFORE reading any payload file
-  if (manifest.heldOut && role !== "evaluator") {
-    throw new HeldOutAccessError(manifest.name);
-  }
-
   const requestedSplit = options.split ?? (manifest.heldOut ? "held-out" : "dev");
   if (requestedSplit !== "dev" && requestedSplit !== "held-out" && requestedSplit !== "all") {
     throw new Error(`Invalid split option: ${String(requestedSplit)}`);
   }
 
-  if (requestedSplit === "held-out" && role !== "evaluator") {
-    throw new HeldOutAccessError(manifest.name);
-  }
-
-  // If manifest defines a heldOutWindow:
-  if (manifest.heldOutWindow) {
-    if (role === "research") {
-      // Research access can NEVER request "all" or "held-out" when heldOutWindow exists
-      if (requestedSplit === "all") {
-        throw new HeldOutAccessError(
-          `Scenario '${manifest.name}' contains a held-out window; research role cannot request split 'all'`,
-        );
-      }
-      // Research access cannot widen timeWindow into the held-out window
-      if (
-        options.timeWindow?.toTs !== undefined &&
-        manifest.devWindow &&
-        options.timeWindow.toTs > manifest.devWindow.toTs
-      ) {
-        throw new HeldOutAccessError(
-          "Custom timeWindow extends beyond devWindow into held-out partition",
-        );
-      }
-    }
-  }
+  // 2. Validate access and held-out protection
+  validateScenarioAccess(manifest, role, requestedSplit, options.timeWindow);
 
   // 3. Determine payload file to read with strict isolation
-  let targetPayloadPath: string;
-  if (role === "research") {
-    // If scenario has a heldOutWindow, it MUST read the separated devPayloadPath
-    if (manifest.heldOutWindow) {
-      try {
-        await fs.stat(paths.devPayloadPath);
-        targetPayloadPath = paths.devPayloadPath;
-      } catch {
-        throw new HeldOutAccessError(
-          `Scenario '${manifest.name}' contains a mixed payload with held-out window. ` +
-            `Research access is rejected; materialize a separate '${manifest.name}.dev.ndjson' file for dev access.`,
-        );
-      }
-    } else {
-      try {
-        await fs.stat(paths.devPayloadPath);
-        targetPayloadPath = paths.devPayloadPath;
-      } catch {
-        targetPayloadPath = paths.payloadPath;
-      }
-    }
-  } else {
-    // role === "evaluator"
-    if (requestedSplit === "held-out") {
-      try {
-        await fs.stat(paths.heldOutPayloadPath);
-        targetPayloadPath = paths.heldOutPayloadPath;
-      } catch {
-        targetPayloadPath = paths.payloadPath;
-      }
-    } else if (requestedSplit === "dev") {
-      try {
-        await fs.stat(paths.devPayloadPath);
-        targetPayloadPath = paths.devPayloadPath;
-      } catch {
-        targetPayloadPath = paths.payloadPath;
-      }
-    } else {
-      targetPayloadPath = paths.payloadPath;
-    }
-  }
+  const targetPayloadPath = await resolveTargetPayloadPath(role, requestedSplit, manifest, paths);
 
   let payloadContent: string;
   try {
@@ -428,34 +488,7 @@ export async function loadScenario(
   const allRecords = parseScenarioRecords(payloadContent, name, manifest.pair);
 
   // 4. Apply window and partition splits
-  let records = allRecords;
-
-  if (requestedSplit === "dev" && manifest.devWindow) {
-    const { fromTs, toTs } = manifest.devWindow;
-    records = records.filter((r) => r.ts >= fromTs && r.ts <= toTs);
-  } else if (requestedSplit === "held-out" && manifest.heldOutWindow) {
-    const { fromTs, toTs } = manifest.heldOutWindow;
-    records = records.filter((r) => r.ts >= fromTs && r.ts <= toTs);
-  }
-
-  if (options.timeWindow) {
-    const { fromTs, toTs } = options.timeWindow;
-    if (fromTs !== undefined) {
-      records = records.filter((r) => r.ts >= fromTs);
-    }
-    if (toTs !== undefined) {
-      records = records.filter((r) => r.ts <= toTs);
-    }
-  }
-
-  let books = 0;
-  let trades = 0;
-  let takerRequests = 0;
-  for (const r of records) {
-    if (r.type === "book") books++;
-    else if (r.type === "trade") trades++;
-    else if (r.type === "taker_request") takerRequests++;
-  }
+  const records = filterRecordsBySplits(allRecords, requestedSplit, manifest, options.timeWindow);
 
   const first = records[0];
   const last = records.at(-1);
@@ -465,12 +498,7 @@ export async function loadScenario(
     manifest,
     records,
     split: requestedSplit,
-    recordCounts: {
-      total: records.length,
-      books,
-      trades,
-      takerRequests,
-    },
+    recordCounts: countRecords(records),
     timeRange,
   };
 }

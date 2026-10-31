@@ -202,6 +202,291 @@ export function validateAttributionThresholds(thresholds: AttributionThresholds)
   }
 }
 
+interface FillValidationSuccess {
+  notionalUsd: number;
+  fillLossUsd: number;
+  loss5Usd: number | undefined;
+  loss300Usd: number | undefined;
+  bps5: number | undefined;
+  bps300: number | undefined;
+}
+
+type FillValidationResult =
+  | { status: "skip" }
+  | { status: "excluded"; reason: string }
+  | { status: "valid"; data: FillValidationSuccess };
+
+function evaluateFillEligibility(
+  fill: Fill,
+  window: AnalysisWindow,
+  tokens: Tokens | undefined,
+  minLossUsd: number,
+): FillValidationResult {
+  if (fill.ts < window.fromTs || fill.ts > window.toTs) {
+    return { status: "skip" };
+  }
+
+  if (!Number.isFinite(fill.ts) || !Number.isFinite(fill.price) || fill.price <= 0) {
+    return {
+      status: "excluded",
+      reason: "Non-finite or non-positive fill price/timestamp",
+    };
+  }
+
+  const pairConfig = PAIR_TOKENS[fill.pair];
+  if (!pairConfig) {
+    return {
+      status: "excluded",
+      reason: `Unsupported pair '${fill.pair}'`,
+    };
+  }
+
+  const quoteToken = tokens?.[pairConfig.quote];
+  const baseToken = tokens?.[pairConfig.base];
+  if (
+    !quoteToken ||
+    !baseToken ||
+    typeof quoteToken.decimals !== "number" ||
+    typeof baseToken.decimals !== "number"
+  ) {
+    return {
+      status: "excluded",
+      reason: `Missing runtime token metadata for pair '${fill.pair}' valuation`,
+    };
+  }
+
+  let notionalUsd: number;
+  try {
+    const rawIn = BigInt(fill.amountIn);
+    const rawOut = BigInt(fill.amountOut);
+    if (rawIn <= 0n || rawOut <= 0n || rawIn > UINT256_MAX || rawOut > UINT256_MAX) {
+      throw new Error("Out of uint256 range");
+    }
+    if (fill.side === "buy") {
+      notionalUsd = units(rawIn, quoteToken.decimals);
+    } else {
+      notionalUsd = units(rawOut, quoteToken.decimals);
+    }
+  } catch {
+    return {
+      status: "excluded",
+      reason: "Invalid raw token amounts",
+    };
+  }
+
+  if (!Number.isFinite(notionalUsd) || notionalUsd <= 0) {
+    return {
+      status: "excluded",
+      reason: "Non-positive or non-finite notional USD",
+    };
+  }
+
+  const markouts = fill.markouts ?? {};
+  const bps5 = markouts["5"] ?? (markouts[5 as unknown as string] as number | undefined);
+  const bps300 = markouts["300"] ?? (markouts[300 as unknown as string] as number | undefined);
+
+  if (bps5 === undefined && bps300 === undefined) {
+    return {
+      status: "excluded",
+      reason: "Missing markout observations (both 5s and 300s missing)",
+    };
+  }
+
+  const loss5Usd = bps5 !== undefined ? Math.max(0, (-bps5 / 10000) * notionalUsd) : undefined;
+  const loss300Usd =
+    bps300 !== undefined ? Math.max(0, (-bps300 / 10000) * notionalUsd) : undefined;
+
+  const fillLossUsd = Math.max(loss5Usd ?? 0, loss300Usd ?? 0);
+  if (fillLossUsd < minLossUsd) {
+    return { status: "skip" };
+  }
+
+  return {
+    status: "valid",
+    data: {
+      notionalUsd,
+      fillLossUsd,
+      loss5Usd,
+      loss300Usd,
+      bps5,
+      bps300,
+    },
+  };
+}
+
+function checkStaleReferenceCause(
+  fill: Fill,
+  leadPrices: AttributionLeadPrice[],
+  configuredLeads: readonly string[],
+  staleMs: number,
+  staleReferenceBps: number,
+): FillLossAttributionDetail["evidence"]["staleReference"] | undefined {
+  const candidateLead = leadPrices
+    .filter(
+      (p) =>
+        configuredLeads.includes(p.venue) &&
+        p.ts <= fill.ts &&
+        fill.ts - p.ts <= staleMs &&
+        Number.isFinite(p.mid) &&
+        p.mid > 0 &&
+        (p.status === undefined || p.status === "ok"),
+    )
+    .sort((a, b) => fill.ts - a.ts - (fill.ts - b.ts))[0];
+
+  const fusedMidAtFill = fill.midAtFill;
+  if (!candidateLead || !fusedMidAtFill || fusedMidAtFill <= 0) return undefined;
+
+  const divergenceBps =
+    fill.side === "buy"
+      ? ((candidateLead.mid - fusedMidAtFill) / fusedMidAtFill) * 10000
+      : ((fusedMidAtFill - candidateLead.mid) / fusedMidAtFill) * 10000;
+
+  if (divergenceBps >= staleReferenceBps) {
+    return {
+      divergenceBps,
+      leadVenue: candidateLead.venue,
+      leadMid: candidateLead.mid,
+      fusedMid: fusedMidAtFill,
+    };
+  }
+  return undefined;
+}
+
+function checkSelectiveExecutionCause(
+  fill: Fill,
+  matchedQuote: AttributionQuote | undefined,
+  selectiveLatenessRatio: number,
+  selectiveFavorableMoveBps: number,
+): FillLossAttributionDetail["evidence"]["selectiveExecution"] | undefined {
+  if (!matchedQuote) return undefined;
+
+  const issuedAtMs = normalizeTimestampMs(matchedQuote.issuedAt);
+  const rawExpiry =
+    typeof matchedQuote.expiry === "string" ? Number(matchedQuote.expiry) : matchedQuote.expiry;
+  const expiryMs = rawExpiry < 1e11 ? rawExpiry * 1000 + 999 : rawExpiry;
+  const ttlMs = expiryMs - issuedAtMs;
+
+  if (ttlMs <= 0 || fill.ts < issuedAtMs || fill.ts > expiryMs) return undefined;
+
+  const lateness = (fill.ts - issuedAtMs) / ttlMs;
+  if (lateness < selectiveLatenessRatio) return undefined;
+
+  const refPrice = matchedQuote.ref ?? matchedQuote.midAtQuote;
+  const fusedMidAtFill = fill.midAtFill;
+  if (!fusedMidAtFill || refPrice === undefined || !Number.isFinite(refPrice) || refPrice <= 0) {
+    return undefined;
+  }
+
+  const favorableMoveBps =
+    fill.side === "buy"
+      ? ((fusedMidAtFill - refPrice) / refPrice) * 10000
+      : ((refPrice - fusedMidAtFill) / refPrice) * 10000;
+
+  if (favorableMoveBps >= selectiveFavorableMoveBps) {
+    return {
+      lateness,
+      quoteIssuedAt: String(matchedQuote.issuedAt),
+      quoteExpiry: String(matchedQuote.expiry),
+      favorableMoveBps,
+    };
+  }
+  return undefined;
+}
+
+function checkInventoryImbalanceCause(
+  fill: Fill,
+  snapshot: AttributionInventorySnapshot | undefined,
+  bps5: number | undefined,
+  bps300: number | undefined,
+  loss5Usd: number | undefined,
+  loss300Usd: number | undefined,
+  inventoryMax5sLossBps: number,
+  inventoryMin300sLossBps: number,
+): FillLossAttributionDetail["evidence"]["inventoryImbalance"] | undefined {
+  const hasInventoryEvidence =
+    snapshot !== undefined &&
+    Number.isFinite(snapshot.baseShare) &&
+    Number.isFinite(snapshot.targetShare);
+
+  const isInventoryAdverse =
+    hasInventoryEvidence &&
+    ((fill.side === "sell" && snapshot.baseShare > snapshot.targetShare) ||
+      (fill.side === "buy" && snapshot.baseShare < snapshot.targetShare));
+
+  const hasBothMarkouts =
+    bps5 !== undefined && bps300 !== undefined && Number.isFinite(bps5) && Number.isFinite(bps300);
+
+  const is5sBenign = hasBothMarkouts && bps5 >= -inventoryMax5sLossBps;
+  const is300sLosing =
+    hasBothMarkouts && bps300 < -inventoryMin300sLossBps && (loss300Usd ?? 0) > (loss5Usd ?? 0);
+
+  if (isInventoryAdverse && is5sBenign && is300sLosing) {
+    return {
+      bps5,
+      bps300,
+      loss5Usd,
+      loss300Usd,
+      baseShare: snapshot.baseShare,
+      targetShare: snapshot.targetShare,
+    };
+  }
+  return undefined;
+}
+
+function allocateLossBetweenCauses(
+  fillId: string,
+  fillLossUsd: number,
+  matchedCauses: LossCause[],
+  overlapStrategy: "proportional" | "priority",
+  causePriority: readonly LossCause[],
+  causes: Record<LossCause, CauseAttribution>,
+  unclassified: CauseAttribution,
+): { attributedUsd: Record<LossCause, number>; unclassifiedFillUsd: number } {
+  const attributedUsd: Record<LossCause, number> = {
+    stale_reference: 0,
+    inventory_imbalance: 0,
+    selective_execution: 0,
+    adverse_size: 0,
+  };
+  let unclassifiedFillUsd = 0;
+
+  if (matchedCauses.length === 0) {
+    unclassifiedFillUsd = fillLossUsd;
+    unclassified.usd += fillLossUsd;
+    unclassified.fillCount += 1;
+    if (unclassified.exampleFillIds.length < 10) {
+      unclassified.exampleFillIds.push(fillId);
+    }
+  } else if (overlapStrategy === "proportional") {
+    const sharePerCause = fillLossUsd / matchedCauses.length;
+    for (const cause of matchedCauses) {
+      attributedUsd[cause] = sharePerCause;
+      causes[cause].usd += sharePerCause;
+      causes[cause].fillCount += 1;
+      if (
+        !causes[cause].exampleFillIds.includes(fillId) &&
+        causes[cause].exampleFillIds.length < 10
+      ) {
+        causes[cause].exampleFillIds.push(fillId);
+      }
+    }
+  } else {
+    const primaryCause: LossCause =
+      causePriority.find((c) => matchedCauses.includes(c)) ?? matchedCauses[0] ?? "stale_reference";
+    attributedUsd[primaryCause] = fillLossUsd;
+    causes[primaryCause].usd += fillLossUsd;
+    causes[primaryCause].fillCount += 1;
+    if (
+      !causes[primaryCause].exampleFillIds.includes(fillId) &&
+      causes[primaryCause].exampleFillIds.length < 10
+    ) {
+      causes[primaryCause].exampleFillIds.push(fillId);
+    }
+  }
+
+  return { attributedUsd, unclassifiedFillUsd };
+}
+
 /**
  * Pure, deterministic loss attribution function.
  * Evaluates losing fills against the four frozen S6 evidence criteria without double-counting.
@@ -256,100 +541,14 @@ export function attributeLosses(input: LossAttributionInput): LossAttributionRes
   let analyzedLossUsd = 0;
 
   for (const fill of fills) {
-    // Window check
-    if (fill.ts < window.fromTs || fill.ts > window.toTs) {
+    const eligibility = evaluateFillEligibility(fill, window, tokens, minLossUsd);
+    if (eligibility.status === "skip") continue;
+    if (eligibility.status === "excluded") {
+      excludedFills.push({ fillId: fill.id, reason: eligibility.reason });
       continue;
     }
 
-    if (!Number.isFinite(fill.ts) || !Number.isFinite(fill.price) || fill.price <= 0) {
-      excludedFills.push({
-        fillId: fill.id,
-        reason: "Non-finite or non-positive fill price/timestamp",
-      });
-      continue;
-    }
-
-    // Valuation check - NEVER fall back to 6 decimals silently
-    const pairConfig = PAIR_TOKENS[fill.pair];
-    if (!pairConfig) {
-      excludedFills.push({
-        fillId: fill.id,
-        reason: `Unsupported pair '${fill.pair}'`,
-      });
-      continue;
-    }
-
-    const quoteToken = tokens?.[pairConfig.quote];
-    const baseToken = tokens?.[pairConfig.base];
-    if (
-      !quoteToken ||
-      !baseToken ||
-      typeof quoteToken.decimals !== "number" ||
-      typeof baseToken.decimals !== "number"
-    ) {
-      excludedFills.push({
-        fillId: fill.id,
-        reason: `Missing runtime token metadata for pair '${fill.pair}' valuation`,
-      });
-      continue;
-    }
-
-    const quoteDecimals = quoteToken.decimals;
-
-    let notionalUsd: number;
-    try {
-      const rawIn = BigInt(fill.amountIn);
-      const rawOut = BigInt(fill.amountOut);
-      if (rawIn <= 0n || rawOut <= 0n || rawIn > UINT256_MAX || rawOut > UINT256_MAX) {
-        throw new Error("Out of uint256 range");
-      }
-      if (fill.side === "buy") {
-        notionalUsd = units(rawIn, quoteDecimals);
-      } else {
-        notionalUsd = units(rawOut, quoteDecimals);
-      }
-    } catch {
-      excludedFills.push({
-        fillId: fill.id,
-        reason: "Invalid raw token amounts",
-      });
-      continue;
-    }
-
-    if (!Number.isFinite(notionalUsd) || notionalUsd <= 0) {
-      excludedFills.push({
-        fillId: fill.id,
-        reason: "Non-positive or non-finite notional USD",
-      });
-      continue;
-    }
-
-    // Determine markouts
-    const markouts = fill.markouts ?? {};
-    const bps5 = markouts["5"] ?? (markouts[5 as unknown as string] as number | undefined);
-    const bps300 = markouts["300"] ?? (markouts[300 as unknown as string] as number | undefined);
-
-    if (bps5 === undefined && bps300 === undefined) {
-      excludedFills.push({
-        fillId: fill.id,
-        reason: "Missing markout observations (both 5s and 300s missing)",
-      });
-      continue;
-    }
-
-    // Compute maker loss on each available horizon
-    // Negative markout bps = maker loss (bps < 0 => -bps > 0)
-    const loss5Usd = bps5 !== undefined ? Math.max(0, (-bps5 / 10000) * notionalUsd) : undefined;
-    const loss300Usd =
-      bps300 !== undefined ? Math.max(0, (-bps300 / 10000) * notionalUsd) : undefined;
-
-    // Effective loss for attribution
-    const fillLossUsd = Math.max(loss5Usd ?? 0, loss300Usd ?? 0);
-
-    // If fill was profitable or loss is below threshold, skip attribution
-    if (fillLossUsd < minLossUsd) {
-      continue;
-    }
+    const { notionalUsd, fillLossUsd, loss5Usd, loss300Usd, bps5, bps300 } = eligibility.data;
 
     totalLossUsd += fillLossUsd;
     analyzedLossUsd += fillLossUsd;
@@ -358,86 +557,33 @@ export function attributeLosses(input: LossAttributionInput): LossAttributionRes
     const evidence: FillLossAttributionDetail["evidence"] = {};
 
     // 1. Evidence: stale_reference
-    // Select lead samples strictly AT OR BEFORE fill time within freshness limits. Future samples cannot establish stale reference!
     const configuredLeads = input.leadVenues?.[fill.pair] ?? DEFAULT_LEAD_VENUES[fill.pair] ?? [];
     const pairLeads = leadPricesByPair.get(fill.pair) ?? [];
-    const candidateLead = pairLeads
-      .filter(
-        (p) =>
-          configuredLeads.includes(p.venue) &&
-          p.ts <= fill.ts && // MUST BE AT OR BEFORE FILL TIME!
-          fill.ts - p.ts <= staleMs && // Within freshness limit
-          Number.isFinite(p.mid) &&
-          p.mid > 0 &&
-          (p.status === undefined || p.status === "ok"),
-      )
-      .sort((a, b) => fill.ts - a.ts - (fill.ts - b.ts))[0]; // Most recent past observation
-
-    const fusedMidAtFill = fill.midAtFill;
-    if (candidateLead && fusedMidAtFill && fusedMidAtFill > 0) {
-      // Adverse movement:
-      // For buy: taker bought base. Adverse to maker if lead price was higher than fused mid.
-      // For sell: taker sold base. Adverse to maker if lead price was lower than fused mid.
-      const divergenceBps =
-        fill.side === "buy"
-          ? ((candidateLead.mid - fusedMidAtFill) / fusedMidAtFill) * 10000
-          : ((fusedMidAtFill - candidateLead.mid) / fusedMidAtFill) * 10000;
-
-      if (divergenceBps >= staleReferenceBps) {
-        matchedCauses.push("stale_reference");
-        evidence.staleReference = {
-          divergenceBps,
-          leadVenue: candidateLead.venue,
-          leadMid: candidateLead.mid,
-          fusedMid: fusedMidAtFill,
-        };
-      }
+    const staleRef = checkStaleReferenceCause(
+      fill,
+      pairLeads,
+      configuredLeads,
+      staleMs,
+      staleReferenceBps,
+    );
+    if (staleRef) {
+      matchedCauses.push("stale_reference");
+      evidence.staleReference = staleRef;
     }
 
     // 2. Evidence: selective_execution
-    // Check if fill came late in quote's life right after a favourable move
-    const matchedQuote = quotesMap.get(fill.quoteId);
-    if (matchedQuote) {
-      const issuedAtMs = normalizeTimestampMs(matchedQuote.issuedAt);
-      const rawExpiry =
-        typeof matchedQuote.expiry === "string" ? Number(matchedQuote.expiry) : matchedQuote.expiry;
-      // Inclusive expiry-second semantics: if expiry is in seconds (< 1e11), valid through the end of the second
-      const expiryMs = rawExpiry < 1e11 ? rawExpiry * 1000 + 999 : rawExpiry;
-      const ttlMs = expiryMs - issuedAtMs;
-
-      // Fill must arrive during quote validity
-      if (ttlMs > 0 && fill.ts >= issuedAtMs && fill.ts <= expiryMs) {
-        const lateness = (fill.ts - issuedAtMs) / ttlMs;
-        if (lateness >= selectiveLatenessRatio) {
-          // MUST use genuine quote-time market evidence: ref or midAtQuote. NEVER fall back to fill.price!
-          const refPrice = matchedQuote.ref ?? matchedQuote.midAtQuote;
-          if (
-            fusedMidAtFill &&
-            refPrice !== undefined &&
-            Number.isFinite(refPrice) &&
-            refPrice > 0
-          ) {
-            const favorableMoveBps =
-              fill.side === "buy"
-                ? ((fusedMidAtFill - refPrice) / refPrice) * 10000
-                : ((refPrice - fusedMidAtFill) / refPrice) * 10000;
-
-            if (favorableMoveBps >= selectiveFavorableMoveBps) {
-              matchedCauses.push("selective_execution");
-              evidence.selectiveExecution = {
-                lateness,
-                quoteIssuedAt: String(matchedQuote.issuedAt),
-                quoteExpiry: String(matchedQuote.expiry),
-                favorableMoveBps,
-              };
-            }
-          }
-        }
-      }
+    const selectiveExec = checkSelectiveExecutionCause(
+      fill,
+      quotesMap.get(fill.quoteId),
+      selectiveLatenessRatio,
+      selectiveFavorableMoveBps,
+    );
+    if (selectiveExec) {
+      matchedCauses.push("selective_execution");
+      evidence.selectiveExecution = selectiveExec;
     }
 
     // 3. Evidence: adverse_size
-    // Check if fill notional exceeds the large-size threshold
     if (notionalUsd >= adverseSizeUsd) {
       matchedCauses.push("adverse_size");
       evidence.adverseSize = {
@@ -447,90 +593,31 @@ export function attributeLosses(input: LossAttributionInput): LossAttributionRes
     }
 
     // 4. Evidence: inventory_imbalance
-    // "the loss comes from residual inventory, not the 5 s markout."
-    const snapshot = inventorySnapshots[fill.id];
-    // Must require actual inventory evidence
-    const hasInventoryEvidence =
-      snapshot !== undefined &&
-      Number.isFinite(snapshot.baseShare) &&
-      Number.isFinite(snapshot.targetShare);
-
-    const isInventoryAdverse =
-      hasInventoryEvidence &&
-      ((fill.side === "sell" && snapshot.baseShare > snapshot.targetShare) ||
-        (fill.side === "buy" && snapshot.baseShare < snapshot.targetShare));
-
-    // Must require both relevant markouts
-    const hasBothMarkouts =
-      bps5 !== undefined &&
-      bps300 !== undefined &&
-      Number.isFinite(bps5) &&
-      Number.isFinite(bps300);
-
-    // 5s markout must be truly benign (bps5 >= -inventoryMax5sLossBps).
-    // A large immediate loss cannot become benign merely because later loss is larger!
-    const is5sBenign = hasBothMarkouts && bps5 >= -inventoryMax5sLossBps;
-
-    const is300sLosing =
-      hasBothMarkouts && bps300 < -inventoryMin300sLossBps && (loss300Usd ?? 0) > (loss5Usd ?? 0);
-
-    if (isInventoryAdverse && is5sBenign && is300sLosing) {
+    const inventoryImb = checkInventoryImbalanceCause(
+      fill,
+      inventorySnapshots[fill.id],
+      bps5,
+      bps300,
+      loss5Usd,
+      loss300Usd,
+      inventoryMax5sLossBps,
+      inventoryMin300sLossBps,
+    );
+    if (inventoryImb) {
       matchedCauses.push("inventory_imbalance");
-      evidence.inventoryImbalance = {
-        bps5,
-        bps300,
-        loss5Usd,
-        loss300Usd,
-        baseShare: snapshot.baseShare,
-        targetShare: snapshot.targetShare,
-      };
+      evidence.inventoryImbalance = inventoryImb;
     }
 
     // Allocate fill loss among causes without double-counting
-    const attributedUsd: Record<LossCause, number> = {
-      stale_reference: 0,
-      inventory_imbalance: 0,
-      selective_execution: 0,
-      adverse_size: 0,
-    };
-    let unclassifiedFillUsd = 0;
-
-    if (matchedCauses.length === 0) {
-      unclassifiedFillUsd = fillLossUsd;
-      unclassified.usd += fillLossUsd;
-      unclassified.fillCount += 1;
-      if (unclassified.exampleFillIds.length < 10) {
-        unclassified.exampleFillIds.push(fill.id);
-      }
-    } else if (overlapStrategy === "proportional") {
-      const sharePerCause = fillLossUsd / matchedCauses.length;
-      for (const cause of matchedCauses) {
-        attributedUsd[cause] = sharePerCause;
-        causes[cause].usd += sharePerCause;
-        causes[cause].fillCount += 1;
-        if (
-          !causes[cause].exampleFillIds.includes(fill.id) &&
-          causes[cause].exampleFillIds.length < 10
-        ) {
-          causes[cause].exampleFillIds.push(fill.id);
-        }
-      }
-    } else {
-      // Priority strategy: attribute 100% to the highest-priority matching cause
-      const primaryCause: LossCause =
-        causePriority.find((c) => matchedCauses.includes(c)) ??
-        matchedCauses[0] ??
-        "stale_reference";
-      attributedUsd[primaryCause] = fillLossUsd;
-      causes[primaryCause].usd += fillLossUsd;
-      causes[primaryCause].fillCount += 1;
-      if (
-        !causes[primaryCause].exampleFillIds.includes(fill.id) &&
-        causes[primaryCause].exampleFillIds.length < 10
-      ) {
-        causes[primaryCause].exampleFillIds.push(fill.id);
-      }
-    }
+    const { attributedUsd, unclassifiedFillUsd } = allocateLossBetweenCauses(
+      fill.id,
+      fillLossUsd,
+      matchedCauses,
+      overlapStrategy,
+      causePriority,
+      causes,
+      unclassified,
+    );
 
     breakdown.push({
       fillId: fill.id,

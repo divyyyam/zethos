@@ -361,6 +361,178 @@ function buildInitialPrompt(
   ].join("\n");
 }
 
+async function requestGeminiCompletion(
+  fetcher: typeof fetch,
+  model: string,
+  apiKey: string,
+  contents: GeminiContent[],
+  timeoutMs: number,
+): Promise<string> {
+  const signal = AbortSignal.timeout(timeoutMs);
+
+  try {
+    const response = await fetcher(
+      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-goog-api-key": apiKey,
+        },
+        signal,
+        body: JSON.stringify({
+          contents,
+          systemInstruction: {
+            parts: [
+              {
+                text: "You are an expert quantitative researcher for Zethos. Return only valid JSON representing a PolicyBody.",
+              },
+            ],
+          },
+          generationConfig: {
+            temperature: 0.2,
+            responseMimeType: "application/json",
+          },
+        }),
+      },
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => "");
+      const sanitizedMsg = redactSecrets(
+        `Gemini request failed: HTTP ${response.status} ${response.statusText} ${errorText}`.trim(),
+        [apiKey],
+      );
+      throw new ProposerProviderError(sanitizedMsg, response.status);
+    }
+
+    const responseJson = (await response.json()) as {
+      candidates?: { content?: { parts?: { text?: string }[] } }[];
+    };
+    const candidateContent = responseJson.candidates?.[0]?.content;
+    const responseText = candidateContent?.parts?.map((p) => p.text ?? "").join("\n") ?? "";
+
+    if (!responseText.trim()) {
+      throw new ProposerProviderError("Gemini returned empty candidate content");
+    }
+
+    return responseText;
+  } catch (err: unknown) {
+    if (signal.aborted) {
+      throw new ProposerTimeoutError(`Gemini request timed out after ${timeoutMs}ms`);
+    }
+    if (err instanceof ProposerError) {
+      throw err;
+    }
+    const rawMsg = err instanceof Error ? err.message : String(err);
+    throw new ProposerProviderError(
+      redactSecrets(`Gemini network call failed: ${rawMsg}`, [apiKey]),
+    );
+  }
+}
+
+function parseAndValidateCandidateSpec(
+  responseText: string,
+  incumbent: PolicySpec,
+  date: string,
+  mandate: Mandate,
+  params: Params,
+): { spec: PolicySpec | null; issues: string[] } {
+  const issues: string[] = [];
+  let parsedJson: unknown;
+
+  try {
+    const jsonStr = extractJsonText(responseText);
+    parsedJson = JSON.parse(jsonStr);
+  } catch (jsonErr: unknown) {
+    issues.push(
+      `JSON parse error: ${jsonErr instanceof Error ? jsonErr.message : String(jsonErr)}`,
+    );
+    return { spec: null, issues };
+  }
+
+  if (!parsedJson || typeof parsedJson !== "object") {
+    issues.push("Response JSON must be an object");
+    return { spec: null, issues };
+  }
+
+  // Allow unnesting if the model wrapped the body in candidate, policy, or body
+  const raw = parsedJson as Record<string, unknown>;
+  const candidateBody =
+    raw.candidate && typeof raw.candidate === "object"
+      ? raw.candidate
+      : raw.policy && typeof raw.policy === "object"
+        ? raw.policy
+        : raw.body && typeof raw.body === "object"
+          ? raw.body
+          : raw;
+
+  // Never trust an LLM-provided ID or specHash; strip if present
+  delete (candidateBody as Record<string, unknown>).id;
+  delete (candidateBody as Record<string, unknown>).specHash;
+
+  // Validate against policyBodySchema
+  const bodyParsed = policyBodySchema.safeParse(candidateBody);
+  if (!bodyParsed.success) {
+    for (const issue of bodyParsed.error.issues) {
+      issues.push(`${issue.path.join(".")}: ${issue.message}`);
+    }
+    return { spec: null, issues };
+  }
+
+  const body: PolicyBody = bodyParsed.data;
+
+  // Verify parent matches incumbent
+  if (body.parent !== incumbent.id) {
+    issues.push(`Parent mismatch: expected '${incumbent.id}', got '${body.parent}'`);
+  }
+
+  // Verify declared pairs are within mandate
+  for (const pair of body.pairs) {
+    if (!mandate.pairs.includes(pair)) {
+      issues.push(`Policy pair '${pair}' is outside desk mandate [${mandate.pairs.join(", ")}]`);
+    }
+  }
+
+  // Construct canonical PolicySpec locally
+  let spec: PolicySpec | null = null;
+  try {
+    spec = createPolicySpec(body, date);
+  } catch (specErr: unknown) {
+    issues.push(
+      `Canonical spec creation error: ${specErr instanceof Error ? specErr.message : String(specErr)}`,
+    );
+  }
+
+  // Verify policy compiles against current mandate and params
+  if (spec) {
+    try {
+      compile(spec, { mandate, params });
+    } catch (compileErr: unknown) {
+      issues.push(
+        `Policy compilation error: ${compileErr instanceof Error ? compileErr.message : String(compileErr)}`,
+      );
+    }
+  }
+
+  return { spec: issues.length === 0 ? spec : null, issues };
+}
+
+function buildCorrectionPrompt(issues: string[], incumbent: PolicySpec): string {
+  return [
+    `The proposed policy failed validation with the following errors:`,
+    ...issues.map((err) => `- ${err}`),
+    ``,
+    `Please correct these errors and return a corrected valid JSON PolicyBody.`,
+    `Remember:`,
+    `- "parent" must be exactly "${incumbent.id}".`,
+    `- "pairs" must be ${JSON.stringify(incumbent.pairs)}.`,
+    `- "clamp.minBps" must not exceed "clamp.maxBps".`,
+    `- If "tuner" is in "terms", it MUST be the final term.`,
+    `- Return ONLY the valid JSON object.`,
+  ].join("\n");
+}
+
 /**
  * Proposes a candidate PolicySpec using Gemini, validating output strictly against schemas,
  * bounds, mandate limits, and compilation. Bounded to at most maxRetries correction attempts.
@@ -435,66 +607,7 @@ export async function proposePolicy(options: ProposeOptions): Promise<ProposeRes
       payload: redactSecrets(contents, [apiKey]),
     });
 
-    const signal = AbortSignal.timeout(timeoutMs);
-    let responseText = "";
-
-    try {
-      const response = await fetcher(
-        `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-goog-api-key": apiKey,
-          },
-          signal,
-          body: JSON.stringify({
-            contents,
-            systemInstruction: {
-              parts: [
-                {
-                  text: "You are an expert quantitative researcher for Zethos. Return only valid JSON representing a PolicyBody.",
-                },
-              ],
-            },
-            generationConfig: {
-              temperature: 0.2,
-              responseMimeType: "application/json",
-            },
-          }),
-        },
-      );
-
-      if (!response.ok) {
-        const errorText = await response.text().catch(() => "");
-        const sanitizedMsg = redactSecrets(
-          `Gemini request failed: HTTP ${response.status} ${response.statusText} ${errorText}`.trim(),
-          [apiKey],
-        );
-        throw new ProposerProviderError(sanitizedMsg, response.status);
-      }
-
-      const responseJson = (await response.json()) as {
-        candidates?: { content?: { parts?: { text?: string }[] } }[];
-      };
-      const candidateContent = responseJson.candidates?.[0]?.content;
-      responseText = candidateContent?.parts?.map((p) => p.text ?? "").join("\n") ?? "";
-
-      if (!responseText.trim()) {
-        throw new ProposerProviderError("Gemini returned empty candidate content");
-      }
-    } catch (err: unknown) {
-      if (signal.aborted) {
-        throw new ProposerTimeoutError(`Gemini request timed out after ${timeoutMs}ms`);
-      }
-      if (err instanceof ProposerError) {
-        throw err;
-      }
-      const rawMsg = err instanceof Error ? err.message : String(err);
-      throw new ProposerProviderError(
-        redactSecrets(`Gemini network call failed: ${rawMsg}`, [apiKey]),
-      );
-    }
+    const responseText = await requestGeminiCompletion(fetcher, model, apiKey, contents, timeoutMs);
 
     // Record raw response audit
     await auditWriter({
@@ -505,114 +618,48 @@ export async function proposePolicy(options: ProposeOptions): Promise<ProposeRes
     });
 
     // Parse and validate the response
-    const issues: string[] = [];
-    let parsedJson: unknown;
+    const { spec, issues } = parseAndValidateCandidateSpec(
+      responseText,
+      incumbent,
+      date,
+      mandate,
+      params,
+    );
 
-    try {
-      const jsonStr = extractJsonText(responseText);
-      parsedJson = JSON.parse(jsonStr);
-    } catch (jsonErr: unknown) {
-      issues.push(
-        `JSON parse error: ${jsonErr instanceof Error ? jsonErr.message : String(jsonErr)}`,
-      );
-    }
+    if (issues.length === 0 && spec) {
+      // Success!
+      const specHash = hashPolicySpec(spec);
+      await auditWriter({
+        type: "candidate",
+        attempt,
+        timestamp: clock(),
+        payload: spec,
+      });
 
-    if (issues.length === 0 && parsedJson && typeof parsedJson === "object") {
-      // Allow unnesting if the model wrapped the body in candidate, policy, or body
-      const raw = parsedJson as Record<string, unknown>;
-      const candidateBody =
-        raw.candidate && typeof raw.candidate === "object"
-          ? raw.candidate
-          : raw.policy && typeof raw.policy === "object"
-            ? raw.policy
-            : raw.body && typeof raw.body === "object"
-              ? raw.body
-              : raw;
+      await auditWriter({
+        type: "summary",
+        attempt,
+        timestamp: clock(),
+        payload: {
+          runId,
+          date,
+          model,
+          success: true,
+          attempts: attempt + 1,
+          candidateId: spec.id,
+          specHash,
+          hypothesis: spec.hypothesis,
+          durationMs: clock() - startTime,
+        },
+      });
 
-      // Never trust an LLM-provided ID or specHash; strip if present
-      delete (candidateBody as Record<string, unknown>).id;
-      delete (candidateBody as Record<string, unknown>).specHash;
-
-      // Validate against policyBodySchema
-      const bodyParsed = policyBodySchema.safeParse(candidateBody);
-      if (!bodyParsed.success) {
-        for (const issue of bodyParsed.error.issues) {
-          issues.push(`${issue.path.join(".")}: ${issue.message}`);
-        }
-      } else {
-        const body: PolicyBody = bodyParsed.data;
-
-        // Verify parent matches incumbent
-        if (body.parent !== incumbent.id) {
-          issues.push(`Parent mismatch: expected '${incumbent.id}', got '${body.parent}'`);
-        }
-
-        // Verify declared pairs are within mandate
-        for (const pair of body.pairs) {
-          if (!mandate.pairs.includes(pair)) {
-            issues.push(
-              `Policy pair '${pair}' is outside desk mandate [${mandate.pairs.join(", ")}]`,
-            );
-          }
-        }
-
-        // Construct canonical PolicySpec locally
-        let spec: PolicySpec | null = null;
-        try {
-          spec = createPolicySpec(body, date);
-        } catch (specErr: unknown) {
-          issues.push(
-            `Canonical spec creation error: ${specErr instanceof Error ? specErr.message : String(specErr)}`,
-          );
-        }
-
-        // Verify policy compiles against current mandate and params
-        if (spec) {
-          try {
-            compile(spec, { mandate, params });
-          } catch (compileErr: unknown) {
-            issues.push(
-              `Policy compilation error: ${compileErr instanceof Error ? compileErr.message : String(compileErr)}`,
-            );
-          }
-        }
-
-        if (issues.length === 0 && spec) {
-          // Success!
-          const specHash = hashPolicySpec(spec);
-          await auditWriter({
-            type: "candidate",
-            attempt,
-            timestamp: clock(),
-            payload: spec,
-          });
-
-          await auditWriter({
-            type: "summary",
-            attempt,
-            timestamp: clock(),
-            payload: {
-              runId,
-              date,
-              model,
-              success: true,
-              attempts: attempt + 1,
-              candidateId: spec.id,
-              specHash,
-              hypothesis: spec.hypothesis,
-              durationMs: clock() - startTime,
-            },
-          });
-
-          return {
-            candidate: spec,
-            hypothesis: spec.hypothesis,
-            specHash,
-            runId,
-            attempts: attempt + 1,
-          };
-        }
-      }
+      return {
+        candidate: spec,
+        hypothesis: spec.hypothesis,
+        specHash,
+        runId,
+        attempts: attempt + 1,
+      };
     }
 
     lastIssues = issues;
@@ -636,22 +683,7 @@ export async function proposePolicy(options: ProposeOptions): Promise<ProposeRes
       });
       contents.push({
         role: "user",
-        parts: [
-          {
-            text: [
-              `The proposed policy failed validation with the following errors:`,
-              ...issues.map((err) => `- ${err}`),
-              ``,
-              `Please correct these errors and return a corrected valid JSON PolicyBody.`,
-              `Remember:`,
-              `- "parent" must be exactly "${incumbent.id}".`,
-              `- "pairs" must be ${JSON.stringify(incumbent.pairs)}.`,
-              `- "clamp.minBps" must not exceed "clamp.maxBps".`,
-              `- If "tuner" is in "terms", it MUST be the final term.`,
-              `- Return ONLY the valid JSON object.`,
-            ].join("\n"),
-          },
-        ],
+        parts: [{ text: buildCorrectionPrompt(issues, incumbent) }],
       });
     }
   }
