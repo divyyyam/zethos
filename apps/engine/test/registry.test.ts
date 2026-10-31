@@ -751,4 +751,73 @@ describe("R8A: Policy Registry", () => {
       expect(quoteAfter.breakdown.base).toBe(quoteBefore.breakdown.base);
     });
   });
+
+  describe("R9 canary lifecycle", () => {
+    test("requires admin auth, starts only qualified candidates, and retires cleanly", async () => {
+      const { app } = await createTestApp();
+      const spec = makeCandidate({ bpsHsk: 19 });
+      const report = makeReport(spec, { qualified: true });
+      const auth = { Authorization: `Bearer ${ADMIN_TOKEN}`, "Content-Type": "application/json" };
+      const registered = await app.request("/policies", {
+        method: "POST",
+        headers: auth,
+        body: JSON.stringify({ spec, report }),
+      });
+      expect(registered.status).toBe(200);
+
+      const unauth = await app.request(`/policies/${spec.id}/canary`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ allocationPct: 10 }),
+      });
+      expect(unauth.status).toBe(401);
+
+      const started = await app.request(`/policies/${spec.id}/canary`, {
+        method: "POST",
+        headers: auth,
+        body: JSON.stringify({ allocationPct: 10 }),
+      });
+      expect(started.status).toBe(200);
+      expect((await jsonDetail(started)).status).toBe("canary");
+
+      const promote = await app.request(`/policies/${spec.id}/promote`, {
+        method: "POST",
+        headers: auth,
+      });
+      expect(promote.status).toBe(409);
+      expect((await json(promote)).message).toContain("minFillsBeforePromote");
+
+      const retired = await app.request(`/policies/${spec.id}/retire`, {
+        method: "POST",
+        headers: auth,
+      });
+      expect(retired.status).toBe(200);
+      expect((await jsonDetail(retired)).status).toBe("retired");
+    });
+
+    test("routes from the nonce bucket and records both policy decisions", async () => {
+      const { engine, now } = await readyEngine();
+      const spec = makeCandidate({ bpsHsk: 18 });
+      await engine.registerPolicy({ spec, report: makeReport(spec, { qualified: true }) }, now);
+      await engine.startCanary(spec.id, 10, now + 1);
+      const { response } = await engine.quote(
+        {
+          taker: TAKER,
+          tokenIn: tokens.USDT.address,
+          tokenOut: tokens.WHSK.address,
+          amountIn: usdt(100),
+        },
+        "web",
+        now + 2,
+      );
+      const entry = engine.decisions(10, "policy_decision")[0];
+      expect(entry).toBeDefined();
+      const assigned = Number(entry?.inputs.canaryAssigned) === 1;
+      const bucket = Number(entry?.inputs.bucket);
+      expect(assigned).toBe(bucket < 10);
+      expect(response.policyId).toBe(assigned ? spec.id : "v0");
+      expect(entry?.inputs.incumbentDecision).toBeDefined();
+      expect(entry?.inputs.canaryDecision).toBeDefined();
+    });
+  });
 });

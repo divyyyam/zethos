@@ -1,6 +1,7 @@
 import type { Address } from "viem";
 import { initialState } from "../agent/types";
 import type { Fill, QuoteRecord } from "../db";
+import { compile } from "../research/compile";
 import { setArena } from "./arena";
 import { EngineError } from "./errors";
 import { nonceKey } from "./helpers";
@@ -12,6 +13,26 @@ import type { PriceBreakdown } from "./types";
 
 // Restore durable records and checkpoint the shared analytics state.
 export async function init(context: EngineState): Promise<void> {
+  const registeredPolicies = await context.deps.store.listPolicies();
+  const incumbents = registeredPolicies.filter((policy) => policy.status === "incumbent");
+  const canaries = registeredPolicies.filter((policy) => policy.status === "canary");
+  if (incumbents.length > 1 || canaries.length > 1)
+    throw new Error("Policy registry has multiple active incumbents or canaries");
+  const incumbent = incumbents[0];
+  if (incumbent) {
+    context.activePolicy = {
+      record: incumbent,
+      policy: compile(incumbent.spec, { params: context.deps.params, mandate: context.mandate }),
+    };
+  }
+  const canary = canaries[0];
+  if (canary) {
+    context.canary = {
+      record: canary,
+      policy: compile(canary.spec, { params: context.deps.params, mandate: context.mandate }),
+    };
+  }
+
   const arena = await context.deps.store.loadArena();
   if (!arena) return;
   setArena(context, arena.epoch, arena.startedAt, arena.inventory);

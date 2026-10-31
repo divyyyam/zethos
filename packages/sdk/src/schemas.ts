@@ -214,10 +214,7 @@ export const arena = z.object({
   unpricedFills: num.optional(),
   pnl: z.object({ total: num, spread: num, inventory: num, arb: num, gas: num }),
   byFlow,
-  byPolicy: z.record(
-    z.string(),
-    z.object({ fills: num, volumeUsd: num, pnlUsd: num }),
-  ),
+  byPolicy: z.record(z.string(), z.object({ fills: num, volumeUsd: num, pnlUsd: num })),
   series: z.array(z.object({ t: num, equity: num, byFlow })),
   fills: num,
   volumeUsd: num,
@@ -274,6 +271,16 @@ export const streamFrame = z.discriminatedUnion("type", [
   z.object({ type: z.literal("takerTier"), address, tier, score: num }),
   z.object({ type: z.literal("params"), ts: num, changed: z.array(z.string()) }),
   z.object({ type: z.literal("policies"), policies: z.array(policySummary) }),
+  z.object({
+    type: z.literal("policy_stats"),
+    policyId: z.string(),
+    observedFills: num,
+    observedPnlUsd: num,
+    counterfactualFills: num,
+    counterfactualPnlUsd: num,
+    drawdownPct: num,
+    fillRateDrop: num,
+  }),
   z.object({ type: z.literal("diagnosis"), diagnosis }),
 ]);
 

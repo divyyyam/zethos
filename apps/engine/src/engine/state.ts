@@ -3,7 +3,7 @@ import { type AgentState, initialState } from "../agent/types";
 import type { Pair } from "../config";
 import type { Fill } from "../db";
 import { Volatility } from "../feeds/vol";
-import { createV0, type Policy } from "../policy";
+import { createV0, type Policy, type PolicyRecord } from "../policy";
 import { defaultMandate, loadMandate, type Mandate } from "../policy/mandate";
 import type { SignedQuote } from "../quotes";
 import type { Inventory } from "../tokens";
@@ -18,6 +18,8 @@ export class EngineState {
   readonly requests = new Map<string, number[]>();
   arena: { epoch: number; startedAt: number } | null = null;
   inventory: Inventory | null = null;
+  activePolicy: { record: PolicyRecord; policy: Policy } | null = null;
+  canary: { record: PolicyRecord; policy: Policy } | null = null;
   paused = false;
   operatingLossStopped = false;
   state: AgentState = initialState(0, 0);
@@ -48,7 +50,10 @@ export class EngineState {
   }
   get policy(): Policy {
     // Parameter reloads must take effect for v0 without retaining stale configuration.
-    return this.deps.policy ?? createV0(this.deps.params);
+    return this.activePolicy?.policy ?? this.deps.policy ?? createV0(this.deps.params);
+  }
+  get policyId(): string {
+    return this.activePolicy?.record.id ?? this.deps.policy?.id ?? "v0";
   }
   // Durable Object requests interleave at awaits. Keep the original queue and rejection recovery.
   exclusive<T>(action: () => Promise<T>): Promise<T> {

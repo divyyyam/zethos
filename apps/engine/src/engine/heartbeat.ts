@@ -6,6 +6,7 @@ import { EngineError } from "./errors";
 import { checkOperatingLoss } from "./mandate";
 import { equityUsdFor, getMarket, pairTokens, prune, refresh } from "./market";
 import { checkpoint, withMarkouts } from "./persistence";
+import { canaryStats, enforceCanaryGuards } from "./policy-registry";
 import { checkRisk } from "./risk";
 import { fillQuote } from "./settlement";
 import type { EngineState } from "./state";
@@ -72,6 +73,20 @@ export function tick(context: EngineState, now: number, gasPrice?: bigint): Prom
     if (now - context.lastTick >= context.deps.params.agent.tickMs) {
       checkRisk(context, now);
       await checkOperatingLoss(context, now);
+      await enforceCanaryGuards(context, now);
+      if (context.canary) {
+        const stats = await canaryStats(context, context.canary.record.id);
+        context.deps.emit?.({
+          type: "policy_stats",
+          policyId: context.canary.record.id,
+          observedFills: stats.observedFills,
+          observedPnlUsd: stats.observedPnlUsd,
+          counterfactualFills: stats.counterfactualFills,
+          counterfactualPnlUsd: stats.counterfactualPnlUsd,
+          drawdownPct: stats.drawdownPct ?? 0,
+          fillRateDrop: stats.fillRateDrop ?? 0,
+        });
+      }
       rescore(context, now);
       tune(context, now);
       context.lastTick = now;

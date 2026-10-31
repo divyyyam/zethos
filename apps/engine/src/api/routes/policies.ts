@@ -1,4 +1,5 @@
-import type { Hono } from "hono";
+import type { Context, Hono } from "hono";
+import { z } from "zod";
 import { EngineError } from "../../engine/errors";
 import {
   registrationPayloadSchema,
@@ -10,17 +11,50 @@ import { body, validated } from "../http";
 import type { RouteOptions } from "../types";
 
 export function registerPolicyRoutes(app: Hono, { engine, clock, adminToken }: RouteOptions) {
-  app.post("/policies", async (c) => {
+  const authorize = async (c: Context) => {
     const expected = typeof adminToken === "function" ? await adminToken() : (adminToken ?? null);
-    const authHeader = c.req.header("Authorization");
-    const authorized = await verifyAdminAuth(authHeader, expected);
-    if (!authorized) {
+    if (!(await verifyAdminAuth(c.req.header("Authorization"), expected)))
       throw new EngineError("unauthorized", 401, "Missing or invalid admin authorization");
-    }
+  };
+
+  app.post("/policies", async (c) => {
+    await authorize(c);
 
     const payload = validated(registrationPayloadSchema, await body(c.req.raw));
     const record = await (await engine()).registerPolicy(payload, clock());
     return c.json(toPolicyDetail(record), 200);
+  });
+
+  app.post("/policies/:id/canary", async (c) => {
+    await authorize(c);
+    const payload = validated(
+      z.strictObject({ allocationPct: z.number().int().min(1).max(100) }),
+      await body(c.req.raw),
+    );
+    const engineInstance = await engine();
+    const record = await engineInstance.startCanary(
+      c.req.param("id"),
+      payload.allocationPct,
+      clock(),
+    );
+    return c.json({
+      ...toPolicyDetail(record),
+      canaryStats: await engineInstance.canaryStats(record.id),
+    });
+  });
+
+  app.post("/policies/:id/promote", async (c) => {
+    await authorize(c);
+    const engineInstance = await engine();
+    const record = await engineInstance.promotePolicy(c.req.param("id"), clock());
+    return c.json(toPolicyDetail(record));
+  });
+
+  app.post("/policies/:id/retire", async (c) => {
+    await authorize(c);
+    const engineInstance = await engine();
+    const record = await engineInstance.retirePolicy(c.req.param("id"), clock());
+    return c.json(toPolicyDetail(record));
   });
 
   app.get("/policies", async (c) => {
@@ -34,6 +68,10 @@ export function registerPolicyRoutes(app: Hono, { engine, clock, adminToken }: R
     if (!record) {
       throw new EngineError("not_found", 404, `Policy '${id}' not found`);
     }
-    return c.json(toPolicyDetail(record));
+    const engineInstance = await engine();
+    return c.json({
+      ...toPolicyDetail(record),
+      canaryStats: record.status === "canary" ? await engineInstance.canaryStats(record.id) : null,
+    });
   });
 }

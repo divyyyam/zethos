@@ -695,7 +695,7 @@ test("proposePolicy > no file/network access beyond explicitly supplied inputs a
 });
 
 test("CLI scripts/research-propose.ts > enforces flags, exit codes, and usage", async () => {
-  const cliPath = path.resolve("scripts/research-propose.ts");
+  const cliPath = path.resolve(import.meta.dir, "../scripts/research-propose.ts");
 
   // 1. --help exits 0
   const helpProc = Bun.spawn(["bun", cliPath, "--help"], {

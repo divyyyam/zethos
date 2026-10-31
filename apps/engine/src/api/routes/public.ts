@@ -18,6 +18,8 @@ export function registerPublicRoutes(app: Hono, { engine, clock }: RouteOptions)
     return c.json(diagnosis);
   });
 
+  app.get("/desk/compliance", async (c) => c.json(await (await engine()).compliance()));
+
   app.get("/fills", async (c) => {
     const fills = await (await engine()).fills(
       c.req.query("taker"),

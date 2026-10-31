@@ -52,7 +52,17 @@ export type Frame =
   | { type: "params"; ts: number; changed: string[] }
   | { type: "arena"; arena: Omit<ReturnType<Engine["arenaView"]>, "series"> }
   | { type: "diagnosis"; diagnosis: LossAttributionResult }
-  | { type: "policies"; policies: PolicySummary[] };
+  | { type: "policies"; policies: PolicySummary[] }
+  | {
+      type: "policy_stats";
+      policyId: string;
+      observedFills: number;
+      observedPnlUsd: number;
+      counterfactualFills: number;
+      counterfactualPnlUsd: number;
+      drawdownPct: number;
+      fillRateDrop: number;
+    };
 
 export interface EngineDeps {
   chainId: 177 | 133;

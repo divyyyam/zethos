@@ -6,6 +6,7 @@ import type { BookResult } from "../feeds";
 import type { Trade } from "../feeds/types";
 import type { PolicyRecord } from "../policy";
 import { arenaView, ensureArena, resetArena } from "./arena";
+import { deskCompliance } from "./compliance";
 import { diagnose } from "./diagnosis";
 import { tick } from "./heartbeat";
 import { decisions, narrate } from "./journal";
@@ -13,7 +14,15 @@ import { getStatus, ingest, prune } from "./market";
 import { pause, reloadParams, setTaker } from "./operator";
 import { fills, init } from "./persistence";
 import { pnl, stats } from "./pnl";
-import { getPolicy, listPolicies, registerPolicy } from "./policy-registry";
+import {
+  canaryStats,
+  getPolicy,
+  listPolicies,
+  promotePolicy,
+  registerPolicy,
+  retirePolicy,
+  startCanary,
+} from "./policy-registry";
 import { quote } from "./quoting";
 import { paperFill } from "./settlement";
 import { EngineState } from "./state";
@@ -69,6 +78,10 @@ export class Engine {
 
   diagnosis(now: number, pair?: string, window?: string) {
     return diagnose(this.context, now, pair, window);
+  }
+
+  compliance() {
+    return deskCompliance(this.context);
   }
 
   async fills(taker: string | undefined, limit: number, epoch?: number): Promise<Fill[]> {
@@ -142,5 +155,21 @@ export class Engine {
 
   listPolicies(): Promise<PolicyRecord[]> {
     return listPolicies(this.context);
+  }
+
+  startCanary(id: string, allocationPct: number, now: number): Promise<PolicyRecord> {
+    return startCanary(this.context, id, allocationPct, now);
+  }
+
+  promotePolicy(id: string, now: number): Promise<PolicyRecord> {
+    return promotePolicy(this.context, id, now);
+  }
+
+  retirePolicy(id: string, now: number): Promise<PolicyRecord> {
+    return retirePolicy(this.context, id, now);
+  }
+
+  canaryStats(id: string) {
+    return canaryStats(this.context, id);
   }
 }
