@@ -16,6 +16,22 @@ export {
 } from "./attribution";
 export { canonicalPolicySpec, createPolicySpec, hashPolicySpec } from "./canonical";
 export { type CompileOptions, compile } from "./compile";
+export {
+  type DatasetSummary,
+  DEFAULT_EVAL_TOKENS,
+  datasetSummarySchema,
+  type EvaluationInput,
+  type EvaluationReport,
+  evaluatePolicies,
+  evaluateQualification,
+  evaluationReportSchema,
+  type PolicyResults,
+  policyResultsSchema,
+  type QualificationReason,
+  qualificationReasonSchema,
+  type SimulationOptions,
+  simulatePolicyOnScenario,
+} from "./eval";
 export { createV0Spec } from "./incumbent";
 export {
   defaultScenariosDir,
