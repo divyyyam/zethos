@@ -1,8 +1,19 @@
 "use client";
 
-import { formatPct, formatUsdOrUnavailable, type Mandate } from "../../../lib/engine/desk-types";
+import {
+  type DeskCompliance,
+  formatPct,
+  formatUsdOrUnavailable,
+  type Mandate,
+} from "../../../lib/engine/desk-types";
 
-export function ServiceCapsCard({ mandate }: { mandate: Mandate | undefined }) {
+export function ServiceCapsCard({
+  mandate,
+  compliance,
+}: {
+  mandate: Mandate | undefined;
+  compliance?: DeskCompliance;
+}) {
   const buckets = mandate?.service.maxHalfSpreadBps ?? [];
   const minQuoteNotionalUsd = mandate?.service.minQuoteNotionalUsd;
   const uptimeTargetPct = mandate?.service.uptimeTargetPct;
@@ -55,6 +66,12 @@ export function ServiceCapsCard({ mandate }: { mandate: Mandate | undefined }) {
               buckets.map((bucket) => {
                 const maxSpreadBps = bucket.maxBps;
                 const maxSpreadPct = (maxSpreadBps / 100).toFixed(2);
+                const measured = compliance?.sizeBucketCompliance?.find(
+                  (b) => b.maxNotionalUsd === bucket.maxNotionalUsd,
+                );
+                const quotes = measured?.quotes ?? 0;
+                const avg = measured?.observedAvgHalfSpreadBps;
+                const max = measured?.observedMaxHalfSpreadBps;
 
                 return (
                   <tr key={bucket.maxNotionalUsd}>
@@ -65,15 +82,26 @@ export function ServiceCapsCard({ mandate }: { mandate: Mandate | undefined }) {
                       {maxSpreadBps} bps ({maxSpreadPct}%)
                     </td>
                     <td>
-                      <span
-                        className="text-neutral-400 text-xs"
-                        title="Normal-tier status spread is not measured compliance for every size bucket"
-                      >
-                        Unavailable
-                      </span>
+                      {measured && quotes > 0 && typeof avg === "number" ? (
+                        <span className="font-mono text-xs">
+                          avg {avg.toFixed(1)} bps
+                          {typeof max === "number" ? ` · max ${max.toFixed(1)} bps` : ""} · {quotes}{" "}
+                          {quotes === 1 ? "quote" : "quotes"}
+                        </span>
+                      ) : (
+                        <span className="text-neutral-400 text-xs">
+                          {measured ? "No quotes yet this epoch" : "Unavailable"}
+                        </span>
+                      )}
                     </td>
                     <td>
-                      <span className="p-pill p-pill-neutral">Target</span>
+                      {measured?.compliant === true ? (
+                        <span className="p-pill p-pill-success">Compliant</span>
+                      ) : measured?.compliant === false ? (
+                        <span className="p-pill text-rose-400">Breach</span>
+                      ) : (
+                        <span className="p-pill p-pill-neutral">Target</span>
+                      )}
                     </td>
                   </tr>
                 );
@@ -83,8 +111,8 @@ export function ServiceCapsCard({ mandate }: { mandate: Mandate | undefined }) {
         </table>
       </div>
       <p className="text-xs text-neutral-400 mt-3">
-        * Measured compliance per size bucket requires multi-notional execution sampling. Indicative
-        normal-tier spreads are not substituted for size-bucket verification.
+        * Measured from every signed quote this epoch: price against the fused mid at quote time,
+        the same measure the execution layer enforces. Uptime is not measured yet.
       </p>
     </div>
   );

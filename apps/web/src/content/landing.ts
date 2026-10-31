@@ -28,9 +28,9 @@ export interface Link {
 export const landing = {
   meta: {
     siteUrl: process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000",
-    title: "Zethos — Exchange prices for every swap on HashKey Chain",
+    title: "Zethos — An AI agent that runs your token's trading desk on HashKey Chain",
     description:
-      "Zethos quotes every swap on HashKey Chain against live exchange order books and fills it from its own on-chain vault. No thin pools, no surprise slippage.",
+      "A founder sets the mandate. Zethos quotes firm signed swaps from live exchange books, finds where its strategy loses money, and tests every fix against attackers before it touches the desk.",
     ogImage: "/og.png",
   },
 
@@ -53,8 +53,8 @@ export const landing = {
   },
 
   hero: {
-    headline: { lead: "Every swap on HashKey,", accent: "at exchange prices." },
-    sub: "Zethos prices your swap against live exchange order books and fills it straight from its vault. No thin pools, no surprise slippage.",
+    headline: { lead: "A trading desk for your token,", accent: "that earns every change." },
+    sub: "You set the mandate. Zethos quotes firm, signed swaps from live exchange books, finds where it loses money, and has to beat an unseen attacker before a new strategy goes live.",
     primary: { label: "Launch app", href: "/dashboard" },
     secondary: { label: "Look closer", href: "#how-it-works" },
     ticker: [
@@ -67,7 +67,7 @@ export const landing = {
 
   proof: {
     statement:
-      "Most on-chain swaps are priced by a *thin pool*. The real market lives on exchange order books. Zethos brings that price to *your swap*, and settles it on-chain.",
+      "Token projects pay market makers they *can't inspect*. Zethos runs the desk in the open: every price signed, every loss explained, every *strategy change earned*.",
     cards: [
       {
         key: "avgSpreadPct",
@@ -107,8 +107,8 @@ export const landing = {
         body: "Zethos reads live order books across major exchanges and adds a tight spread sized to volatility and vault inventory.",
       },
       {
-        title: "Settled on-chain.",
-        body: "You submit the signed quote. The vault contract verifies it and swaps atomically, so it's all or nothing.",
+        title: "Verified, then settled.",
+        body: "The vault contract checks the signature, expiry, nonce and caps, then settles both legs atomically. In this demo, settlement is paper.",
       },
     ] satisfies Step[],
   },
@@ -170,33 +170,33 @@ export const landing = {
   },
 
   features: {
-    kicker: "What you get",
-    headline: "Built like a market maker. *Feels like a swap.*",
+    kicker: "How the desk improves",
+    headline: "It runs the desk. *Then it questions it.*",
     items: [
       {
-        title: "Exchange-grade depth",
-        art: "depth",
-        body: "Size up without walking a curve. Quotes reflect the depth of major exchange books.",
-      },
-      {
-        title: "Sub-second quotes",
-        art: "speed",
-        body: "Pick a pair, get a signed price before you finish reading it.",
-      },
-      {
-        title: "All-or-nothing fills",
-        art: "atomic",
-        body: "One atomic transaction. It settles in full or reverts, never halfway.",
-      },
-      {
-        title: "Inventory-aware spreads",
+        title: "A mandate you set",
         art: "balance",
-        body: "Spreads tighten when the vault wants your side of the trade.",
+        body: "Pairs, inventory band, spread per trade size, maximum loss. Enforced outside the strategy, and every breach is journaled.",
       },
       {
-        title: "Nothing to sandwich",
+        title: "Losses with a cause",
+        art: "depth",
+        body: "Every loss is attributed: stale reference, inventory imbalance, selective execution or adverse size, with dollars and example fills.",
+      },
+      {
+        title: "Strategies as data",
+        art: "speed",
+        body: "A research agent proposes a new strategy as a bounded spec, never code. It is never in the live pricing loop.",
+      },
+      {
+        title: "Attacked before deployed",
         art: "shield",
-        body: "The price is fixed before you sign, so there is no slippage for a bot to farm.",
+        body: "Candidates face the Arena's attackers and held-out data, including an attacker the research agent never saw.",
+      },
+      {
+        title: "Earned, not assumed",
+        art: "atomic",
+        body: "A qualified strategy gets a small share of requests as a canary, then is promoted or retired from real results.",
       },
       {
         title: "Open source",
@@ -228,14 +228,14 @@ export const landing = {
       },
       {
         title: "Public contracts",
-        body: "Open source for anyone to audit. The vault deploys after shadow mode.",
+        body: "Open source for anyone to read. Unaudited, and deployed with tiny caps.",
       },
     ],
   },
 
   cta: {
-    headline: "Stop paying for *thin pools.*",
-    sub: "Get exchange-grade prices on every swap on HashKey Chain.",
+    headline: "Give your token a desk *you can inspect.*",
+    sub: "Firm exchange prices for every swap, and a strategy that has to earn every change.",
     primary: { label: "Launch app", href: "/dashboard" },
     argument: { value: "+28,228 HSK", label: "on the same 25,000 USDT swap" },
     argumentNote: "Illustrative, from the example above.",
@@ -243,16 +243,17 @@ export const landing = {
 
   footer: {
     navLabel: "Footer navigation",
-    status: "Shadow mode: paper settlement, no funds move",
+    status: "Paper settlement: prices and signatures are real, no funds move",
     backToTop: "Back to top",
-    statement: "Exchange prices, on *every swap.*",
+    statement: "A desk that *earns every change.*",
     columns: [
       {
         title: "Product",
         links: [
           { label: "Launch app", href: "/dashboard" },
-          { label: "Insights", href: "/stats" },
-          { label: "Operator", href: "/operator" },
+          { label: "Desk", href: "/desk" },
+          { label: "Research", href: "/research" },
+          { label: "Arena", href: "/arena" },
         ],
       },
       {
@@ -268,7 +269,7 @@ export const landing = {
         links: [
           {
             label: "Share on X",
-            href: "https://x.com/intent/post?text=Zethos%20%E2%80%94%20Exchange%20prices%20for%20every%20swap%20on%20HashKey%20Chain&url=https%3A%2F%2Fgithub.com%2Fdivyyyam%2Fzethos",
+            href: "https://x.com/intent/post?text=Zethos%20%E2%80%94%20An%20AI%20agent%20that%20runs%20your%20token%27s%20trading%20desk%20on%20HashKey%20Chain&url=https%3A%2F%2Fgithub.com%2Fdivyyyam%2Fzethos",
           },
           { label: "Hackathon", href: "https://github.com/divyyyam/zethos#zethos" },
         ],

@@ -5,6 +5,7 @@ import { useMemo } from "react";
 import { useEngineStatus } from "../../../hooks/platform/use-platform";
 import {
   computeObservedInventoryShares,
+  fetchCompliance,
   fetchMandate,
   type ObservedPairInventory,
 } from "../../../lib/engine/desk-types";
@@ -30,6 +31,15 @@ export function useDeskController() {
   const mandate = useQuery({
     queryKey: ["engine", "mandate"],
     queryFn: () => fetchMandate(),
+    retry: false,
+    refetchInterval: 30000,
+  });
+
+  // Card-level data: a failure here shows "Unavailable" on the card, not a page error.
+  const compliance = useQuery({
+    queryKey: ["engine", "deskCompliance"],
+    queryFn: () => fetchCompliance(),
+    enabled: !sample,
     retry: false,
     refetchInterval: 30000,
   });
@@ -70,6 +80,7 @@ export function useDeskController() {
     void arena.refetch();
     void mandate.refetch();
     void policies.refetch();
+    void compliance.refetch();
   };
 
   const error = mandate.error ?? status.error ?? arena.error ?? policies.error;
@@ -80,6 +91,7 @@ export function useDeskController() {
     arena,
     mandate,
     policies,
+    compliance,
     observedInventory,
     incumbentPolicy,
     canaryPolicy,

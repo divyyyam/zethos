@@ -57,10 +57,14 @@ export const deskComplianceSchema = z
         z.strictObject({
           maxNotionalUsd: z.number().finite().positive(),
           observedAvgHalfSpreadBps: z.number().finite().nullable().optional(),
+          observedMaxHalfSpreadBps: z.number().finite().nullable().optional(),
           compliant: z.boolean().nullable().optional(),
+          /** Signed quotes measured in this bucket over the current epoch. */
+          quotes: z.number().int().nonnegative().optional(),
         }),
       )
       .optional(),
+    epoch: z.number().int().nullable().optional(),
   })
   .optional();
 
@@ -160,6 +164,15 @@ export function computeObservedInventoryShares(
  * When NEXT_PUBLIC_ENGINE_URL is unconfigured, returns the validated sample mandate.
  * When NEXT_PUBLIC_ENGINE_URL is configured, fetches from /mandate and never falls back to sample data.
  */
+/**
+ * Measured spread compliance per size bucket (GET /desk/compliance). With no engine configured
+ * there is nothing measured, so this returns undefined and the Desk shows targets only.
+ */
+export async function fetchCompliance(): Promise<DeskCompliance> {
+  if (!platformConfig.engineUrl) return undefined;
+  return deskComplianceSchema.parse(await engineRequest("/desk/compliance"));
+}
+
 export async function fetchMandate(): Promise<Mandate> {
   if (!platformConfig.engineUrl) {
     return mandateSchema.parse(sampleMandate);

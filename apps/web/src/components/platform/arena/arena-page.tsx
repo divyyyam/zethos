@@ -124,6 +124,42 @@ export function ArenaPageContent() {
             <small>Fills won / sampled exchange trades</small>
           </div>
         </section>
+        {Object.keys(data.byPolicy).length > 0 && (
+          <section className="p-card" aria-label="Paper results by policy">
+            <div className="p-card-header">
+              <h2>Results by policy</h2>
+              <span>Paper · 5-minute markouts</span>
+            </div>
+            <div className="p-table-wrap">
+              <table className="p-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Policy</th>
+                    <th scope="col">Fills</th>
+                    <th scope="col">Volume</th>
+                    <th scope="col">Markout P&amp;L</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {Object.entries(data.byPolicy)
+                    .sort(([, a], [, b]) => b.fills - a.fills)
+                    .map(([policyId, result]) => (
+                      <tr key={policyId}>
+                        <td className="font-mono">{policyId}</td>
+                        <td>{formatNumber(result.fills, 0)}</td>
+                        <td>{formatUsd(result.volumeUsd)}</td>
+                        <td>{formatUsd(result.pnlUsd)}</td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            </div>
+            <p className="p-card-footnote">
+              Each fill is attributed to the policy that priced it. A canary prices only its share
+              of requests, so compare markout P&amp;L per fill, not totals.
+            </p>
+          </section>
+        )}
         <div className="p-arena-grid">
           <ArenaChart decisions={decisions} data={data} rows={rows} />
           <section className="p-card p-arena-takers">

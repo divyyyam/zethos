@@ -139,6 +139,8 @@ export const verdictReasonSchema = z.strictObject({
   candidate: z.union([finiteNumber, z.string(), z.boolean()]),
   incumbent: z.union([finiteNumber, z.string(), z.boolean()]).optional(),
   threshold: z.union([finiteNumber, z.string(), z.boolean()]),
+  /** The evaluator's plain-language explanation of the outcome. */
+  detail: z.string().optional(),
 });
 
 export type VerdictReason = z.infer<typeof verdictReasonSchema>;

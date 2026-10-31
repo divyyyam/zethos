@@ -85,6 +85,9 @@ export function VerdictView({ report }: { report: EvaluationReport | null | unde
                     <div>
                       <strong className="text-neutral-200 block">{ruleTitle}</strong>
                       <span className="font-mono text-neutral-400 text-xs">{reason.rule}</span>
+                      {reason.detail ? (
+                        <span className="text-neutral-400 text-xs block mt-1">{reason.detail}</span>
+                      ) : null}
                     </div>
                   </td>
                   <td>

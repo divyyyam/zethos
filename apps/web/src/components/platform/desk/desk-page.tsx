@@ -27,6 +27,7 @@ export function DeskPage() {
     valuationStale,
     refresh,
     error,
+    compliance,
   } = useDeskController();
 
   const mandateData = mandate.data;
@@ -104,7 +105,7 @@ export function DeskPage() {
           observed={observedInventory}
           valuationStale={valuationStale}
         />
-        <ServiceCapsCard mandate={mandateData} />
+        <ServiceCapsCard mandate={mandateData} compliance={compliance.data} />
         <LossCapCard
           mandate={mandateData}
           observedLossUsd={observedLossUsd}
