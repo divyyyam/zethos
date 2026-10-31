@@ -11,6 +11,8 @@ export const LOSS_CAUSES = [
 
 export type LossCause = (typeof LOSS_CAUSES)[number];
 
+const UINT256_MAX = 2n ** 256n - 1n;
+
 export interface AnalysisWindow {
   /** Inclusive lower Unix timestamp (ms). */
   fromTs: number;
@@ -19,66 +21,24 @@ export interface AnalysisWindow {
 }
 
 export interface AttributionThresholds {
-  /**
-   * Adverse divergence in basis points between lead venue and fused mid at fill time
-   * required to classify as stale_reference. Default: 5.0 bps.
-   */
-  staleReferenceBps?: number;
-  /**
-   * Fraction of quote TTL (0..1) that must have elapsed before fill to be considered late.
-   * Default: 0.60 (60% into quote lifetime).
-   */
-  selectiveLatenessRatio?: number;
-  /**
-   * Adverse market move in basis points during quote lifetime required for selective execution.
-   * Default: 2.0 bps.
-   */
-  selectiveFavorableMoveBps?: number;
-  /**
-   * Notional USD threshold at or above which a fill is considered adverse size.
-   * Default: 10,000 USD.
-   */
-  adverseSizeUsd?: number;
-  /**
-   * Maximum 5-second markout loss in basis points for an inventory imbalance diagnosis.
-   * A loss that comes from residual inventory, not the 5s markout, must have a benign
-   * or small 5s markout loss. Default: 3.0 bps.
-   */
-  inventoryMax5sLossBps?: number;
-  /**
-   * Minimum 300-second markout loss in basis points for inventory imbalance diagnosis.
-   * Default: 5.0 bps.
-   */
-  inventoryMin300sLossBps?: number;
-  /**
-   * Maximum acceptable age/lead-time in milliseconds for venue prices around fill.
-   * Default: 5,000 ms.
-   */
-  staleMs?: number;
-  /**
-   * Minimum fill loss in USD to be attributed. Smaller losses or profitable fills are ignored.
-   * Default: 0.01 USD.
-   */
-  minLossUsd?: number;
-  /**
-   * Strategy for dividing loss when multiple causes are diagnosed:
-   * - 'proportional': split fill loss equally among all matching causes (default).
-   * - 'priority': attribute 100% of fill loss to the highest priority cause.
-   */
-  overlapStrategy?: "proportional" | "priority";
-  /**
-   * Priority ordering when overlapStrategy is 'priority'.
-   * Default: ['stale_reference', 'selective_execution', 'adverse_size', 'inventory_imbalance'].
-   */
-  causePriority?: readonly LossCause[];
+  staleReferenceBps?: number | undefined;
+  selectiveLatenessRatio?: number | undefined;
+  selectiveFavorableMoveBps?: number | undefined;
+  adverseSizeUsd?: number | undefined;
+  inventoryMax5sLossBps?: number | undefined;
+  inventoryMin300sLossBps?: number | undefined;
+  staleMs?: number | undefined;
+  minLossUsd?: number | undefined;
+  overlapStrategy?: ("proportional" | "priority") | undefined;
+  causePriority?: readonly LossCause[] | undefined;
 }
 
 export interface AttributionQuote {
   id: string;
   issuedAt: string | number;
   expiry: string | number;
-  ref?: number;
-  midAtQuote?: number;
+  ref?: number | undefined;
+  midAtQuote?: number | undefined;
 }
 
 export interface AttributionLeadPrice {
@@ -86,6 +46,7 @@ export interface AttributionLeadPrice {
   pair: Pair;
   ts: number;
   mid: number;
+  status?: ("ok" | "degraded" | "down" | "stale") | undefined;
 }
 
 export interface AttributionInventorySnapshot {
@@ -99,17 +60,17 @@ export interface LossAttributionInput {
   /** Fills to analyze. */
   fills: readonly Fill[];
   /** Matched quote records or timings for selective execution checks. */
-  quotes?: readonly AttributionQuote[] | Record<string, AttributionQuote>;
-  /** Lead venue price observations around fill times for stale reference checks. */
-  leadPrices?: readonly AttributionLeadPrice[];
+  quotes?: readonly AttributionQuote[] | Record<string, AttributionQuote> | undefined;
+  /** Lead venue price observations at or before fill times for stale reference checks. */
+  leadPrices?: readonly AttributionLeadPrice[] | undefined;
   /** Configured lead venues per pair. Defaults to HashKey Global for HSK/USDT, Binance for ETH/USDT. */
-  leadVenues?: Partial<Record<Pair, readonly string[]>>;
-  /** Inventory snapshots per fill ID, if available. */
-  inventorySnapshots?: Record<string, AttributionInventorySnapshot>;
-  /** Runtime token decimals for exact raw amount conversion. */
-  tokens?: Tokens;
+  leadVenues?: Partial<Record<Pair, readonly string[]>> | undefined;
+  /** Inventory snapshots per fill ID, required for inventory_imbalance diagnosis. */
+  inventorySnapshots?: Record<string, AttributionInventorySnapshot> | undefined;
+  /** Runtime token decimals required for valuation. Fills without metadata are excluded. */
+  tokens?: Tokens | undefined;
   /** Configurable diagnosis thresholds. */
-  thresholds?: AttributionThresholds;
+  thresholds?: AttributionThresholds | undefined;
 }
 
 export interface CauseAttribution {
@@ -200,7 +161,7 @@ const DEFAULT_PRIORITY: readonly LossCause[] = [
 function normalizeTimestampMs(val: string | number): number {
   const n = typeof val === "string" ? Number(val) : val;
   if (!Number.isFinite(n)) return 0;
-  // If in seconds (e.g. Unix seconds < 1e11), convert to ms
+  // If in seconds (< 1e11), convert to ms
   return n < 1e11 ? n * 1000 : n;
 }
 
@@ -213,12 +174,46 @@ function emptyCauseRecord(): Record<LossCause, CauseAttribution> {
   };
 }
 
+export function validateAttributionThresholds(thresholds: AttributionThresholds): void {
+  const checkPositive = (val: number | undefined, name: string) => {
+    if (val !== undefined && (!Number.isFinite(val) || val <= 0)) {
+      throw new Error(`Threshold ${name} must be a positive finite number`);
+    }
+  };
+  const checkNonNegative = (val: number | undefined, name: string) => {
+    if (val !== undefined && (!Number.isFinite(val) || val < 0)) {
+      throw new Error(`Threshold ${name} must be a non-negative finite number`);
+    }
+  };
+  checkPositive(thresholds.staleReferenceBps, "staleReferenceBps");
+  checkPositive(thresholds.selectiveFavorableMoveBps, "selectiveFavorableMoveBps");
+  checkPositive(thresholds.adverseSizeUsd, "adverseSizeUsd");
+  checkNonNegative(thresholds.inventoryMax5sLossBps, "inventoryMax5sLossBps");
+  checkPositive(thresholds.inventoryMin300sLossBps, "inventoryMin300sLossBps");
+  checkPositive(thresholds.staleMs, "staleMs");
+  checkNonNegative(thresholds.minLossUsd, "minLossUsd");
+  if (
+    thresholds.selectiveLatenessRatio !== undefined &&
+    (!Number.isFinite(thresholds.selectiveLatenessRatio) ||
+      thresholds.selectiveLatenessRatio < 0 ||
+      thresholds.selectiveLatenessRatio > 1)
+  ) {
+    throw new Error("Threshold selectiveLatenessRatio must be between 0 and 1 inclusive");
+  }
+}
+
 /**
  * Pure, deterministic loss attribution function.
  * Evaluates losing fills against the four frozen S6 evidence criteria without double-counting.
+ *
+ * NOTE: Diagnosed USD measures markout loss against fused mid at analytical horizons (5s / 300s),
+ * NOT realized desk operating P&L (which includes earned spread capture, inventory drift, and gas costs).
+ * Do not conflate analytical markout diagnosis with desk operating P&L.
  */
 export function attributeLosses(input: LossAttributionInput): LossAttributionResult {
   const { window, fills, inventorySnapshots = {}, tokens, thresholds = {} } = input;
+
+  validateAttributionThresholds(thresholds);
 
   const staleReferenceBps = thresholds.staleReferenceBps ?? 5.0;
   const selectiveLatenessRatio = thresholds.selectiveLatenessRatio ?? 0.6;
@@ -266,16 +261,52 @@ export function attributeLosses(input: LossAttributionInput): LossAttributionRes
       continue;
     }
 
-    // Valuation check
+    if (!Number.isFinite(fill.ts) || !Number.isFinite(fill.price) || fill.price <= 0) {
+      excludedFills.push({
+        fillId: fill.id,
+        reason: "Non-finite or non-positive fill price/timestamp",
+      });
+      continue;
+    }
+
+    // Valuation check - NEVER fall back to 6 decimals silently
     const pairConfig = PAIR_TOKENS[fill.pair];
-    const quoteDecimals = tokens ? tokens[pairConfig.quote].decimals : 6;
+    if (!pairConfig) {
+      excludedFills.push({
+        fillId: fill.id,
+        reason: `Unsupported pair '${fill.pair}'`,
+      });
+      continue;
+    }
+
+    const quoteToken = tokens?.[pairConfig.quote];
+    const baseToken = tokens?.[pairConfig.base];
+    if (
+      !quoteToken ||
+      !baseToken ||
+      typeof quoteToken.decimals !== "number" ||
+      typeof baseToken.decimals !== "number"
+    ) {
+      excludedFills.push({
+        fillId: fill.id,
+        reason: `Missing runtime token metadata for pair '${fill.pair}' valuation`,
+      });
+      continue;
+    }
+
+    const quoteDecimals = quoteToken.decimals;
 
     let notionalUsd: number;
     try {
+      const rawIn = BigInt(fill.amountIn);
+      const rawOut = BigInt(fill.amountOut);
+      if (rawIn <= 0n || rawOut <= 0n || rawIn > UINT256_MAX || rawOut > UINT256_MAX) {
+        throw new Error("Out of uint256 range");
+      }
       if (fill.side === "buy") {
-        notionalUsd = units(BigInt(fill.amountIn), quoteDecimals);
+        notionalUsd = units(rawIn, quoteDecimals);
       } else {
-        notionalUsd = units(BigInt(fill.amountOut), quoteDecimals);
+        notionalUsd = units(rawOut, quoteDecimals);
       }
     } catch {
       excludedFills.push({
@@ -327,18 +358,20 @@ export function attributeLosses(input: LossAttributionInput): LossAttributionRes
     const evidence: FillLossAttributionDetail["evidence"] = {};
 
     // 1. Evidence: stale_reference
-    // Check if lead venue had moved beyond fused mid at fill time
+    // Select lead samples strictly AT OR BEFORE fill time within freshness limits. Future samples cannot establish stale reference!
     const configuredLeads = input.leadVenues?.[fill.pair] ?? DEFAULT_LEAD_VENUES[fill.pair] ?? [];
     const pairLeads = leadPricesByPair.get(fill.pair) ?? [];
     const candidateLead = pairLeads
       .filter(
         (p) =>
           configuredLeads.includes(p.venue) &&
-          Math.abs(p.ts - fill.ts) <= staleMs &&
+          p.ts <= fill.ts && // MUST BE AT OR BEFORE FILL TIME!
+          fill.ts - p.ts <= staleMs && // Within freshness limit
           Number.isFinite(p.mid) &&
-          p.mid > 0,
+          p.mid > 0 &&
+          (p.status === undefined || p.status === "ok"),
       )
-      .sort((a, b) => Math.abs(a.ts - fill.ts) - Math.abs(b.ts - fill.ts))[0];
+      .sort((a, b) => fill.ts - a.ts - (fill.ts - b.ts))[0]; // Most recent past observation
 
     const fusedMidAtFill = fill.midAtFill;
     if (candidateLead && fusedMidAtFill && fusedMidAtFill > 0) {
@@ -366,15 +399,24 @@ export function attributeLosses(input: LossAttributionInput): LossAttributionRes
     const matchedQuote = quotesMap.get(fill.quoteId);
     if (matchedQuote) {
       const issuedAtMs = normalizeTimestampMs(matchedQuote.issuedAt);
-      const expiryMs = normalizeTimestampMs(matchedQuote.expiry);
+      const rawExpiry =
+        typeof matchedQuote.expiry === "string" ? Number(matchedQuote.expiry) : matchedQuote.expiry;
+      // Inclusive expiry-second semantics: if expiry is in seconds (< 1e11), valid through the end of the second
+      const expiryMs = rawExpiry < 1e11 ? rawExpiry * 1000 + 999 : rawExpiry;
       const ttlMs = expiryMs - issuedAtMs;
 
-      if (ttlMs > 0) {
+      // Fill must arrive during quote validity
+      if (ttlMs > 0 && fill.ts >= issuedAtMs && fill.ts <= expiryMs) {
         const lateness = (fill.ts - issuedAtMs) / ttlMs;
         if (lateness >= selectiveLatenessRatio) {
-          // Check for favourable move to taker (adverse to maker) between quote and fill
-          const refPrice = matchedQuote.ref ?? matchedQuote.midAtQuote ?? fill.price;
-          if (fusedMidAtFill && refPrice > 0) {
+          // MUST use genuine quote-time market evidence: ref or midAtQuote. NEVER fall back to fill.price!
+          const refPrice = matchedQuote.ref ?? matchedQuote.midAtQuote;
+          if (
+            fusedMidAtFill &&
+            refPrice !== undefined &&
+            Number.isFinite(refPrice) &&
+            refPrice > 0
+          ) {
             const favorableMoveBps =
               fill.side === "buy"
                 ? ((fusedMidAtFill - refPrice) / refPrice) * 10000
@@ -407,20 +449,30 @@ export function attributeLosses(input: LossAttributionInput): LossAttributionRes
     // 4. Evidence: inventory_imbalance
     // "the loss comes from residual inventory, not the 5 s markout."
     const snapshot = inventorySnapshots[fill.id];
-    const isInventoryAdverse = snapshot
-      ? (fill.side === "sell" && snapshot.baseShare > snapshot.targetShare) ||
-        (fill.side === "buy" && snapshot.baseShare < snapshot.targetShare)
-      : true; // If snapshot is absent, infer from markout structure
+    // Must require actual inventory evidence
+    const hasInventoryEvidence =
+      snapshot !== undefined &&
+      Number.isFinite(snapshot.baseShare) &&
+      Number.isFinite(snapshot.targetShare);
 
-    const is5sBenign =
-      bps5 === undefined ||
-      bps5 >= -inventoryMax5sLossBps ||
-      (loss5Usd !== undefined && loss300Usd !== undefined && loss5Usd <= 0.5 * loss300Usd);
+    const isInventoryAdverse =
+      hasInventoryEvidence &&
+      ((fill.side === "sell" && snapshot.baseShare > snapshot.targetShare) ||
+        (fill.side === "buy" && snapshot.baseShare < snapshot.targetShare));
+
+    // Must require both relevant markouts
+    const hasBothMarkouts =
+      bps5 !== undefined &&
+      bps300 !== undefined &&
+      Number.isFinite(bps5) &&
+      Number.isFinite(bps300);
+
+    // 5s markout must be truly benign (bps5 >= -inventoryMax5sLossBps).
+    // A large immediate loss cannot become benign merely because later loss is larger!
+    const is5sBenign = hasBothMarkouts && bps5 >= -inventoryMax5sLossBps;
 
     const is300sLosing =
-      bps300 !== undefined &&
-      bps300 < -inventoryMin300sLossBps &&
-      (loss300Usd ?? 0) > (loss5Usd ?? 0);
+      hasBothMarkouts && bps300 < -inventoryMin300sLossBps && (loss300Usd ?? 0) > (loss5Usd ?? 0);
 
     if (isInventoryAdverse && is5sBenign && is300sLosing) {
       matchedCauses.push("inventory_imbalance");
@@ -429,8 +481,8 @@ export function attributeLosses(input: LossAttributionInput): LossAttributionRes
         bps300,
         loss5Usd,
         loss300Usd,
-        baseShare: snapshot?.baseShare,
-        targetShare: snapshot?.targetShare,
+        baseShare: snapshot.baseShare,
+        targetShare: snapshot.targetShare,
       };
     }
 

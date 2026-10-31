@@ -7,6 +7,7 @@ import {
   listScenarios,
   loadScenario,
   loadScenarioManifest,
+  materializeScenarioPartitions,
   parseScenarioRecords,
   resolveScenarioPaths,
   ScenarioFormatError,
@@ -396,6 +397,7 @@ describe("R7 Scenario Loader and Held-Out Protection", () => {
 
     it("respects custom timeWindow filter", async () => {
       const filtered = await loadScenario("synthetic-dev-tape", {
+        role: "evaluator",
         timeWindow: {
           fromTs: 1700000002000,
           toTs: 1700000003000,
@@ -423,6 +425,333 @@ describe("R7 Scenario Loader and Held-Out Protection", () => {
       expect(manifest.name).toBe("synthetic-heldout-leadlag");
       expect(manifest.heldOut).toBe(true);
       expect(manifest.pair).toBe("HSK/USDT");
+    });
+  });
+
+  describe("Checkpoint A Hardened Invariants", () => {
+    const UINT256_MAX_STR =
+      "115792089237316195423570985008687907853269984665640564039457584007913129639935";
+    const UINT256_OVERFLOW_STR =
+      "115792089237316195423570985008687907853269984665640564039457584007913129639936";
+
+    it("rejects amountIn equal to or greater than 2^256", () => {
+      expect(() =>
+        scenarioRecordSchema.parse({
+          type: "taker_request",
+          ts: 1000,
+          pair: "HSK/USDT",
+          side: "buy",
+          amountIn: UINT256_OVERFLOW_STR,
+          taker: "0x1111111111111111111111111111111111111111",
+        }),
+      ).toThrow();
+    });
+
+    it("rejects zero, negative or non-integer amounts in scenario records", () => {
+      const baseReq = {
+        type: "taker_request",
+        ts: 1000,
+        pair: "HSK/USDT",
+        side: "buy",
+        taker: "0x1111111111111111111111111111111111111111",
+      };
+
+      expect(() => scenarioRecordSchema.parse({ ...baseReq, amountIn: "0" })).toThrow();
+      expect(() => scenarioRecordSchema.parse({ ...baseReq, amountIn: "-100" })).toThrow();
+      expect(() => scenarioRecordSchema.parse({ ...baseReq, amountIn: "100.5" })).toThrow();
+      expect(() => scenarioRecordSchema.parse({ ...baseReq, amountIn: "abc" })).toThrow();
+      expect(() => scenarioRecordSchema.parse({ ...baseReq, amountIn: "" })).toThrow();
+
+      // Valid amounts
+      expect(scenarioRecordSchema.parse({ ...baseReq, amountIn: "1" })).toBeDefined();
+      expect(scenarioRecordSchema.parse({ ...baseReq, amountIn: UINT256_MAX_STR })).toBeDefined();
+    });
+
+    it("validates explicit taker tiers: normal, toxic, internal", () => {
+      const baseReq = {
+        type: "taker_request" as const,
+        ts: 1000,
+        pair: "HSK/USDT" as const,
+        side: "buy" as const,
+        amountIn: "1000000000",
+        taker: "0x1111111111111111111111111111111111111111",
+      };
+
+      expect(scenarioRecordSchema.parse({ ...baseReq, tier: "normal" })).toBeDefined();
+      expect(scenarioRecordSchema.parse({ ...baseReq, tier: "toxic" })).toBeDefined();
+      expect(scenarioRecordSchema.parse({ ...baseReq, tier: "internal" })).toBeDefined();
+      expect(() =>
+        scenarioRecordSchema.parse({ ...baseReq, tier: "invalid_tier" as unknown as "normal" }),
+      ).toThrow();
+    });
+
+    it("rejects empty bids or asks arrays in book records", () => {
+      const baseBook = {
+        type: "book",
+        ts: 1000,
+        pair: "HSK/USDT",
+        venue: "hashkey-global",
+      };
+
+      expect(() =>
+        scenarioRecordSchema.parse({
+          ...baseBook,
+          book: { bids: [], asks: [[2.01, 500]] },
+        }),
+      ).toThrow();
+
+      expect(() =>
+        scenarioRecordSchema.parse({
+          ...baseBook,
+          book: { bids: [[2.0, 500]], asks: [] },
+        }),
+      ).toThrow();
+    });
+
+    it("rejects manifests with inverted or overlapping dev and held-out windows", () => {
+      const baseManifest = {
+        name: "test-window-check",
+        source: "tape",
+        pair: "HSK/USDT",
+        recordedAt: 1700000000000,
+        heldOut: false,
+        description: "Test window validation",
+      };
+
+      // Inverted dev window
+      expect(() =>
+        scenarioManifestSchema.parse({
+          ...baseManifest,
+          devWindow: { fromTs: 2000, toTs: 1000 },
+        }),
+      ).toThrow();
+
+      // Inverted held-out window
+      expect(() =>
+        scenarioManifestSchema.parse({
+          ...baseManifest,
+          heldOutWindow: { fromTs: 4000, toTs: 3000 },
+        }),
+      ).toThrow();
+
+      // Overlapping windows
+      expect(() =>
+        scenarioManifestSchema.parse({
+          ...baseManifest,
+          devWindow: { fromTs: 1000, toTs: 2500 },
+          heldOutWindow: { fromTs: 2000, toTs: 3000 },
+        }),
+      ).toThrow();
+    });
+
+    it("strictly isolates held-out records: research cannot request 'all' or 'held-out' on mixed manifests", async () => {
+      // synthetic-dev-tape has both devWindow and heldOutWindow
+      await expect(
+        loadScenario("synthetic-dev-tape", {
+          role: "research",
+          split: "all",
+          scenariosDir,
+        }),
+      ).rejects.toThrow(HeldOutAccessError);
+
+      await expect(
+        loadScenario("synthetic-dev-tape", {
+          role: "research",
+          split: "held-out",
+          scenariosDir,
+        }),
+      ).rejects.toThrow(HeldOutAccessError);
+    });
+
+    it("rejects research requests when timeWindow extends into the held-out partition", async () => {
+      // synthetic-dev-tape devWindow is 1700000000000 to 1700000005000; held-out is 1700000005001 to 1700000010000
+      await expect(
+        loadScenario("synthetic-dev-tape", {
+          role: "research",
+          timeWindow: {
+            fromTs: 1700000004000,
+            toTs: 1700000007000, // extends past 1700000005000
+          },
+          scenariosDir,
+        }),
+      ).rejects.toThrow(HeldOutAccessError);
+    });
+
+    it("fails closed BEFORE reading mixed payload if materialized dev file is missing for research", async () => {
+      const tempName = "temp-mixed-no-dev-file";
+      const manifestPath = path.resolve(scenariosDir, `${tempName}.json`);
+      const payloadPath = path.resolve(scenariosDir, `${tempName}.ndjson`);
+
+      // Write manifest with held-out window, but do NOT create .dev.ndjson
+      await fs.writeFile(
+        manifestPath,
+        JSON.stringify({
+          name: tempName,
+          source: "tape",
+          pair: "HSK/USDT",
+          recordedAt: 1700000000000,
+          heldOut: false,
+          description: "Mixed manifest without separate dev partition file",
+          devWindow: { fromTs: 1000, toTs: 2000 },
+          heldOutWindow: { fromTs: 2001, toTs: 3000 },
+        }),
+      );
+
+      // Create payload that contains held-out records
+      await fs.writeFile(
+        payloadPath,
+        `${JSON.stringify({
+          type: "book",
+          ts: 1500,
+          pair: "HSK/USDT",
+          venue: "hashkey-global",
+          book: { bids: [[2.0, 100]], asks: [[2.01, 100]] },
+        })}\n`,
+      );
+
+      try {
+        // Research access MUST fail with HeldOutAccessError because .dev.ndjson does not exist
+        await expect(
+          loadScenario(tempName, { role: "research", split: "dev", scenariosDir }),
+        ).rejects.toThrow(HeldOutAccessError);
+
+        // Evaluator CAN load via main payload
+        const evalLoaded = await loadScenario(tempName, {
+          role: "evaluator",
+          split: "dev",
+          scenariosDir,
+        });
+        expect(evalLoaded.records.length).toBe(1);
+      } finally {
+        await fs.rm(manifestPath, { force: true });
+        await fs.rm(payloadPath, { force: true });
+      }
+    });
+
+    it("rejects scenarios where record pairs mismatch manifest pair", async () => {
+      const tempName = "temp-pair-mismatch";
+      const manifestPath = path.resolve(scenariosDir, `${tempName}.json`);
+      const payloadPath = path.resolve(scenariosDir, `${tempName}.ndjson`);
+
+      await fs.writeFile(
+        manifestPath,
+        JSON.stringify({
+          name: tempName,
+          source: "tape",
+          pair: "HSK/USDT", // Manifest specifies HSK/USDT
+          recordedAt: 1700000000000,
+          heldOut: false,
+          description: "Pair mismatch test",
+        }),
+      );
+
+      // Record contains ETH/USDT
+      await fs.writeFile(
+        payloadPath,
+        `${JSON.stringify({
+          type: "book",
+          ts: 1000,
+          pair: "ETH/USDT", // Mismatch!
+          venue: "binance",
+          book: { bids: [[2000, 10]], asks: [[2001, 10]] },
+        })}\n`,
+      );
+
+      try {
+        await expect(loadScenario(tempName, { role: "evaluator", scenariosDir })).rejects.toThrow(
+          ScenarioFormatError,
+        );
+      } finally {
+        await fs.rm(manifestPath, { force: true });
+        await fs.rm(payloadPath, { force: true });
+      }
+    });
+
+    it("verifies materializeScenarioPartitions partitions files accurately", async () => {
+      const tempName = "temp-partition-test";
+      const manifestPath = path.resolve(scenariosDir, `${tempName}.json`);
+      const payloadPath = path.resolve(scenariosDir, `${tempName}.ndjson`);
+      const devPath = path.resolve(scenariosDir, `${tempName}.dev.ndjson`);
+      const heldOutPath = path.resolve(scenariosDir, `${tempName}.heldout.ndjson`);
+
+      await fs.writeFile(
+        manifestPath,
+        JSON.stringify({
+          name: tempName,
+          source: "tape",
+          pair: "HSK/USDT",
+          recordedAt: 1700000000000,
+          heldOut: false,
+          description: "Partition materialization test",
+          devWindow: { fromTs: 1000, toTs: 2000 },
+          heldOutWindow: { fromTs: 2001, toTs: 3000 },
+        }),
+      );
+
+      const r1 = JSON.stringify({
+        type: "book",
+        ts: 1500,
+        pair: "HSK/USDT",
+        venue: "hashkey-global",
+        book: { bids: [[2.0, 100]], asks: [[2.01, 100]] },
+      });
+      const r2 = JSON.stringify({
+        type: "book",
+        ts: 2500,
+        pair: "HSK/USDT",
+        venue: "hashkey-global",
+        book: { bids: [[2.05, 100]], asks: [[2.06, 100]] },
+      });
+
+      await fs.writeFile(payloadPath, `${r1}\n${r2}\n`);
+
+      try {
+        const result = await materializeScenarioPartitions(tempName, { scenariosDir });
+        expect(result.devPath).toBe(devPath);
+        expect(result.heldOutPath).toBe(heldOutPath);
+
+        const devContent = await fs.readFile(devPath, "utf-8");
+        expect(devContent.trim()).toBe(r1);
+
+        const heldOutContent = await fs.readFile(heldOutPath, "utf-8");
+        expect(heldOutContent.trim()).toBe(r2);
+      } finally {
+        await fs.rm(manifestPath, { force: true });
+        await fs.rm(payloadPath, { force: true });
+        await fs.rm(devPath, { force: true });
+        await fs.rm(heldOutPath, { force: true });
+      }
+    });
+
+    it("verifies CLI boundary enforces held-out protection and exit codes", async () => {
+      const scriptPath = path.resolve(__dirname, "../scripts/research-scenarios.ts");
+
+      // 1. Research (default) loading held-out scenario must exit with code 1
+      const proc1 = Bun.spawnSync(["bun", scriptPath, "synthetic-heldout-leadlag"], {
+        cwd: path.resolve(__dirname, ".."),
+      });
+      expect(proc1.exitCode).toBe(1);
+      const stderr1 = proc1.stderr.toString();
+      expect(stderr1).toContain("[HELD-OUT GUARD]");
+
+      // 2. Research (default) requesting split=held-out on mixed scenario must exit with code 1
+      const proc2 = Bun.spawnSync(["bun", scriptPath, "synthetic-dev-tape", "--split=held-out"], {
+        cwd: path.resolve(__dirname, ".."),
+      });
+      expect(proc2.exitCode).toBe(1);
+      const stderr2 = proc2.stderr.toString();
+      expect(stderr2).toContain("[HELD-OUT GUARD]");
+
+      // 3. Evaluator loading held-out scenario must succeed with exit code 0
+      const proc3 = Bun.spawnSync(
+        ["bun", scriptPath, "synthetic-heldout-leadlag", "--role=evaluator"],
+        {
+          cwd: path.resolve(__dirname, ".."),
+        },
+      );
+      expect(proc3.exitCode).toBe(0);
+      const stdout3 = proc3.stdout.toString();
+      expect(stdout3).toContain("[SCENARIO LOADED] synthetic-heldout-leadlag");
     });
   });
 });

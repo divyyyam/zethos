@@ -12,6 +12,7 @@ export {
   type LossAttributionInput,
   type LossAttributionResult,
   type LossCause,
+  validateAttributionThresholds,
 } from "./attribution";
 export { canonicalPolicySpec, createPolicySpec, hashPolicySpec } from "./canonical";
 export { type CompileOptions, compile } from "./compile";
@@ -24,6 +25,7 @@ export {
   listScenarios,
   loadScenario,
   loadScenarioManifest,
+  materializeScenarioPartitions,
   parseScenarioRecords,
   resolveScenarioPaths,
   type ScenarioAccessRole,

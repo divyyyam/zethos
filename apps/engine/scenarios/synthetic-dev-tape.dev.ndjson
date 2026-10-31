@@ -1,0 +1,3 @@
+{"type":"book","ts":1700000001000,"pair":"HSK/USDT","venue":"hashkey-global","book":{"bids":[[2.0,500]],"asks":[[2.01,500]]}}
+{"type":"trade","ts":1700000002000,"pair":"HSK/USDT","venue":"hashkey-global","trade":{"id":"syn-tr-1","ts":1700000002000,"side":"buy","price":2.01,"size":100}}
+{"type":"taker_request","ts":1700000003000,"pair":"HSK/USDT","side":"buy","amountIn":"1000000000","taker":"0x1111111111111111111111111111111111111111","tier":"normal"}

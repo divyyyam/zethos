@@ -9,6 +9,7 @@ import {
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
   let role: "research" | "evaluator" = "research";
+  let split: "dev" | "held-out" | "all" | undefined;
   let scenariosDir: string | undefined;
   let targetName: string | null = null;
   let showList = false;
@@ -22,6 +23,14 @@ async function main(): Promise<void> {
         role = val;
       } else {
         console.error(`Invalid role: ${val}. Must be 'research' or 'evaluator'.`);
+        process.exit(2);
+      }
+    } else if (arg.startsWith("--split=")) {
+      const val = arg.slice(8);
+      if (val === "dev" || val === "held-out" || val === "all") {
+        split = val;
+      } else {
+        console.error(`Invalid split: ${val}. Must be 'dev', 'held-out', or 'all'.`);
         process.exit(2);
       }
     } else if (arg.startsWith("--scenarios-dir=")) {
@@ -46,13 +55,13 @@ async function main(): Promise<void> {
 
   if (!targetName) {
     console.error(
-      "Usage: bun scripts/research-scenarios.ts <scenario-name> [--role=research|evaluator] [--scenarios-dir=path] [--list]",
+      "Usage: bun scripts/research-scenarios.ts <scenario-name> [--role=research|evaluator] [--split=dev|held-out|all] [--scenarios-dir=path] [--list]",
     );
     process.exit(2);
   }
 
   try {
-    const loaded = await loadScenario(targetName, { role, scenariosDir: baseDir });
+    const loaded = await loadScenario(targetName, { role, split, scenariosDir: baseDir });
     console.log(
       `[SCENARIO LOADED] ${loaded.manifest.name} (${loaded.split}): ${loaded.recordCounts.total} records ` +
         `(${loaded.recordCounts.books} books, ${loaded.recordCounts.trades} trades, ${loaded.recordCounts.takerRequests} taker requests)`,
