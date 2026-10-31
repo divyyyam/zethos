@@ -128,7 +128,7 @@ describe("verifyQuote: paper domain", () => {
   test("respects minRemainingSec and maxSpreadVsMid", async () => {
     const now = Math.floor(Date.now() / 1000);
     const body = await paperQuoteBody(
-      signedQuote({ issuedAt: String(now), expiry: String(now + 4) }),
+      signedQuote({ issuedAt: String(now - 26), expiry: String(now + 4) }),
     );
     expect(await reasons(body)).toEqual(["expired"]);
     expect(await reasons(body, { ...paperOptions, minRemainingSec: 1 })).toEqual([]);
@@ -141,6 +141,15 @@ describe("verifyQuote: paper domain", () => {
   test("skips the pool comparison when there is no pool", async () => {
     const body = { ...(await paperQuoteBody()), poolOut: null, poolVenue: null };
     expect(await reasons(body)).toEqual([]);
+  });
+
+  test("short defensive paper quotes remain verifiable", async () => {
+    const now = Math.floor(Date.now() / 1000);
+    const body = await paperQuoteBody(
+      signedQuote({ issuedAt: String(now), expiry: String(now + 3) }),
+    );
+    expect(await reasons(body)).toEqual([]);
+    expect(await reasons(body, { ...paperOptions, minRemainingSec: 5 })).toEqual(["expired"]);
   });
 
   test("never throws for malformed quotes", async () => {

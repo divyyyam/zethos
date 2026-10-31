@@ -10,7 +10,6 @@ export default defineConfig({
       include: [
         "ZethosVault.sol/ZethosVault.json",
         "IUniswapV3Pool.sol/*.json",
-        "ISwapRouter.sol/*.json",
       ],
       forge: { build: false, rebuild: false },
     }),

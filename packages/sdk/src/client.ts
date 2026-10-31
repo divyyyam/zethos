@@ -23,18 +23,17 @@ import type {
 import { type Verification, type VerifyOptions, verifyQuote } from "./verify.js";
 
 export interface ZethosOptions {
-  /** e.g. `http://localhost:8787` */
   engineUrl: string;
   chainId: 177 | 133;
-  /** Required for live-mode verification (reads `quoteSigner()`) and `buildFill`. */
   publicClient?: PublicClient;
-  /** `X-Zethos-Client` header value. Default `"sdk"`. */
   client?: string;
   fetch?: typeof fetch;
   WebSocket?: typeof WebSocket;
   credentials?: RequestCredentials;
   /** Request timeout. Default 10 000 ms. */
   timeoutMs?: number;
+  /** Optional Unix-seconds clock for deterministic replay clients. */
+  now?: () => number;
 }
 
 export type VerifyQuoteOptions = Pick<VerifyOptions, "now" | "minRemainingSec" | "maxSpreadVsMid">;
@@ -111,6 +110,7 @@ export function createZethos(options: ZethosOptions) {
     verifyOptions: VerifyQuoteOptions = {},
   ): Promise<Verification> {
     return verifyQuote(quote, request ?? sentRequests.get(quote), {
+      ...(options.now ? { now: options.now() } : {}),
       ...verifyOptions,
       chainId: options.chainId,
       status: current,
@@ -123,7 +123,12 @@ export function createZethos(options: ZethosOptions) {
     quote: QuoteResponse,
     request: QuoteRequest | undefined,
   ): Promise<void> {
-    const verification = await verifyWith(current, quote, request);
+    const verification = await verifyWith(
+      current,
+      quote,
+      request,
+      quote.route === "paper" ? { minRemainingSec: 0 } : {},
+    );
     if (!verification.ok) {
       throw new ZethosError("unverified_quote", "Quote failed local verification", 0, verification);
     }
@@ -192,8 +197,16 @@ export function createZethos(options: ZethosOptions) {
       });
     },
 
-    fills({ taker, limit }: { taker?: Address; limit?: number } = {}): Promise<Fill[]> {
-      return call(withQuery("/fills", { taker, limit }), s.listOf(s.fill, "fills"));
+    fills({
+      taker,
+      limit,
+      epoch,
+    }: {
+      taker?: Address;
+      limit?: number;
+      epoch?: number;
+    } = {}): Promise<Fill[]> {
+      return call(withQuery("/fills", { taker, limit, epoch }), s.listOf(s.fill, "fills"));
     },
 
     stats({ pair, from, to }: { pair: Pair; from?: number; to?: number }): Promise<Stats> {

@@ -27,7 +27,7 @@ test("stdio client drives real replay engine: discovery, prompt, quote, verifica
     await client.connect(
       new StdioClientTransport({
         command: process.execPath,
-        args: ["src/index.ts"],
+        args: ["run", "start"],
         cwd: fileURLToPath(new URL("../", import.meta.url)),
         stderr: "pipe",
         env: {

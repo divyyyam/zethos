@@ -1,5 +1,22 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.24;
+pragma solidity ^0.8.24;
 
-// TODO: Add minimal local pool reads in docs/onchain.md sections 5.2 and 8; docs/engine.md section 6.
-interface IUniswapV3Pool {}
+/// @notice The read-only part of a Uniswap-v3-style pool that the vault's price protection uses.
+interface IUniswapV3Pool {
+    function token0() external view returns (address);
+
+    function token1() external view returns (address);
+
+    function slot0()
+        external
+        view
+        returns (
+            uint160 sqrtPriceX96,
+            int24 tick,
+            uint16 observationIndex,
+            uint16 observationCardinality,
+            uint16 observationCardinalityNext,
+            uint8 feeProtocol,
+            bool unlocked
+        );
+}

@@ -12,7 +12,7 @@ export class Volatility {
 
   update(mid: number, ts: number): void {
     const previous = this.last;
-    if (previous && ts-previous.ts < 1000) return;
+    if (previous && ts - previous.ts < 1000) return;
     this.last = { mid, ts };
     if (!previous) return;
     const seconds = (ts - previous.ts) / 1000;

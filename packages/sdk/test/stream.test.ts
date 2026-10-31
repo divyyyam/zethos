@@ -119,4 +119,25 @@ describe("stream", () => {
     expect(latest().url).toBe("wss://engine.example.test/stream");
     stop();
   });
+
+  test("delivers feed outages, parameter reloads and fills with unknown reference prices", () => {
+    const seen: StreamFrame[] = [];
+    const errors: ZethosError[] = [];
+    const stop = subscribe({
+      url: "ws://engine/stream",
+      WebSocket: FakeWebSocket,
+      handlers: {
+        price: (f) => seen.push(f),
+        params: (f) => seen.push(f),
+        fill: (f) => seen.push(f),
+        onError: (e) => errors.push(e),
+      },
+    });
+    latest().send({ type: "price", pair: "HSK/USDT", mid: null, health: "down", ts: 1 });
+    latest().send({ type: "params", ts: 1, changed: ["spread"] });
+    latest().send({ type: "fill", fill: { ...fillBody(), midAtFill: null } });
+    expect(seen.map((f) => f.type)).toEqual(["price", "params", "fill"]);
+    expect(errors).toEqual([]);
+    stop();
+  });
 });

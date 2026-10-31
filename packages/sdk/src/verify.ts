@@ -37,7 +37,7 @@ export interface VerifyOptions {
   publicClient?: PublicClient | undefined;
   /** Unix seconds. Defaults to the current time. */
   now?: number;
-  /** Minimum seconds the quote must still be valid for. Default 5. */
+  /** Minimum remaining seconds. Default 5; 1 for paper quotes with TTL at most 5 seconds. */
   minRemainingSec?: number;
   /** Largest accepted shortfall versus `spotOut`, as a fraction. Default 0.03. */
   maxSpreadVsMid?: number;
@@ -107,7 +107,11 @@ export async function verifyQuote(
   add(signed.amountOut === 0n || signed.expiry <= signed.issuedAt, "out_of_bounds");
   add(!formatOk, "bad_signature_format");
   add(signed.expiry - signed.issuedAt > BigInt(MAX_TTL_SEC), "ttl_too_long");
-  add(Number(signed.expiry) <= nowSec(options) + (options.minRemainingSec ?? 5), "expired");
+  const safetyWindow = response.route === "paper" && signed.expiry - signed.issuedAt <= 5n ? 1 : 5;
+  add(
+    Number(signed.expiry) <= nowSec(options) + (options.minRemainingSec ?? safetyWindow),
+    "expired",
+  );
   add(uintOf(displayedOut(response)) !== signed.amountOut, "display_mismatch");
   add(toSeconds(response.expiresAt) !== Number(signed.expiry), "expiry_mismatch");
   add(isWorseThanReference(response, signed.amountOut, options), "worse_than_reference");

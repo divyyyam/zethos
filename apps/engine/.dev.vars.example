@@ -1,0 +1,21 @@
+PAPER_SIGNER_KEY=
+
+# Optional operator access. The owner and all signing/executor identities must differ.
+OPERATOR_ADDRESS=
+SESSION_SECRET=
+
+# Natural-English interpretation and asynchronous decision narration. No trading authority.
+GEMINI_API_KEY=
+GEMINI_MODEL=gemini-3.5-flash-lite
+
+# Opt in only for paper development when RPC token metadata is unavailable.
+# ERC-20 decimals are otherwise read from chain. Never used for live settlement.
+SHADOW_ASSUME_DECIMALS=false
+
+# Neon Postgres connection string. Without it the engine keeps everything in memory.
+DATABASE_URL=
+
+# Optional token overrides; required on testnet (CHAIN_ID=133).
+USDT_ADDRESS=
+WHSK_ADDRESS=
+WETH_ADDRESS=

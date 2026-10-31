@@ -8,9 +8,15 @@ export interface BookResult {
   error: string | null;
 }
 
-export async function pollTrades(pair: Pair, feeds: Params["feeds"], fetcher: typeof fetch = fetch): Promise<Trade[]> {
+export async function pollTrades(
+  pair: Pair,
+  feeds: Params["feeds"],
+  fetcher: typeof fetch = fetch,
+): Promise<Trade[]> {
   const venue = feeds.tapeSource[pair];
-  const response = await fetcher(VENUES[venue].tradesUrl(pair), { signal: AbortSignal.timeout(feeds.timeoutMs) });
+  const response = await fetcher(VENUES[venue].tradesUrl(pair), {
+    signal: AbortSignal.timeout(feeds.timeoutMs),
+  });
   if (!response.ok) throw new Error(`Trade feed ${venue}: HTTP ${response.status}`);
   return VENUES[venue].parseTrades(await response.json());
 }

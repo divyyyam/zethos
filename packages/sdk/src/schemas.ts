@@ -3,7 +3,6 @@ import { z } from "zod";
 
 const UINT_PATTERN = /^\d{1,78}$/;
 
-/** Base-10 integer string within `uint<bits>`, normalised (no leading zeros). */
 export const uint = (bits: 64 | 256) =>
   z
     .string()
@@ -135,8 +134,10 @@ export const pairStatus = z.object({
 
 export const status = z.object({
   mode: z.enum(["shadow", "live"]),
+  dataSource: z.enum(["live", "replay"]).optional(),
   chainId: z.union([z.literal(177), z.literal(133)]),
   signer: address,
+  operator: address.nullable().optional(),
   verifyingContract: address,
   paused: z.boolean(),
   riskState,
@@ -157,10 +158,12 @@ export const fill = z.object({
   amountIn: uint(256),
   amountOut: uint(256),
   price: num,
-  midAtFill: num,
+  midAtFill: num.nullable(),
   flow,
   paper: z.boolean(),
   txHash: txHash.nullable().default(null),
+  markouts: z.record(z.string(), num).optional(),
+  epoch: num.optional(),
 });
 
 export const decision = z.object({
@@ -185,6 +188,10 @@ export const takerRow = z.object({
   fills: num,
   pnlUsd: num,
   detectedAfter: z.object({ fills: num, seconds: num }).nullable(),
+  preDetectionLossPerFillUsd: num.nullable().optional(),
+  postDetectionLossPerFillUsd: num.nullable().optional(),
+  estimatedLossAvoidedUsd: num.optional(),
+  postDetectionAttempts: num.optional(),
 });
 
 const byFlow = z.object({ tape: num, user: num, agent: num, attacker: num });
@@ -193,6 +200,8 @@ export const arena = z.object({
   epoch: num,
   startedAt: num,
   equityUsd: num,
+  valuationStale: z.boolean().optional(),
+  unpricedFills: num.optional(),
   pnl: z.object({ total: num, spread: num, inventory: num, arb: num, gas: num }),
   byFlow,
   series: z.array(z.object({ t: num, equity: num, byFlow })),
@@ -205,8 +214,9 @@ export const arena = z.object({
 export const arenaSummary = arena.omit({ series: true });
 
 export const stats = z.object({
-  series: z.array(z.object({ t: num, mid: num })),
+  series: z.array(z.object({ t: num, mid: num, sources: z.record(z.string(), num).optional() })),
   venues: z.array(z.object({ venue: z.string(), depthUsd: num })),
+  summary: z.object({ fills: num, volumeUsd: num, spreadCaptureUsd: num }).optional(),
 });
 
 export const chatResponse = z.object({
@@ -217,12 +227,13 @@ export const chatResponse = z.object({
 export const errorBody = z.object({ error: z.string(), message: z.string().optional() });
 
 export const streamFrame = z.discriminatedUnion("type", [
-  z.object({ type: z.literal("price"), pair, mid: num, health, ts: num }),
+  z.object({ type: z.literal("price"), pair, mid: num.nullable(), health, ts: num }),
   z.object({ type: z.literal("fill"), fill }),
   z.object({ type: z.literal("decision"), decision }),
   z.object({ type: z.literal("risk"), paused: z.boolean(), riskState, halted: z.array(pair) }),
   z.object({ type: z.literal("arena"), arena: arenaSummary }),
   z.object({ type: z.literal("takerTier"), address, tier, score: num }),
+  z.object({ type: z.literal("params"), ts: num, changed: z.array(z.string()) }),
 ]);
 
 /** Accepts both a bare array and `{ [key]: array }`. */

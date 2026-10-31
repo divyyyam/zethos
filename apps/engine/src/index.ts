@@ -1,7 +1,9 @@
-import { serverEnvSchema } from "./config";
-import { app } from "./server";
+import type { Env } from "./api/market";
 
-const { PORT } = serverEnvSchema.parse(Bun.env);
-const server = Bun.serve({ port: PORT, fetch: app.fetch });
+export { Market } from "./api/market";
 
-console.info(`Zethos engine listening on ${server.url}`);
+export default {
+  fetch(request: Request, env: Env): Promise<Response> {
+    return env.MARKET.get(env.MARKET.idFromName("main")).fetch(request);
+  },
+} satisfies ExportedHandler<Env>;

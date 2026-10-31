@@ -1,6 +1,5 @@
 import { quoteTypes } from "@zethos/shared";
 
-/** Minimal ZethosVault fragment until the generated ABI in @zethos/shared is populated. */
 export const vaultAbi = [
   {
     type: "function",

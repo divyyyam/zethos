@@ -1,37 +1,52 @@
 {
   "pairs": ["HSK/USDT", "ETH/USDT"],
   "spread": {
-    "base": {
-      "HSK/USDT": 0.002,
-      "ETH/USDT": 0.002
-    },
+    "base": { "HSK/USDT": 0.002, "ETH/USDT": 0.0015 },
     "kSigma": 2.0,
     "kInventory": 0.0015,
-    "min": 0.0005
+    "min": 0.0005,
+    "max": 0.03,
+    "degradedAdd": 0.002
   },
   "quote": {
-    "ttlSec": 30
+    "ttlSec": 30,
+    "minTtlSec": 3,
+    "maxTtlSec": 120,
+    "ttlVolK": 0.0015,
+    "minNotionalUsd": 5,
+    "maxNotionalUsd": { "HSK/USDT": 25000, "ETH/USDT": 50000 },
+    "rateLimitPerMin": 60
   },
   "feeds": {
+    "pollMs": 2000,
+    "timeoutMs": 1500,
     "staleMs": 5000,
-    "maxDisagreement": 0.005
+    "maxDisagreement": 0.005,
+    "minSources": 2,
+    "bookLevels": 20,
+    "sources": {
+      "HSK/USDT": ["hashkey-global", "gate", "kucoin", "mexc"],
+      "ETH/USDT": ["binance", "okx", "hashkey-global"]
+    },
+    "tapeSource": { "HSK/USDT": "hashkey-global", "ETH/USDT": "binance" }
   },
-  "arb": {
-    "marginBps": 10,
-    "tickMs": 5000
-  },
-  "risk": {
-    "maxDrawdownPct": 0.05,
-    "feedOutagePauseSec": 60,
-    "markoutAlarm": -0.02
-  },
-  "tuner": {
-    "windowFills": 20,
-    "widenBelow": -0.001,
-    "narrowAbove": 0.002,
-    "step": 0.0005
-  },
-  "inventory": {
-    "targetShare": 0.5
+  "inventory": { "targetShare": 0.5, "minShare": 0.15, "maxShare": 0.85 },
+  "arena": { "initialUsdPerSide": 25000 },
+  "heartbeat": { "idleStopMs": 600000 },
+  "arb": { "marginBps": 10, "tickMs": 5000 },
+  "risk": { "maxDrawdownPct": 0.05, "feedOutagePauseSec": 60, "markoutAlarm": -0.02 },
+  "tuner": { "windowFills": 20, "widenBelow": -0.001, "narrowAbove": 0.002, "step": 0.0005 },
+  "toxicity": {
+    "minFills": 5,
+    "priorScore": 0.2,
+    "halfLifeFills": 10,
+    "weights": { "markout": 0.45, "adverse": 0.25, "lateness": 0.15, "selectivity": 0.15 },
+    "tiers": {
+      "probation": { "ttlSec": 10, "sizeCap": 0.25, "sigmaAdd": 0.5 },
+      "normal": { "ttlSec": 30, "sizeCap": 1, "sigmaAdd": 0 },
+      "watch": { "enter": 0.45, "exit": 0.35, "ttlSec": 12, "sizeCap": 0.5, "sigmaAdd": 1 },
+      "toxic": { "enter": 0.65, "exit": 0.5, "ttlSec": 3, "sizeCap": 0.1, "sigmaAdd": 3 },
+      "blocked": { "enter": 0.85, "exit": 0.7 }
+    }
   }
 }

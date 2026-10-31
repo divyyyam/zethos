@@ -117,11 +117,11 @@ export function vwap(levels: Level[], quantity: number): number | null {
 export function vwapForQuote(levels: Level[], budget: number): number | null {
   let remaining = budget;
   let quantity = 0;
-  for (const [price,size] of levels) {
-    const cost = Math.min(remaining,price*size);
-    quantity += cost/price;
+  for (const [price, size] of levels) {
+    const cost = Math.min(remaining, price * size);
+    quantity += cost / price;
     remaining -= cost;
-    if (remaining <= budget*1e-12) return budget/quantity;
+    if (remaining <= budget * 1e-12) return budget / quantity;
   }
   return null;
 }

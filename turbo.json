@@ -49,24 +49,7 @@
     "engine#dev": {
       "dependsOn": ["^build"],
       "cache": false,
-      "persistent": true,
-      "passThroughEnv": [
-        "HSK_RPC_URL",
-        "CHAIN_ID",
-        "VAULT_ADDRESS",
-        "QUOTE_SIGNER_KEY",
-        "EXECUTOR_KEY",
-        "OPERATOR_ADDRESS",
-        "GEMINI_API_KEY",
-        "GEMINI_MODEL",
-        "DB_PATH",
-        "ENGINE_MODE",
-        "ARB_ENABLED",
-        "EXCHANGE_API_KEY",
-        "EXCHANGE_API_SECRET",
-        "PORT",
-        "CORS_ORIGIN"
-      ]
+      "persistent": true
     },
     "web#dev": {
       "dependsOn": ["^build"],

@@ -16,6 +16,8 @@
       "!!packages/contracts/lib",
       "!!packages/shared/src/generated.ts",
       "!!docs",
+      "!!**/.wrangler",
+      "!!**/drizzle/meta",
       "!!**/next-env.d.ts"
     ]
   },

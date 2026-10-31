@@ -1,0 +1,19 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "zethos-engine",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-01",
+  "observability": { "enabled": true },
+  "durable_objects": {
+    "bindings": [{ "name": "MARKET", "class_name": "Market" }]
+  },
+  // The Free plan only allows SQLite-backed Durable Objects. Market never uses that storage;
+  // persistent data is in Neon.
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Market"] }],
+  "vars": {
+    "ENGINE_MODE": "shadow",
+    "CHAIN_ID": "177",
+    "HSK_RPC_URL": "https://mainnet.hsk.xyz",
+    "CORS_ORIGIN": "http://localhost:3000"
+  }
+}
