@@ -1,9 +1,10 @@
 import { and, desc, eq, lt, max } from "drizzle-orm";
 import { getAddress } from "viem";
 import type { Pair, Side } from "../config";
+import type { PolicyLifecycleStatus } from "../policy";
 import { type Inventory, TOKEN_SYMBOLS } from "../tokens";
 import { createDb } from "./db";
-import type { Fill, Flow, QuoteRecord, Store } from "./index";
+import type { Fill, Flow, PolicyRecord, QuoteRecord, Store } from "./index";
 import * as schema from "./schema";
 
 export function neonStore(url: string): Store {
@@ -194,6 +195,65 @@ export function neonStore(url: string): Store {
           epoch: row.epoch,
         }),
       );
+    },
+
+    async savePolicy(record: PolicyRecord) {
+      await db
+        .insert(schema.policies)
+        .values({
+          id: record.id,
+          parent: record.parent,
+          hypothesis: record.hypothesis,
+          spec: record.spec,
+          report: record.report,
+          status: record.status,
+          allocationPct: record.allocationPct,
+          createdAt: record.createdAt,
+          updatedAt: record.updatedAt,
+        })
+        .onConflictDoUpdate({
+          target: schema.policies.id,
+          set: {
+            parent: record.parent,
+            hypothesis: record.hypothesis,
+            spec: record.spec,
+            report: record.report,
+            status: record.status,
+            allocationPct: record.allocationPct,
+            updatedAt: record.updatedAt,
+          },
+        });
+    },
+
+    async getPolicy(id: string) {
+      const [row] = await db.select().from(schema.policies).where(eq(schema.policies.id, id));
+      if (!row) return null;
+      return {
+        id: row.id,
+        parent: row.parent,
+        hypothesis: row.hypothesis,
+        spec: row.spec as PolicyRecord["spec"],
+        report: (row.report ?? null) as PolicyRecord["report"],
+        status: row.status as PolicyLifecycleStatus,
+        allocationPct: row.allocationPct,
+        createdAt: Number(row.createdAt),
+        updatedAt: Number(row.updatedAt),
+      };
+    },
+
+    async listPolicies() {
+      const rows = await db.select().from(schema.policies).orderBy(desc(schema.policies.createdAt));
+      return rows.map((row) => ({
+        id: row.id,
+        parent: row.parent,
+        hypothesis: row.hypothesis,
+        spec: row.spec as PolicyRecord["spec"],
+        report: (row.report ?? null) as PolicyRecord["report"],
+        status: row.status as PolicyLifecycleStatus,
+        allocationPct: row.allocationPct,
+        createdAt: Number(row.createdAt),
+        updatedAt: Number(row.updatedAt),
+      }));
     },
   };
 }

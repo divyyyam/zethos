@@ -8,6 +8,7 @@ export interface AppOptions {
   auth?: () => Promise<OperatorAuth>;
   assistant?: Assistant;
   clock?: () => number;
+  adminToken?: string | null | (() => string | null | Promise<string | null>);
 }
 
 export interface RouteOptions {
@@ -15,4 +16,5 @@ export interface RouteOptions {
   auth: AppOptions["auth"];
   assistant: AppOptions["assistant"];
   clock: () => number;
+  adminToken?: AppOptions["adminToken"];
 }

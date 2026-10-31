@@ -1,6 +1,6 @@
 import type { AgentState } from "../agent/types";
 import type { Inventory } from "../tokens";
-import type { ArenaState, Fill, QuoteRecord, Store } from "./index";
+import type { ArenaState, Fill, PolicyRecord, QuoteRecord, Store } from "./index";
 
 export function memoryStore(): Store {
   let arena: ArenaState | null = null;
@@ -9,6 +9,7 @@ export function memoryStore(): Store {
   const nonces = new Set<string>();
   let state: AgentState | null = null;
   const epochs = new Map<number, AgentState>();
+  const policies = new Map<string, PolicyRecord>();
 
   return {
     loadArena: async () => (arena ? { ...arena, inventory: { ...arena.inventory } } : null),
@@ -49,5 +50,16 @@ export function memoryStore(): Store {
         )
         .sort((a, b) => b.ts - a.ts)
         .slice(0, limit),
+    savePolicy: async (record: PolicyRecord) => {
+      policies.set(record.id, structuredClone(record));
+    },
+    getPolicy: async (id: string) => {
+      const record = policies.get(id);
+      return record ? structuredClone(record) : null;
+    },
+    listPolicies: async () =>
+      Array.from(policies.values())
+        .map((p) => structuredClone(p))
+        .sort((a, b) => b.createdAt - a.createdAt),
   };
 }

@@ -43,6 +43,7 @@ export class Market extends DurableObject<Env> {
         throw new EngineError("unauthorized", 401, "Configure OPERATOR_ADDRESS and SESSION_SECRET");
       return this.operatorAuth;
     },
+    adminToken: typeof this.env.ADMIN_TOKEN === "string" ? this.env.ADMIN_TOKEN : null,
   });
 
   async fetch(request: Request): Promise<Response> {

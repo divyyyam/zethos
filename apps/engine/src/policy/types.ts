@@ -78,3 +78,14 @@ export interface Policy {
     request: PolicyRequest,
   ): PolicyDecision;
 }
+
+export const POLICY_STATUSES = [
+  "draft",
+  "qualified",
+  "rejected",
+  "canary",
+  "incumbent",
+  "retired",
+] as const;
+
+export type PolicyLifecycleStatus = (typeof POLICY_STATUSES)[number];

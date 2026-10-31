@@ -4,6 +4,16 @@ import type { Pair } from "../config";
 import { checkpoint } from "./persistence";
 import type { EngineState } from "./state";
 
+const EXEMPT_COOLDOWN_TYPES = new Set([
+  "mandate_breach",
+  "policy_registered",
+  "policy_qualified",
+  "policy_rejected",
+  "canary_started",
+  "policy_promoted",
+  "policy_retired",
+]);
+
 // Decision recording, retrieval and optional narration.
 export function decision(
   context: EngineState,
@@ -19,7 +29,7 @@ export function decision(
   const key = `${type}:${pair}:${taker}:${reason}`;
   const last = context.cooldowns.get(key);
   if (
-    type !== "mandate_breach" &&
+    !EXEMPT_COOLDOWN_TYPES.has(type) &&
     last !== undefined &&
     now - last < context.deps.params.agent.cooldownMs
   )
