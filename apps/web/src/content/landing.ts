@@ -27,8 +27,7 @@ export interface Link {
 
 export const landing = {
   meta: {
-    // Replace with the production origin once the site has a domain.
-    siteUrl: "http://localhost:3000",
+    siteUrl: process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000",
     title: "Zethos — Exchange prices for every swap on HashKey Chain",
     description:
       "Zethos quotes every swap on HashKey Chain against live exchange order books and fills it from its own on-chain vault. No thin pools, no surprise slippage.",
@@ -83,7 +82,8 @@ export const landing = {
       },
       { key: "swapsFilled", label: "Swaps filled", format: { decimals: 0, suffix: "+" } },
     ] satisfies StatCardContent[],
-    note: "Sample figures. Live numbers arrive with the Zethos engine.",
+    sampleLabel: "Sample figures, not measured results",
+    note: "Measured paper results are in the Arena.",
     integrationsLabel: "Built with and priced against",
     integrations: ["HashKey Chain", "HashKey Global", "Binance", "OKX", "Foundry"],
   },
@@ -226,7 +226,10 @@ export const landing = {
         title: "Pausable vault",
         body: "The operator can halt quoting instantly if markets break.",
       },
-      { title: "Public contracts", body: "Verified source on HashKey Chain for anyone to audit." },
+      {
+        title: "Public contracts",
+        body: "Open source for anyone to audit. The vault deploys after shadow mode.",
+      },
     ],
   },
 
@@ -240,7 +243,7 @@ export const landing = {
 
   footer: {
     navLabel: "Footer navigation",
-    status: "Preview on HashKey Chain",
+    status: "Shadow mode: paper settlement, no funds move",
     backToTop: "Back to top",
     statement: "Exchange prices, on *every swap.*",
     columns: [
@@ -256,7 +259,7 @@ export const landing = {
         title: "Build",
         links: [
           { label: "How it works", href: "#how-it-works" },
-          { label: "Docs", href: "https://github.com/divyyyam/zethos/tree/main/docs" },
+          { label: "Docs", href: "https://github.com/divyyyam/zethos#readme" },
           { label: "GitHub", href: "https://github.com/divyyyam/zethos" },
         ],
       },

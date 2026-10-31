@@ -63,7 +63,8 @@ export function Proof({ stats }: { stats: EngineStats }) {
         />
       </Reveal>
 
-      <dl className="mt-block grid grid-cols-2 border-t border-line lg:grid-cols-4">
+      <p className="mt-block text-[15px] font-medium text-fg">{proof.sampleLabel}</p>
+      <dl className="mt-3 grid grid-cols-2 border-t border-line lg:grid-cols-4">
         {proof.cards.map((card, i) => (
           <Reveal
             key={card.key}
