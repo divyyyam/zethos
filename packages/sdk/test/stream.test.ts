@@ -61,6 +61,8 @@ describe("stream", () => {
       handlers: {
         price: (frame) => seen.push(frame),
         fill: (frame) => seen.push(frame),
+        policies: (frame) => seen.push(frame),
+        diagnosis: (frame) => seen.push(frame),
         onError: (error) => errors.push(error),
       },
     });
@@ -69,9 +71,35 @@ describe("stream", () => {
     socket.send({ type: "price", pair: "HSK/USDT", mid: 0.5, health: "ok", ts: 1 });
     socket.send({ type: "fill", fill: fillBody() });
     socket.send({ type: "risk", paused: false, riskState: "normal", halted: [] });
+    socket.send({
+      type: "policies",
+      policies: [
+        {
+          id: "p-test",
+          status: "qualified",
+          parent: "v0",
+          hypothesis: "test",
+          createdAt: 1,
+          allocationPct: 0,
+        },
+      ],
+    });
+    socket.send({
+      type: "diagnosis",
+      diagnosis: {
+        window: { fromTs: 1, toTs: 2 },
+        totalLossUsd: 0,
+        analyzedLossUsd: 0,
+        unclassifiedLossUsd: 0,
+        causes: {},
+        unclassified: { usd: 0, share: 0, fillCount: 0, exampleFillIds: [] },
+        excludedFills: [],
+        breakdown: [],
+      },
+    });
     socket.send({ type: "price", pair: "HSK/USDT", mid: "0.5", health: "ok", ts: 1 });
     socket.send("not json");
-    expect(seen.map((f) => f.type)).toEqual(["price", "fill"]);
+    expect(seen.map((f) => f.type)).toEqual(["price", "fill", "policies", "diagnosis"]);
     expect(errors.map((e) => e.code)).toEqual(["invalid_response", "invalid_response"]);
     stop();
   });

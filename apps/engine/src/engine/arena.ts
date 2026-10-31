@@ -41,6 +41,7 @@ export function arenaView(context: EngineState) {
   const equityUsd = equity ?? context.state.points.at(-1)?.equity;
   if (equityUsd === undefined) throw new EngineError("warming_up", 503, "No healthy valuation yet");
   const byFlow = emptyFlow();
+  const byPolicy: Record<string, { fills: number; volumeUsd: number; pnlUsd: number }> = {};
   let spread = 0;
   let volumeUsd = 0;
   for (const fill of context.ledger) {
@@ -49,7 +50,16 @@ export function arenaView(context: EngineState) {
     spread += spreadCapture(fill, qty);
     volumeUsd += notional;
     const mark = context.state.markouts.find((m) => m.fillId === fill.id && m.horizon === 300);
-    if (mark) byFlow[fill.flow] += (mark.bps * notional) / 10000;
+    const markoutPnlUsd = mark ? (mark.bps * notional) / 10000 : 0;
+    if (mark) byFlow[fill.flow] += markoutPnlUsd;
+    let policy = byPolicy[fill.policyId];
+    if (!policy) {
+      policy = { fills: 0, volumeUsd: 0, pnlUsd: 0 };
+      byPolicy[fill.policyId] = policy;
+    }
+    policy.fills += 1;
+    policy.volumeUsd += notional;
+    policy.pnlUsd += markoutPnlUsd;
   }
   const totalBeforeGas = equityUsd - context.state.initialEquity;
   return {
@@ -67,6 +77,7 @@ export function arenaView(context: EngineState) {
     valuationStale: equity === null,
     unpricedFills: context.ledger.filter((fill) => fill.midAtFill === null).length,
     byFlow,
+    byPolicy,
     series: context.state.points.slice(-1800),
     fills: context.ledger.length,
     volumeUsd,

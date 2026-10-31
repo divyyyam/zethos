@@ -13,6 +13,7 @@ export type Flow = "tape" | "user" | "agent" | "attacker";
 export interface Fill {
   id: string;
   quoteId: string;
+  policyId: string;
   ts: number;
   taker: Address;
   pair: Pair;
@@ -33,6 +34,7 @@ export interface Fill {
 
 export interface QuoteRecord {
   id: string;
+  policyId: string;
   ts: number;
   epoch: number;
   pair: Pair;

@@ -76,6 +76,7 @@ export async function fillQuote(
   const fill: Fill = {
     id: `f_${crypto.randomUUID()}`,
     quoteId: issued.id,
+    policyId: issued.policyId,
     ts: now,
     taker: getAddress(quote.taker),
     pair: issued.pair,

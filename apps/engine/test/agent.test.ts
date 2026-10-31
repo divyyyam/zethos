@@ -164,6 +164,7 @@ describe("arena, risk and markouts", () => {
     expect(view?.markouts?.["5"]).toBeGreaterThan(0);
     const arena = engine.arenaView();
     expect(arena.byFlow.user).toBeGreaterThan(0);
+    expect(arena.byPolicy[fill.policyId]?.fills).toBe(1);
     expect(arena.pnl.total).toBeCloseTo(arena.pnl.spread + arena.pnl.inventory - arena.pnl.gas, 8);
     expect(arena.fills).toBe(1);
     expect(arena.pnl.spread).toBeCloseTo(

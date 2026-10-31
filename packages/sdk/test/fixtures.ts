@@ -128,6 +128,7 @@ export async function paperQuoteBody(
   return {
     route: "paper",
     id: "q_01",
+    policyId: "v0",
     quote,
     signature: await signQuote(quote, sign),
     paperOut: quote.amountOut,
@@ -164,6 +165,7 @@ export function fillBody(overrides: Record<string, unknown> = {}) {
   return {
     id: "f_01",
     quoteId: "q_01",
+    policyId: "v0",
     ts: 1_800_000_000_000,
     taker: TAKER,
     pair: "HSK/USDT",

@@ -6,8 +6,9 @@ import type { Engine } from "../engine";
 import type { Fused, VenueState } from "../feeds/fuse";
 import type { Health, Source } from "../feeds/types";
 import type { Volatility } from "../feeds/vol";
-import type { Policy, VenueSample } from "../policy";
+import type { Policy, PolicySummary, VenueSample } from "../policy";
 import type { SignedQuote } from "../quotes";
+import type { LossAttributionResult } from "../research";
 import type { Tokens } from "../tokens";
 
 export interface PriceBreakdown {
@@ -29,6 +30,7 @@ export interface PriceBreakdown {
 export interface PaperQuote {
   route: "paper";
   id: string;
+  policyId: string;
   quote: SignedQuote;
   signature: Hex;
   paperOut: string;
@@ -48,7 +50,9 @@ export type Frame =
   | { type: "risk"; paused: boolean; riskState: "paused" | "degraded" | "normal"; halted: Pair[] }
   | { type: "takerTier"; address: Address; tier: TierName; score: number }
   | { type: "params"; ts: number; changed: string[] }
-  | { type: "arena"; arena: Omit<ReturnType<Engine["arenaView"]>, "series"> };
+  | { type: "arena"; arena: Omit<ReturnType<Engine["arenaView"]>, "series"> }
+  | { type: "diagnosis"; diagnosis: LossAttributionResult }
+  | { type: "policies"; policies: PolicySummary[] };
 
 export interface EngineDeps {
   chainId: 177 | 133;
@@ -76,6 +80,7 @@ export interface Market {
 
 export interface Issued {
   id: string;
+  policyId: string;
   pair: Pair;
   side: Side;
   quote: SignedQuote;

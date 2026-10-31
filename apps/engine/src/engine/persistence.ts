@@ -55,6 +55,7 @@ export function restoreQuote(context: EngineState, record: QuoteRecord): void {
   const breakdown = record.breakdown as PriceBreakdown;
   context.issued.set(nonceKey(record.quote), {
     id: record.id,
+    policyId: record.policyId,
     pair: record.pair,
     side: record.side,
     quote: record.quote,

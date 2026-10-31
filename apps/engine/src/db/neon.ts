@@ -45,6 +45,7 @@ export function neonStore(url: string): Store {
     async saveQuote(record) {
       await db.insert(schema.quotes).values({
         id: record.id,
+        policyId: record.policyId,
         ts: record.ts,
         epoch: record.epoch,
         pair: record.pair,
@@ -68,6 +69,7 @@ export function neonStore(url: string): Store {
       return rows.map(
         (row): QuoteRecord => ({
           id: row.id,
+          policyId: row.policyId,
           ts: row.ts,
           epoch: row.epoch,
           pair: row.pair as Pair,
@@ -130,6 +132,7 @@ export function neonStore(url: string): Store {
       await db.batch([
         db.insert(schema.fills).values({
           id: fill.id,
+          policyId: fill.policyId,
           quoteId: fill.quoteId,
           ts: fill.ts,
           epoch,
@@ -178,6 +181,7 @@ export function neonStore(url: string): Store {
         (row): Fill => ({
           id: row.id,
           quoteId: row.quoteId,
+          policyId: row.policyId,
           ts: row.ts,
           taker: getAddress(row.taker),
           pair: row.pair as Pair,

@@ -144,11 +144,13 @@ export async function issueQuote(
   };
   const signature = await signQuote(context.deps.signer, context.deps.chainId, signed);
   const id = `q_${crypto.randomUUID()}`;
+  const policyId = context.policy.id;
   const vsMid = side === "buy" ? priced.price / mid - 1 : 1 - priced.price / mid;
 
   const response: PaperQuote = {
     route: "paper",
     id,
+    policyId,
     quote: signed,
     signature,
     paperOut: signed.amountOut,
@@ -177,6 +179,7 @@ export async function issueQuote(
 
   const record: QuoteRecord = {
     id,
+    policyId,
     ts: now,
     epoch: context.arena?.epoch ?? 0,
     pair,
@@ -191,6 +194,7 @@ export async function issueQuote(
   await context.deps.store.saveQuote(record);
   context.issued.set(nonceKey(signed), {
     id,
+    policyId,
     pair,
     side,
     quote: signed,

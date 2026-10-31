@@ -52,6 +52,7 @@ export function diagnose(
     tokens: context.deps.tokens,
     thresholds: { staleMs: context.deps.params.feeds.staleMs },
   });
+  context.deps.emit?.({ type: "diagnosis", diagnosis: result });
   decision(
     context,
     "diagnosis",

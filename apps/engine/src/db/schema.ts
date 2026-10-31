@@ -34,6 +34,7 @@ export const quotes = pgTable(
   "quotes",
   {
     id: text().primaryKey(),
+    policyId: text("policy_id").notNull().default("v0"),
     ts: ms("ts").notNull(),
     epoch: integer().notNull(),
     pair: text().notNull(),
@@ -66,6 +67,7 @@ export const fills = pgTable(
   "fills",
   {
     id: text().primaryKey(),
+    policyId: text("policy_id").notNull().default("v0"),
     quoteId: text("quote_id").notNull().unique("fills_quoteId_unique"),
     ts: ms("ts").notNull(),
     epoch: integer().notNull(),

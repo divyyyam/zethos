@@ -115,6 +115,7 @@ function fakeSdk(): Fake {
       return {
         id: `f_${calls.fill}`,
         quoteId: paper.id,
+        policyId: paper.policyId,
         ts: Date.now(),
         taker,
         pair: "HSK/USDT",

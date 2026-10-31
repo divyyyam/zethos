@@ -22,6 +22,7 @@ function createFill(
   const base: Fill = {
     id: "fill-001",
     quoteId: "quote-001",
+    policyId: "v0",
     ts: 1700000005000,
     taker: "0x1111111111111111111111111111111111111111",
     pair: "HSK/USDT",

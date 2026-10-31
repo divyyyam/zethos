@@ -81,6 +81,7 @@ export const priceBreakdown = z.object({
 export const paperQuote = z.object({
   route: z.literal("paper"),
   id: z.string(),
+  policyId: z.string().min(1),
   quote: signedQuote,
   signature: hex,
   paperOut: uint(256),
@@ -157,6 +158,7 @@ export const status = z.object({
 export const fill = z.object({
   id: z.string(),
   quoteId: z.string(),
+  policyId: z.string().min(1),
   ts: num,
   taker: address,
   pair,
@@ -212,6 +214,10 @@ export const arena = z.object({
   unpricedFills: num.optional(),
   pnl: z.object({ total: num, spread: num, inventory: num, arb: num, gas: num }),
   byFlow,
+  byPolicy: z.record(
+    z.string(),
+    z.object({ fills: num, volumeUsd: num, pnlUsd: num }),
+  ),
   series: z.array(z.object({ t: num, equity: num, byFlow })),
   fills: num,
   volumeUsd: num,
@@ -234,6 +240,31 @@ export const chatResponse = z.object({
 
 export const errorBody = z.object({ error: z.string(), message: z.string().optional() });
 
+const policySummary = z.object({
+  id: z.string(),
+  status: z.enum(["draft", "qualified", "rejected", "canary", "incumbent", "retired"]),
+  parent: z.string(),
+  hypothesis: z.string(),
+  createdAt: num,
+  allocationPct: num,
+});
+const causeAttribution = z.object({
+  usd: num,
+  share: num,
+  fillCount: num,
+  exampleFillIds: z.array(z.string()),
+});
+const diagnosis = z.object({
+  window: z.object({ fromTs: num, toTs: num }),
+  totalLossUsd: num,
+  analyzedLossUsd: num,
+  unclassifiedLossUsd: num,
+  causes: z.record(z.string(), causeAttribution),
+  unclassified: causeAttribution,
+  excludedFills: z.array(z.object({ fillId: z.string(), reason: z.string() })),
+  breakdown: z.array(z.unknown()),
+});
+
 export const streamFrame = z.discriminatedUnion("type", [
   z.object({ type: z.literal("price"), pair, mid: num.nullable(), health, ts: num }),
   z.object({ type: z.literal("fill"), fill }),
@@ -242,6 +273,8 @@ export const streamFrame = z.discriminatedUnion("type", [
   z.object({ type: z.literal("arena"), arena: arenaSummary }),
   z.object({ type: z.literal("takerTier"), address, tier, score: num }),
   z.object({ type: z.literal("params"), ts: num, changed: z.array(z.string()) }),
+  z.object({ type: z.literal("policies"), policies: z.array(policySummary) }),
+  z.object({ type: z.literal("diagnosis"), diagnosis }),
 ]);
 
 /** Accepts both a bare array and `{ [key]: array }`. */

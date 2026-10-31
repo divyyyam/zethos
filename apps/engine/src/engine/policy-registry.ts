@@ -98,6 +98,18 @@ export async function registerPolicy(
       },
     );
 
+    context.deps.emit?.({
+      type: "policies",
+      policies: (await listPolicies(context)).map((policy) => ({
+        id: policy.id,
+        status: policy.status,
+        parent: policy.parent,
+        hypothesis: policy.hypothesis,
+        createdAt: policy.createdAt,
+        allocationPct: policy.allocationPct,
+      })),
+    });
+
     return record;
   });
 }

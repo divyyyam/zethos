@@ -473,6 +473,7 @@ export function simulatePolicyOnScenario(
           {
             id: `sim-fill-${totalFills}`,
             quoteId: `sim-quote-${totalFills}`,
+            policyId: policy.id,
             ts: record.ts,
             taker: record.taker as `0x${string}`,
             pair: record.pair,

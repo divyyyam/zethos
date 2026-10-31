@@ -63,6 +63,7 @@ describe("quote", () => {
     const { engine, now } = await readyEngine();
     const { response } = await engine.quote(buyHsk(), "web", now);
     expect(response.route).toBe("paper");
+    expect(response.policyId).toBe("v0");
     expect(BigInt(response.paperOut)).toBeLessThan(BigInt(response.spotOut));
     expect(response.vsMidBps).toBeGreaterThan(0);
     expect(response.expiresAt).toBe(Number(response.quote.expiry));
@@ -116,6 +117,7 @@ describe("paper fill", () => {
       now + 1000,
     );
     expect(fill.flow).toBe("user");
+    expect(fill.policyId).toBe("v0");
     expect(fill.amountOut).toBe(response.paperOut);
     expect(fill.price).toBeGreaterThan(0.1);
     const inventory = engine.status().inventory;
