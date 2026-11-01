@@ -9,6 +9,7 @@ export class RuntimeState {
   readonly listeners = new Set<() => void>();
   readonly controllers = new Map<string, AbortController>();
   readonly sdk: AgentSdk | null;
+  readonly settleLive: AgentDeps["settleLive"];
   readonly now: () => number;
   readonly sleep: (ms: number, signal: AbortSignal) => Promise<void>;
   readonly pollMs: number;
@@ -17,6 +18,7 @@ export class RuntimeState {
   counter = 0;
   constructor(deps: AgentDeps) {
     this.sdk = deps.sdk;
+    this.settleLive = deps.settleLive;
     this.now = deps.now ?? Date.now;
     this.sleep = deps.sleep ?? abortableSleep;
     this.pollMs = deps.pollMs ?? STATUS_POLL_MS;

@@ -1,9 +1,11 @@
 "use client";
 import { Check, CircleDashed, X } from "lucide-react";
+import { useLiveSettlement } from "../../../hooks/platform/use-agent";
 import { type Mission, STAGES } from "../../../lib/agent/runtime";
 import { STAGE_LABEL, STAGE_PLAN } from "./mission-presentation";
 
 export function Steps({ mission }: { mission: Mission }) {
+  const live = useLiveSettlement();
   return (
     <ol className="mt-5" aria-label="Mission progress">
       {STAGES.map((stage, index) => {
@@ -18,7 +20,12 @@ export function Steps({ mission }: { mission: Mission }) {
             <span className="t-title !text-[22px]">{STAGE_LABEL[stage]}</span>
             <span className="flex min-w-0 items-center justify-end gap-2 text-right text-sm text-fg-soft">
               <span className="sr-only">{state}. </span>
-              {detail ?? (state === "idle" ? STAGE_PLAN[stage] : "")}
+              {detail ??
+                (state === "idle"
+                  ? stage === "settle" && live
+                    ? "Sign and fill on-chain from your wallet"
+                    : STAGE_PLAN[stage]
+                  : "")}
               {state === "active" && (
                 <span aria-hidden className="pulse-dot size-1.5 shrink-0 rounded-full bg-white" />
               )}

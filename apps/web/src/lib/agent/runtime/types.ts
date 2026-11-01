@@ -1,4 +1,4 @@
-import type { Fill, PairStatus, PriceBreakdown, Status, Zethos } from "@zethos/sdk";
+import type { Fill, PairStatus, PriceBreakdown, Status, VaultQuote, Zethos } from "@zethos/sdk";
 import type { Address } from "viem";
 import type { Trigger } from "../intent";
 import type { MARKOUT_HORIZONS, STAGES } from "./constants";
@@ -150,6 +150,11 @@ export type AgentSdk = Pick<
 
 export interface AgentDeps {
   sdk: AgentSdk | null;
+  /** Live mode only: settles a verified vault quote from the connected wallet. */
+  settleLive?: (
+    quote: VaultQuote,
+    trade: { pair: Pair; side: "buy" | "sell"; price: number },
+  ) => Promise<Fill>;
   now?: () => number;
   sleep?: (ms: number, signal: AbortSignal) => Promise<void>;
   pollMs?: number;

@@ -101,6 +101,7 @@ export const vaultQuote = z.object({
   signature: hex,
   conduitOut: uint(256),
   hskswapOut: uint(256).nullable(),
+  vsMidBps: num,
   spotOut: uint(256),
   savingPct: num.nullable(),
   expiresAt: num,

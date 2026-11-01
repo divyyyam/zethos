@@ -19,6 +19,8 @@ export function RecentSwaps() {
     },
     enabled: Boolean(address && platformConfig.engineUrl),
     retry: false,
+    // A wallet can see its receipt before the engine has read the block.
+    refetchInterval: 15000,
   });
   if (!isConnected)
     return (

@@ -1,8 +1,8 @@
-// Sense, price, verify, guard and paper-fill one slice. The retry budget stays local to this loop.
+// Sense, price, verify, guard and settle one slice. The retry budget stays local to this loop.
 import {
   type Fill,
-  type PaperQuote,
   type QuoteRequest,
+  type SignedQuoteResponse,
   type Status,
   ZethosError,
 } from "@zethos/sdk";
@@ -55,8 +55,8 @@ export async function runSlice(
       return fail("sense", failureMessage(error));
     }
     if (signal.aborted) return "aborted";
-    if (status.mode !== "shadow")
-      return fail("sense", "Agent execution is paper-only. Use the swap page to sign live fills.");
+    if (status.mode !== "shadow" && !context.settleLive)
+      return fail("sense", "This agent can’t settle on-chain. Use the swap page.");
     if (status.paused) return fail("sense", "The vault is paused.");
     const pair = status.pairs.find((row) => row.pair === plan.pair);
     if (!pair || pair.halted || pair.mid === null)
@@ -78,20 +78,22 @@ export async function runSlice(
       );
 
     setStage(context, id, "price", "active");
-    let quote: PaperQuote;
+    let quote: SignedQuoteResponse;
     try {
       const response = await sdk.quote(request);
-      if (response.route !== "paper")
-        return fail(
-          "price",
-          "The engine offered a non-paper route, which this agent can’t settle.",
-        );
-      quote = response;
+      if (response.route !== (status.mode === "shadow" ? "paper" : "conduit"))
+        return fail("price", "The engine offered a route this agent can’t settle.");
+      quote = response as SignedQuoteResponse;
     } catch (error) {
       return fail("price", failureMessage(error));
     }
     if (signal.aborted) return "aborted";
-    const out = Number(formatUnits(BigInt(quote.paperOut), plan.boughtDecimals));
+    const out = Number(
+      formatUnits(
+        BigInt(quote.route === "paper" ? quote.paperOut : quote.conduitOut),
+        plan.boughtDecimals,
+      ),
+    );
     const price =
       plan.side === "buy"
         ? Number(formatUnits(BigInt(request.amountIn), plan.soldDecimals)) / out
@@ -188,7 +190,10 @@ export async function runSlice(
     setStage(context, id, "settle", "active");
     let fill: Fill;
     try {
-      fill = await sdk.paperFill(quote, request);
+      if (quote.route === "paper") fill = await sdk.paperFill(quote, request);
+      else if (context.settleLive)
+        fill = await context.settleLive(quote, { pair: plan.pair, side: plan.side, price });
+      else return fail("settle", "This agent can’t settle on-chain.");
     } catch (error) {
       if (error instanceof ZethosError && error.code === "quote_expired" && expiredRetries > 0) {
         expiredRetries -= 1;
@@ -220,7 +225,13 @@ export async function runSlice(
       price: fill.price,
       vsMidBps: quote.vsMidBps,
     });
-    setStage(context, id, "settle", "done", "Paper fill settled");
+    setStage(
+      context,
+      id,
+      "settle",
+      "done",
+      fill.txHash ? `Settled on-chain, ${fill.txHash.slice(0, 10)}…` : "Paper fill settled",
+    );
     logMission(
       context,
       id,

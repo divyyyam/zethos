@@ -5,9 +5,16 @@ import { type Address, bytesToHex, getAddress } from "viem";
 import { useAccount } from "wagmi";
 import { AgentRuntime } from "../../lib/agent/runtime";
 import { agentZethos } from "../../lib/engine/sdk";
+import { settleOnChain } from "../../lib/engine/settle-on-chain";
+import { useEngineStatus } from "./use-platform";
 
 /** One agent per tab, outside React, so armed missions keep running across page changes. */
-export const agent = new AgentRuntime({ sdk: agentZethos });
+export const agent = new AgentRuntime({ sdk: agentZethos, settleLive: settleOnChain });
+
+/** True when authorized trades settle on-chain from the wallet rather than on paper. */
+export function useLiveSettlement(): boolean {
+  return useEngineStatus().data?.mode === "live";
+}
 
 export function useMissions() {
   return useSyncExternalStore(agent.subscribe, agent.getMissions, agent.getMissions);

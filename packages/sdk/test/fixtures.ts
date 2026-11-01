@@ -153,6 +153,7 @@ export async function vaultQuoteBody(
     quote,
     signature: await signQuote(quote, { vault: VAULT, ...sign }),
     conduitOut: quote.amountOut,
+    vsMidBps: 10,
     hskswapOut: "1980000000000000000",
     spotOut: "2000000000000000000",
     savingPct: 0.5,

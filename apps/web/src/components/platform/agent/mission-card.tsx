@@ -1,4 +1,5 @@
 "use client";
+import { useLiveSettlement } from "../../../hooks/platform/use-agent";
 import { ActionPill } from "./action-pill";
 import { STATUS_HEADLINE } from "./mission-presentation";
 import { MissionTicket } from "./mission-ticket";
@@ -29,6 +30,7 @@ export function MissionStage({
   onStop: () => void;
   onRun: (text: string) => void;
 }) {
+  const live = useLiveSettlement();
   if (!mission.plan) {
     return (
       <div className="a-sheet mx-auto w-full max-w-[760px] rounded-[22px] p-6 shadow-[0_60px_120px_-30px_rgb(5_5_27/0.8)] md:p-8">
@@ -89,7 +91,9 @@ export function MissionStage({
               Discard
             </button>
             <span className="text-sm text-fg-soft">
-              Paper only. No funds move and no wallet prompt.
+              {live
+                ? "Authorizing opens your wallet. Real tokens move on-chain."
+                : "Paper only. No funds move and no wallet prompt."}
             </span>
           </div>
         )}

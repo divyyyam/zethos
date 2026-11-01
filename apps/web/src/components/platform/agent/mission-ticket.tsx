@@ -1,7 +1,7 @@
 "use client";
 import { Check } from "lucide-react";
 import { motion, useMotionValue, useSpring, useTransform } from "motion/react";
-import { useNow } from "../../../hooks/platform/use-agent";
+import { useLiveSettlement, useNow } from "../../../hooks/platform/use-agent";
 import { useFinePointerDesktop, useReducedMotionPref } from "../../../hooks/use-media-query";
 import { formatToken, type Mission, missionTotals } from "../../../lib/agent/runtime";
 import { shortAddress } from "../../../lib/platform-config";
@@ -10,6 +10,7 @@ import { STATUS_LABEL, TILT } from "./mission-presentation";
 
 /** The landing's quote ticket, with this mission's real terms on it. */
 export function MissionTicket({ mission }: { mission: Mission }) {
+  const live = useLiveSettlement();
   const plan = mission.plan;
   const reduced = useReducedMotionPref();
   const desktop = useFinePointerDesktop();
@@ -44,7 +45,7 @@ export function MissionTicket({ mission }: { mission: Mission }) {
           string,
         ][])
       : []),
-    ["Settlement", mission.dryRun ? "None, dry run" : "Paper vault"],
+    ["Settlement", mission.dryRun ? "None, dry run" : live ? "On-chain vault" : "Paper vault"],
     ["Taker", shortAddress(mission.taker)],
   ];
   return (

@@ -58,7 +58,8 @@ export async function readReport(
   if (intent.kind === "explain") {
     const usd = 500;
     const quote = await sdk.quote(request(usd));
-    if (quote.route !== "paper") throw new ZethosError("wrong_mode", "No paper quote available");
+    if (quote.route !== "paper" && quote.route !== "conduit")
+      throw new ZethosError("wrong_mode", "No signed quote available");
     return {
       type: "explain",
       pair: pair.pair,
@@ -73,7 +74,7 @@ export async function readReport(
     try {
       const quote = await sdk.quote(request(usd));
       rungs.push(
-        quote.route === "paper"
+        quote.route === "paper" || quote.route === "conduit"
           ? { usd, costBps: quote.vsMidBps, ttlSec: quote.breakdown.ttlSec, note: null }
           : { usd, costBps: null, ttlSec: null, note: "No signed route" },
       );

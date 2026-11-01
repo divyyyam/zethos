@@ -229,7 +229,7 @@ export function MarketPanels({ market, pair }: { market: MarketState; pair: Pair
             <Venues pair={pair} />
           </Block>
           <Block
-            title="Paper vault"
+            title={market.status?.mode === "live" ? "Vault" : "Paper vault"}
             {...(market.status?.equityUsd != null
               ? { aside: formatUsd(market.status.equityUsd) }
               : {})}
