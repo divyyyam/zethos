@@ -1,7 +1,8 @@
 # Zethos engine
 
-Hono on **Cloudflare Workers** (free plan), with Postgres on **Neon** via Drizzle. Read the
-root [AGENTS.md](../../AGENTS.md) first. The wire contract is binding for the engine and
+Hono on **Cloudflare Workers**, with Postgres on **Neon** via Drizzle. Read the
+[demo plan](../../docs/demo-plan.md) for the demo rules and the
+[web instructions](../web/AGENTS.md) before frontend work. The wire contract is binding for the engine and
 `@zethos/sdk`; `test/sdk.test.ts` runs the real SDK against the real app to enforce it.
 
 ## Architecture
@@ -19,9 +20,8 @@ request ─▶ Worker (src/index.ts) ─▶ Durable Object "Market" (src/durable
 
 - **Why one Durable Object:** live prices and inventory sit in memory in a single-threaded
   instance, so nonce and inventory checks have no races, and the Worker stays stateless.
-- **Why polling, not exchange WebSockets:** on the free plan every WebSocket message counts
-  toward 100k Durable Object requests a day. A 2 s REST heartbeat costs ~43k a day and keeps
-  the instance asleep between beats.
+- **Polling:** the heartbeat collects exchange snapshots through REST and sleeps between beats.
+  Its idle-stop setting comes from `params.json`; this is not an uptime measurement.
 - **The heartbeat stops itself** after `heartbeat.idleStopMs` (10 min) without requests or
   stream clients, and restarts on the next request (prices warm up within a few seconds).
 - **No database configured → in-memory store**, for local development and tests.
@@ -43,7 +43,8 @@ src/
     errors.ts          EngineError
     state.ts           One mutable state and the original promise queue for writes
     market.ts          Book ingestion, market reads, token routing and readiness gates
-    quoting.ts         Firm paper quote issuance and request rate limits
+    quoting.ts         Firm paper/live quote issuance and request rate limits
+    live.ts            Vault snapshots, open-quote reservations and on-chain fill watching
     settlement.ts      Paper vault signature, nonce, capacity and settlement checks
     arena.ts           Paper epoch lifecycle, funding and Arena accounting
     pnl.ts             Statistics and paper P&L attribution
@@ -77,17 +78,20 @@ The HTTP and SDK response shapes stay aligned through `test/sdk.test.ts`.
 The shadow loop includes 1/5/30/300-second markouts, paper equity and P&L, honest exchange
 tape capture, behavioural taker scoring and hysteretic tiers, drawdown/feed/markout risk
 gates, spread tuning, the decision journal, Gemini interpretation/narration, and SIWE operator
-controls. `apps/sniper` attacks through the public SDK. The frontend's Swap, Arena, Insights
-and paper operator controls consume this engine; live settlement stays behind the ABI gates.
+controls. `apps/sniper` attacks shadow engines through the public SDK; the browser Arena uses
+`arenaQuote`/`arenaFill` and supports either mode.
 
-Live settlement, chain watching, on-chain arbitrage and pool adapters are deliberately deferred.
-There are no confirmed pool deployments; only `pools: []` is accepted. The engine rejects live
-mode instead of simulating readiness. The [MCP server](../mcp/README.md) consumes the public SDK
-over stdio or Streamable HTTP; confirmed paper fills appear in Arena as `agent` flow.
+Live vault settlement and fill watching are implemented for HSK testnet. The web client verifies
+the quote locally, then the taker's wallet approves and fills on-chain. On-chain arbitrage and
+confirmed pool adapters remain deferred; no pool depth or savings are invented. The
+[MCP server](../mcp/README.md) consumes the public SDK over stdio or Streamable HTTP.
+
+Uptime is not measured. A live mode label describes settlement capability, not uptime or a
+promise that every pair is currently tradable.
 
 ## Endpoints (built)
 
-`GET /health`, `GET /status`, `POST /quote`, `POST /paper/fill`, `GET /fills?taker&limit`,
+`GET /health`, `GET /status`, `POST /quote`, `POST /arena/quote`, `POST /paper/fill`, `GET /fills?taker&limit`,
 `GET /stats?pair&from&to`, `GET /arena`, `GET /arena/takers`, `GET /decisions?limit&type`,
 `POST /chat`, SIWE `/auth/nonce`, `/auth/verify`, `/auth/logout`, and operator-only `/pnl`,
 `/operator/pause`, `/operator/resume`, `/operator/taker-tier`, `/operator/labels`,
@@ -95,8 +99,9 @@ over stdio or Streamable HTTP; confirmed paper fills appear in Arena as `agent` 
 `fill` (including markout updates), `arena`, `risk`, `decision`, `takerTier` and `params`.
 Errors: `{ error, message? }` with the codes in `docs/engine.md` §15.
 
-Quotes are persisted before returning their signatures. Settlement writes are serialized across
-awaits and commit the fill, used nonce, quote status and inventory in one database transaction.
+Quotes are persisted before returning their signatures. Paper settlement writes are serialized
+across awaits and commit the fill, used nonce, quote status and simulated inventory in one database
+transaction. Live token transfers settle atomically in the vault contract.
 Firm paper quotes have no per-taker last look: later tier changes, skew or momentarily stale
 feeds cannot revoke them; explicit pause and pair-halt gates still apply.
 
@@ -143,8 +148,7 @@ for broad English interpretation and narration. Common quote questions work loca
 LLM, e.g. “How much HSK can I get for $500?”; other wording uses `/chat` to propose a validated
 plan. Quote requests fetch real signed quotes without filling; trade requests create a draft
 that still requires authorization. The LLM never supplies executable prices or transactions.
-The default is `gemini-3.5-flash-lite`; `GEMINI_MODEL` can override it. This is a current stable
-model with function calling ([model documentation](https://ai.google.dev/gemini-api/docs/models/gemini-3.5-flash-lite)).
+The configured default in `src/config/index.ts` is `gemini-3.5-flash-lite`; `GEMINI_MODEL` can override it.
 Function-call IDs and thought signatures are preserved across tool responses.
 
 Decimals and symbols are read from RPC. Only explicit `SHADOW_ASSUME_DECIMALS=true` allows
@@ -184,7 +188,7 @@ DATABASE_URL=postgres://... bun run --cwd apps/engine db:migrate   # applies dri
 bun run --cwd apps/engine db:generate                              # after changing src/db/schema.ts
 ```
 
-## Deploy (Cloudflare free plan)
+## Deploy (Cloudflare)
 
 ```sh
 cd apps/engine
@@ -208,10 +212,37 @@ and that `quoteDigest()` matches the shared EIP-712 types. Any mismatch keeps it
 `live_blocked` and lists the reasons in `/status.liveBlocked`.
 
 Live quotes have their own minimum (`quote.liveMinNotionalUsd`, $0.50), so the paper minimum and the
-Arena's simulated flow don't change. They are clamped to each route's `enabled` and `maxAmountIn`, stay
-open for at least 60 seconds and at most `maxTtl()`, and are priced from `balanceOf(vault)` minus open quotes. Paper quotes keep the
-zero-address domain, and the Arena and tape replay keep running on paper. `/fills` doesn't show on-chain
-fills yet, because the fill watcher isn't built.
+Arena's simulated flow don't change. They respect each route's `enabled` and `maxAmountIn`, use a
+60-second minimum TTL clamped to the vault’s `maxTtl()`, and are priced from `balanceOf(vault)`
+minus open quotes. Paper quotes keep the
+zero-address domain, and the Arena and tape replay keep running on paper.
 
-Run it locally with `bun run dev:live-testnet`. Public values come from `packages/contracts/.env`, and
-the hot keys are read from their keystores into the process environment, never into a file.
+`GET /status` exposes `paperSigner` independently of the live vault `signer`. SDK paper verification
+uses that paper signer, never the live vault signer. `arenaQuote` always calls `/arena/quote` and
+parses a paper quote; `arenaFill` verifies locally and calls `/paper/fill` in either mode.
+The original `paperFill` SDK method remains shadow-only.
+
+The fill watcher reads vault `Fill` events. `GET /fills` without an epoch merges on-chain records
+(`paper: false`, `txHash`) with paper fills. An epoch filter returns paper records for that epoch;
+Arena equity, profit/loss and by-flow totals remain paper. Per-flow profit/loss needs completed
+five-minute markouts. Missing observations stay missing.
+
+The demo uses tUSDT, tWETH and tWHSK on chain 133. Read labels, decimals, available inventory,
+route enablement and per-fill caps from the configured engine; addresses are owner-provided.
+Mainnet live mode is not enabled. Do not lift the `CHAIN_ID=133` guard for a demo.
+
+The owner configures new live instances. The existing local demo engine is already running on
+port 8787; leave it running and use its public endpoints for checks.
+
+## Browser demo flows
+
+- **Desk:** request a signed quote, inspect price and safety checks, exercise real refusal presets,
+  then explicitly settle from the wallet when the route is live.
+- **Agent:** draft a sentence with a cost limit, authorize, follow verification and wallet steps,
+  then inspect the transaction and positions separated by settlement type.
+- **Arena:** launch paper attacks without a wallet. A client header beginning `sniper/` attributes
+  fills to attacker flow; real vault fills are displayed separately.
+
+For existing local demo servers, use `bun run --cwd apps/web demo:check` from the repo root.
+It declines all wallet sends and fails on unmet checks. Do not restart the live engine on 8787
+or open its secrets to run it. The full user flow is documented in the [root guide](../../README.md#demo-modes-and-user-flows).

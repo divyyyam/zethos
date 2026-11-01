@@ -1,31 +1,29 @@
 # Zethos contracts
 
 `ZethosVault` settles firm swap quotes signed off-chain, against its own inventory. The engine
-proposes prices; this contract decides whether a trade is allowed. Read the root
-[AGENTS.md](../../AGENTS.md) for how it fits into the product.
+proposes prices; this contract decides whether a trade is allowed. See the
+[root guide](../../README.md) for how it fits into the product.
 
 **Status: not audited. Deployed on HSK testnet only.** See [Before mainnet](#before-mainnet).
 
 ## Testnet deployment
 
-Chain `133`, on `https://testnet-explorer.hskchain.net`. `tUSDT` and `tWETH` are test tokens with no
-market value.
+Chain `133`, on `https://testnet-explorer.hskchain.net`. **tUSDT, tWETH and tWHSK** are test
+assets with no market value. Mainnet live settlement is not enabled in the engine.
 
-| Contract | Address |
-|----------|---------|
-| `ZethosVault` | `0x8deB013d7A8f5f5C6C2d8fb12506fab506721d01` |
-| `tUSDT` (6 decimals) | `0x1095085CAf22cEEa130f73a99234dd2C9216fb72` |
-| `tWETH` (18 decimals) | `0x6ab12f10d4f0ef5B3faae774abb724A958f5BD80` |
-| `WHSK` (predeploy) | `0x4200000000000000000000000000000000000006` |
+| Contract | Address / evidence |
+|----------|--------------------|
+| `ZethosVault` | _owner: add confirmed address and explorer link_ |
+| `tUSDT` (6 decimals) | _owner: add confirmed address_ |
+| `tWETH` (18 decimals) | _owner: add confirmed address_ |
+| `tWHSK` | _owner: add confirmed address and decimals_ |
+| Confirmed fill | _owner: add transaction explorer link_ |
+| Source verification | _owner: add current explorer verification evidence_ |
 
-First fill:
-`0xd370a644a5b7564e45a5d66d766eb5754fd0e2225032f78ab5ee1a1548234085`
-
-The explorer refuses the vault's source through `--verify` with HTTP 413, because it is about 200 KB,
-so `deploy:testnet` exits 1 after the deploy itself has succeeded. Check `broadcast/` before
-redeploying. The vault is verified from flattened source with comments stripped through
-`/api/v2/smart-contracts/<address>/verification/via/flattened-code`, which the explorer reports as a
-partial match because comments change the metadata hash. The bytecode is otherwise identical.
+Read deployed token metadata and route caps from chain and `/status`. Do not assume the native
+wrapped-token predeploy is the tWHSK used by the demo. `DeployTestTokens.s.sol` creates tUSDT and
+tWETH only; the owner must provide the separate tWHSK configuration used for the recorded demo.
+Uptime is not measured; neither a deployment nor a mode label proves availability.
 
 ## Layout
 
@@ -106,7 +104,8 @@ all, once per nonce, only for that taker, only before expiry.
   and today no venue with real depth exists to compare against.
 - **Only plain ERC-20 tokens.** Tokens that deliver less than the signed input are refused. Tokens
   that rebase, or can block transfers, aren't suitable for routes.
-- **No native HSK.** The vault trades WHSK.
+- **No native HSK.** The vault trades ERC-20 assets: tWHSK in the testnet demo, with its
+  configured address and decimals. Native wrapping is not a substitute for that test token.
 - **Admin power is total.** The owner can withdraw everything at any time. Inventory belongs to the
   operator; third-party liquidity is out of scope.
 
@@ -145,38 +144,21 @@ Then deposit inventory, set `NEXT_PUBLIC_VAULT_ADDRESS` for the web app and veri
 
 ## Testnet rehearsal
 
-The target is one real, verifiable fill on HSK testnet (chain `133`). Testnet has no confirmed USDT
-or WETH, so `tUSDT` and `tWETH` stand in for them. They have no market value and must be labelled as
-test tokens wherever they appear, though the price still comes from real exchange books.
+Live mode uses real on-chain fills on HSK testnet (chain `133`) with tokens labelled tUSDT,
+tWETH and tWHSK. The contract is unaudited. Deployment, minting, funding and use of a real wallet
+are owner operations; automation for this demo must not broadcast, deploy or run migrations.
 
-All amounts are raw units. Run these from `packages/contracts`, in order:
+1. **Desk:** inspect the mandate and signed price, test refusals, then approve and fill from a real
+   wallet. The result links to the explorer and refreshes both token balances.
+2. **Agent:** draft and authorize a bounded trade, watch local verification and wallet approval/fill
+   steps, then inspect the transaction and **My position**. Cost limits can refuse before any send.
+3. **Arena:** attack paper inventory with local identities, no wallet and no token transfers.
+   Separate real-vault rows come from watched `Fill` events; paper totals exclude them.
 
-```sh
-# Deploy tUSDT and tWETH. Copy the printed USDT_ADDRESS and WETH_ADDRESS into .env.
-bun run deploy:test-tokens
-
-# Deploy the vault and its four routes, then copy its address into .env as VAULT_ADDRESS.
-bun run deploy:testnet
-
-# WHSK inventory comes from wrapping faucet HSK. The value is in wei.
-cast send "$WHSK_ADDRESS" "deposit()" --value <wei> --rpc-url hsk_testnet --account "$FOUNDRY_ACCOUNT"
-
-# Set FUND_USDT, FUND_WHSK and FUND_WETH, then deposit.
-bun run fund:testnet
-
-# Give the wallet that will swap some test tokens. Only the owner can mint.
-cast send "$USDT_ADDRESS" "mint(address,uint256)" <taker> <raw amount> \
-  --rpc-url hsk_testnet --account "$FOUNDRY_ACCOUNT"
-```
-
-The package scripts load `.env` themselves, because Bun doesn't pass it to them. Without Bun in the
-shell, load it with `set -a; source .env; set +a` and run the `forge script` command from the
-matching entry in `package.json`. Don't run `bun install` from WSL in a folder Windows also uses,
-because `node_modules` holds platform-specific binaries.
-
-The EVM target is `cancun`, because OpenZeppelin 5.7 uses `MCOPY`. HSK mainnet and testnet both
-execute `PUSH0`, `MCOPY`, `TLOAD` and `TSTORE`. Testnet's explorer is
-`https://testnet-explorer.hskchain.net`.
+The browser stand-in check is `bun run --cwd apps/web demo:check` from the repo root. It declines
+every `eth_sendTransaction`, blocks network broadcast methods and exits non-zero on a failed step.
+It cannot verify successful settlement or changed balances; the owner records those with a real
+wallet. The code's EVM target is `cancun`, using solc 0.8.24.
 
 ## Before mainnet
 
@@ -187,5 +169,7 @@ execute `PUSH0`, `MCOPY`, `TLOAD` and `TSTORE`. Testnet's explorer is
 - [ ] Decide whether a rolling volume limit is needed for the signer-key risk above.
 - [ ] Owner is a hardware wallet or multisig. Signer and executor are separate hot keys.
 - [ ] Full flow rehearsed on testnet: deposit, fill, pause, unpause, withdraw, key rotation.
-- [x] Engine live mode built and rehearsed on testnet. Lift its `CHAIN_ID=133` guard for mainnet.
+- [x] Engine live mode and real fill watching are implemented for testnet.
+- [ ] Mainnet live settlement remains disabled by `CHAIN_ID=133`; any mainnet enablement is
+  separate owner work after the checks above, outside this demo.
 - [ ] Monitoring and a pause runbook in place. Start with small caps and small inventory.

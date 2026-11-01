@@ -8,13 +8,15 @@ Built for the **HashKey Chain Horizon Hackathon India · AI Agent Trading track*
 |---|---|
 | Web app | _added at deploy_ |
 | Engine (Cloudflare Workers) | _added at deploy_ |
-| ZethosVault on HSK Chain mainnet (chain 177) | _added at deploy, verified on [hsk.blockscout.com](https://hsk.blockscout.com)_ |
+| ZethosVault on HSK testnet (chain 133) | _owner: add vault address and explorer link_ |
+| Test tokens: tUSDT, tWETH, tWHSK | _owner: add confirmed addresses_ |
+| Mainnet live settlement (chain 177) | Not enabled; the engine live-mode guard requires chain 133 |
 | Demo video | _added at submission_ |
 
 ## The problem
 
-HSK trades millions of dollars a day on centralised exchanges, but on-chain liquidity on HSK Chain
-is thin, so on-chain swaps get worse prices than the exchanges show. Token projects fix this by
+HSK trades on centralised exchanges, while thin on-chain liquidity can give swaps worse prices
+than the exchanges show. Token projects fix this by
 handing inventory to a market maker. They can't inspect the strategy, can't see how it loses
 money, and have no say in when it changes.
 
@@ -22,10 +24,10 @@ money, and have no say in when it changes.
 
 A founder gives Zethos inventory, working capital and a **mandate**: which pairs to trade, an
 inventory band, maximum spread per trade size, an uptime target and a maximum operating loss.
-Zethos then runs the desk and improves it in a loop:
+The uptime field is a target; uptime is not measured. Zethos runs the desk and improves it in a loop:
 
-1. **Quote.** Every swap gets a firm EIP-712 signed price built from live order books on
-   HashKey Global, Binance, OKX, Gate and others. `ZethosVault` checks the signature, expiry,
+1. **Quote.** A tradable request gets a firm EIP-712 signed price built from the venues configured
+   for that pair, including HashKey Global, Binance, OKX, Gate and others across the supported pairs. `ZethosVault` checks the signature, expiry,
    nonce, size caps and pool price, then settles both legs or reverts.
 2. **Diagnose.** Losses are attributed to a cause (stale reference, inventory imbalance,
    selective execution or adverse size), with dollar amounts and example fills (`GET /diagnosis`).
@@ -38,6 +40,29 @@ Zethos then runs the desk and improves it in a loop:
    trade is rejected.
 5. **Deploy carefully.** A qualified strategy gets a small, fixed share of live requests as a
    canary, and is promoted or retired from real results. It can never step outside the mandate.
+
+## Demo modes and user flows
+
+The recorded demo uses **HSK testnet, chain 133**. `/status.mode` identifies `shadow` or `live`;
+the quote route identifies paper or vault settlement. In live mode, wallet-approved vault fills
+move test tokens on-chain and link to the explorer. Test tokens have no market value and are
+labelled **tUSDT, tWETH and tWHSK**. Mainnet live mode is not enabled.
+
+1. **Founder — `/desk`.** Connect a wallet and open **Test the desk**. Request a signed quote,
+   inspect venues, spread terms and mandate/vault checks, try the route-cap and minimum presets,
+   then choose **Settle from wallet** to approve and fill a valid live quote. A confirmed fill
+   shows its transaction link and token balances.
+2. **Trader — `/agent`.** Type `Buy 500 USDT of HSK`, review the cost limit, and authorize before
+   approving in the wallet. Follow the six stages, inspect the result and **My position**, then
+   try `Buy 500 USDT of HSK, max 1 bps` (one basis point is 0.01%). Quotes above the limit are held
+   and refused if they do not return within the hold window; other safety gates can refuse first.
+3. **Attacker — `/arena`.** Launch Naive, Sniper or Rotating attacks for up to 60 seconds, or Stop
+   early. These always settle on paper, including against a live engine; attempts, taker scores
+   and paper fills are visible, and by-flow profit/loss follows completed five-minute markouts.
+   **Real vault fills** appear separately with explorer links and never enter paper totals.
+
+A configured engine failure remains an error. A halted pair cannot quote; no demo check bypasses
+that gate. Successful on-chain settlement and changed balances require the owner's real wallet.
 
 ## Safety by construction
 
@@ -64,7 +89,7 @@ Zethos then runs the desk and improves it in a loop:
    │
    └── fill(quote, sig) ──▶ ZethosVault (HSK Chain): verify, settle atomically or revert
 
- RESEARCH (offline, Bun CLI)                       ARENA (apps/sniper)
+ RESEARCH (offline, Bun CLI)                       ARENA (browser / apps/sniper)
  /diagnosis + dev scenarios ─▶ Gemini ─▶ spec      naive · sniper · latecomer · rotating
  spec ─▶ evaluator (dev, scenarios, held-out)       + held-out attacker, public endpoints only
       ─▶ qualification ─▶ POST /policies            recorder turns every run into a scenario
@@ -95,7 +120,8 @@ redacted.
 
 ## Run locally
 
-Requires Bun 1.4.2 (and Foundry in WSL/Linux for contracts).
+Requires Bun 1.4.2 (and Foundry in WSL/Linux for contracts). The setup below initializes a new
+shadow workspace; use the existing live demo servers as they are.
 
 ```sh
 bun install
@@ -104,7 +130,8 @@ cp apps/engine/.dev.vars.example apps/engine/.dev.vars
 bun run dev                     # web on :3000, engine on :8787
 ```
 
-Arena attackers (paper only, public endpoints, no keys):
+Use **Launch attack** in the browser against either engine mode. The CLI bots below are for a
+shadow engine; they refuse live mode (paper only, public endpoints, no keys):
 
 ```sh
 ZETHOS_ENGINE_URL=http://localhost:8787 bun apps/sniper/src/index.ts --mode sniper --pair HSK/USDT
@@ -117,25 +144,32 @@ Replay fallback (every response labelled `paper-replay`; refuses held-out record
 cd apps/engine && FEEDS_REPLAY=scenarios/<dev-scenario>.json REPLAY_LOOP=1 bun scripts/replay.ts
 ```
 
-Checks: `bun run test`, `bun run typecheck`, `bun run lint`, `bun run contracts:test`.
-
-## Deploying the vault
-
-Deployment uses an encrypted Foundry keystore, never a raw private key. Owner, quote signer and
-executor must be three different keys.
+Required checks, from the repository root:
 
 ```sh
-cast wallet import zethos-owner --interactive
-# packages/contracts/.env: FOUNDRY_ACCOUNT=zethos-owner plus the role addresses
-bun run --cwd packages/contracts deploy:mainnet   # verifies on hsk.blockscout.com
-bun run codegen
+export PATH="$HOME/.foundry/bin:$PATH"
+bun run typecheck && bun run test
+cd apps/web && bun run build
 ```
+
+With the existing local servers running, `bun run --cwd apps/web demo:check` walks all three
+flows using a stand-in wallet that declines every send and a network broadcast guard. It prints
+pass/fail per step and exits non-zero on failure, including feed halts. It requires installed
+Chromium; `DEMO_BROWSER_PATH` can select its executable. It never proves a successful real fill.
+
+## Vault operations
+
+Deployment, funding, secrets and production hosting are owner operations; see
+[the contracts guide](packages/contracts/README.md) and [engine modes](apps/engine/README.md#live-mode-hsk-testnet).
+Owner, quote signer and executor are separate roles. The existing demo engine on port 8787
+must be used as it is: do not restart it or change its mode to run browser checks.
 
 ## Honest limits
 
-- Prices, signatures, policy decisions and checks are real. **Swap settlement in the demo is
-  paper** and is labelled paper everywhere. Arena numbers are paper.
-- The vault is unaudited and deployed with tiny caps.
+- Live testnet vault settlement is real; shadow settlement, Arena attacks and Arena profit/loss
+  are paper. Replay data is labelled as replay. Uptime is not measured.
+- The vault is unaudited. Read active per-route caps from `/status.pairs[].vaultRoutes`; never
+  assume a documented deployment or a configured address means a route is enabled.
 - No hedging. Strategies are composed from a fixed component library, not arbitrary code. That's
   a deliberate v1 safety choice.
 - The research agent runs offline. A slow model only delays research; it can't affect live
