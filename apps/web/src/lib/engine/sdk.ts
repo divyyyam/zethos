@@ -30,6 +30,7 @@ const messages: Record<string, string> = {
   paused: "The vault is paused.",
   pair_halted: "Prices for this pair are temporarily unavailable.",
   vault_capacity: "This amount is above the vault’s current capacity. Try a smaller amount.",
+  mandate_breach: "This trade is outside the desk’s mandate.",
   insufficient_reference_depth: "This amount is too large to price reliably. Try a smaller swap.",
   rate_limited: "A few too many requests. Give it a moment and try again.",
   warming_up: "The engine is warming up. Prices arrive within a few seconds.",
@@ -48,11 +49,20 @@ const messages: Record<string, string> = {
     "Understanding that request took too long. Please try again; nothing was filled.",
 };
 
-/** User-facing copy for any failure. Engine `invalid_request` messages are written for people. */
+const unknownFailure = "Something went wrong. Nothing was filled by this step.";
+
+/** Only known, user-facing engine refusals may supply their own message. */
 export function failureMessage(error: unknown): string {
   if (error instanceof ZethosError) {
-    if (error.code === "invalid_request") return error.message;
-    return messages[error.code] ?? error.message;
+    if (
+      ["invalid_request", "vault_capacity", "mandate_breach"].includes(error.code) &&
+      error.message.trim()
+    ) {
+      return error.message;
+    }
+    return Object.hasOwn(messages, error.code)
+      ? (messages[error.code] ?? unknownFailure)
+      : unknownFailure;
   }
-  return "Something went wrong. Nothing was filled by this step.";
+  return unknownFailure;
 }
