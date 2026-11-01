@@ -8,7 +8,7 @@ import { platformConfig } from "../../../lib/platform-config";
 
 export function useResearchController() {
   const sample = !platformConfig.engineUrl;
-  const [selectedId, setSelectedId] = useState<string>("p-20261101-leadlag1");
+  const [selectedId, setSelectedId] = useState<string>(sample ? "p-20261101-leadlag1" : "");
   const [statusFilter, setStatusFilter] = useState<string>("all");
 
   const policiesQuery = useQuery({
