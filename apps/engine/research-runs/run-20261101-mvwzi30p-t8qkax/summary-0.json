@@ -1,0 +1,11 @@
+{
+  "runId": "run-20261101-mvwzi30p-t8qkax",
+  "date": "20261101",
+  "model": "gemini-3.5-flash-lite",
+  "success": true,
+  "attempts": 1,
+  "candidateId": "p-20261101-b970e0cd",
+  "specHash": "0xb970e0cde643ef3c0130890c1dad0dcd63ddd54b6cc17f8ec0149efaf1b09b27",
+  "hypothesis": "Refined base pricing and volatility scaling to preserve spread capture while maintaining robust inventory and toxicity safeguards with live tuning.",
+  "durationMs": 1956
+}

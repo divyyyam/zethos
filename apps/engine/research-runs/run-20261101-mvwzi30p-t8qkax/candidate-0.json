@@ -1,0 +1,56 @@
+{
+  "parent": "p-20261101-f392cc66",
+  "hypothesis": "Refined base pricing and volatility scaling to preserve spread capture while maintaining robust inventory and toxicity safeguards with live tuning.",
+  "pairs": [
+    "HSK/USDT",
+    "ETH/USDT"
+  ],
+  "reference": {
+    "kind": "depthWeighted",
+    "params": {}
+  },
+  "terms": [
+    {
+      "kind": "base",
+      "params": {
+        "bps": {
+          "HSK/USDT": 20,
+          "ETH/USDT": 15
+        }
+      }
+    },
+    {
+      "kind": "vol",
+      "params": {
+        "k": 2
+      }
+    },
+    {
+      "kind": "inventory",
+      "params": {
+        "k": 0.0015
+      }
+    },
+    {
+      "kind": "toxicity",
+      "params": {
+        "scale": 1
+      }
+    },
+    {
+      "kind": "tuner",
+      "params": {}
+    }
+  ],
+  "clamp": {
+    "minBps": 5,
+    "maxBps": 300
+  },
+  "ttl": {
+    "kind": "volScaled",
+    "ttlVolK": 0.0015,
+    "minSec": 3,
+    "maxSec": 120
+  },
+  "id": "p-20261101-b970e0cd"
+}

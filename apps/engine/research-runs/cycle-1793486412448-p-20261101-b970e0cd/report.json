@@ -1,0 +1,151 @@
+{
+  "candidateId": "p-20261101-b970e0cd",
+  "incumbentId": "p-20261101-f392cc66",
+  "specHash": "0xb970e0cde643ef3c0130890c1dad0dcd63ddd54b6cc17f8ec0149efaf1b09b27",
+  "codeRevision": "head",
+  "rulesVersion": "1.0.0",
+  "seed": 42,
+  "createdAt": 1793486412415,
+  "datasets": [
+    {
+      "name": "heldout-hsk-usdt-1793486059600",
+      "kind": "heldout",
+      "from": 1793478542641,
+      "to": 1793486180347,
+      "requests": 17
+    },
+    {
+      "name": "synthetic-dev-tape",
+      "kind": "scenario",
+      "from": 1700000001000,
+      "to": 1700000003000,
+      "requests": 1
+    },
+    {
+      "name": "synthetic-heldout-leadlag",
+      "kind": "heldout",
+      "from": 1700000001000,
+      "to": 1700000003000,
+      "requests": 1
+    }
+  ],
+  "results": {
+    "heldout-hsk-usdt-1793486059600": {
+      "candidate": {
+        "netUsd": 7.12,
+        "spreadCaptureUsd": 0,
+        "inventoryPnlUsd": 7.12,
+        "maxDrawdownPct": 0,
+        "avgHalfSpreadBps": 46.1,
+        "honestFillRate": 1,
+        "rejectRate": 0,
+        "attackerTakeUsd": 0,
+        "fills": 0
+      },
+      "incumbent": {
+        "netUsd": 7.12,
+        "spreadCaptureUsd": 0,
+        "inventoryPnlUsd": 7.12,
+        "maxDrawdownPct": 0,
+        "avgHalfSpreadBps": 46.1,
+        "honestFillRate": 1,
+        "rejectRate": 0,
+        "attackerTakeUsd": 0,
+        "fills": 0
+      }
+    },
+    "synthetic-dev-tape": {
+      "candidate": {
+        "netUsd": 6.6,
+        "spreadCaptureUsd": 6.65,
+        "inventoryPnlUsd": 0,
+        "maxDrawdownPct": 0,
+        "avgHalfSpreadBps": 66.95,
+        "honestFillRate": 1,
+        "rejectRate": 0,
+        "attackerTakeUsd": 0,
+        "fills": 1
+      },
+      "incumbent": {
+        "netUsd": 6.6,
+        "spreadCaptureUsd": 6.65,
+        "inventoryPnlUsd": 0,
+        "maxDrawdownPct": 0,
+        "avgHalfSpreadBps": 66.95,
+        "honestFillRate": 1,
+        "rejectRate": 0,
+        "attackerTakeUsd": 0,
+        "fills": 1
+      }
+    },
+    "synthetic-heldout-leadlag": {
+      "candidate": {
+        "netUsd": 0,
+        "spreadCaptureUsd": 0,
+        "inventoryPnlUsd": 0,
+        "maxDrawdownPct": 0,
+        "avgHalfSpreadBps": 0,
+        "honestFillRate": 1,
+        "rejectRate": 1,
+        "attackerTakeUsd": 0,
+        "fills": 0
+      },
+      "incumbent": {
+        "netUsd": 0,
+        "spreadCaptureUsd": 0,
+        "inventoryPnlUsd": 0,
+        "maxDrawdownPct": 0,
+        "avgHalfSpreadBps": 0,
+        "honestFillRate": 1,
+        "rejectRate": 1,
+        "attackerTakeUsd": 0,
+        "fills": 0
+      }
+    }
+  },
+  "verdict": {
+    "qualified": true,
+    "reasons": [
+      {
+        "rule": "must_beat_held_out",
+        "passed": true,
+        "candidate": 7.12,
+        "incumbent": 7.12,
+        "threshold": 7.12,
+        "detail": "Candidate beat or matched incumbent on held-out datasets"
+      },
+      {
+        "rule": "max_drawdown_delta",
+        "passed": true,
+        "candidate": 0,
+        "incumbent": 0,
+        "threshold": 0.01,
+        "detail": "Drawdown delta: 0 (limit: 0.01)"
+      },
+      {
+        "rule": "honest_fill_tolerance",
+        "passed": true,
+        "candidate": 1,
+        "incumbent": 1,
+        "threshold": 0.05,
+        "detail": "Honest fill rate drop: 0 (limit: 0.05)"
+      },
+      {
+        "rule": "min_honest_fill_rate",
+        "passed": true,
+        "candidate": 1,
+        "incumbent": 1,
+        "threshold": 0.5,
+        "detail": "Honest fill rate: 1 (min required: 0.5)"
+      },
+      {
+        "rule": "max_reject_rate",
+        "passed": true,
+        "candidate": 0.3333,
+        "incumbent": 0.3333,
+        "threshold": 0.5,
+        "detail": "Reject rate: 0.3333 (max allowed: 0.5)"
+      }
+    ]
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "heldOut": false,
+  "kind": "dev",
+  "seed": 42,
+  "datasetCount": 1,
+  "requestCount": 1,
+  "fillCount": 1,
+  "rejectRate": 0,
+  "netUsd": 6.6,
+  "spreadCaptureUsd": 6.65,
+  "attackerTakeUsd": 0,
+  "datasets": [
+    {
+      "name": "synthetic-dev-tape",
+      "kind": "dev",
+      "counts": {
+        "total": 3,
+        "books": 1,
+        "trades": 1,
+        "takerRequests": 1
+      },
+      "performance": {
+        "netUsd": 6.6,
+        "spreadCaptureUsd": 6.65,
+        "inventoryPnlUsd": 0,
+        "maxDrawdownPct": 0,
+        "avgHalfSpreadBps": 66.95,
+        "honestFillRate": 1,
+        "rejectRate": 0,
+        "attackerTakeUsd": 0,
+        "fills": 1
+      }
+    }
+  ]
+}
