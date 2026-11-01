@@ -13,6 +13,7 @@ import { QuoteAnatomy } from "../../components/landing/quote-anatomy";
 import { Safety } from "../../components/landing/safety";
 import { LandingWorld } from "../../components/landing/world";
 import { landing } from "../../content/landing";
+import { getStats } from "../../content/stats.mock";
 
 const { meta } = landing;
 
@@ -36,7 +37,7 @@ export const metadata: Metadata = {
 };
 
 export default async function LandingPage() {
-  const preview = !process.env.NEXT_PUBLIC_ENGINE_URL;
+  const stats = await getStats();
   return (
     <LandingShell>
       <Boot />
@@ -44,28 +45,13 @@ export default async function LandingPage() {
       <Nav />
       <main>
         <Hero />
-        <Proof />
-        {preview ? (
-          <>
-            <HowItWorks />
-            <Compare />
-            <QuoteAnatomy />
-          </>
-        ) : (
-          <section id="how-it-works" className="relative sect py-section">
-            <h2 className="t-title">Inspect a real signed price</h2>
-            <p className="lead mt-4">
-              Open Desk to see the current venues, spread terms, vault limits and local signature
-              checks for your own quote.
-            </p>
-            <a className="mt-6 inline-block underline" href="/desk#test-the-desk">
-              Test the desk
-            </a>
-          </section>
-        )}
+        <Proof stats={stats} />
+        <HowItWorks />
+        <Compare />
+        <QuoteAnatomy />
         <Features />
         <Safety />
-        <Cta showIllustration={preview} />
+        <Cta />
       </main>
       <Footer />
     </LandingShell>

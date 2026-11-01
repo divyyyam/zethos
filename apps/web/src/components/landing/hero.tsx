@@ -50,6 +50,21 @@ export function Hero() {
           aria-hidden
           className="pointer-events-none absolute inset-x-0 bottom-0 h-[42%] rounded-[inherit] bg-[linear-gradient(to_top,rgb(13_11_43/0.72),transparent)]"
         />
+        <dl
+          className="intro-fade ink-light absolute inset-x-inset bottom-inset flex flex-wrap items-end gap-x-block gap-y-3 "
+          style={{ "--delay": "2s" } as CSSProperties}
+        >
+          {hero.ticker.map((item) => (
+            <div key={item.label}>
+              <dt className="text-sm text-fg-soft">{item.label}</dt>
+              <dd className="num mt-1.5 text-[max(1.75rem,calc(var(--cw)*0.026))]">{item.value}</dd>
+            </div>
+          ))}
+          <div className="ml-auto flex items-center gap-2 pb-1">
+            <span aria-hidden className="pulse-dot size-1.5 rounded-full bg-white" />
+            <span className="text-sm text-fg-soft">{hero.tickerNote}</span>
+          </div>
+        </dl>
       </div>
     </section>
   );

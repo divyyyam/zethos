@@ -2,7 +2,7 @@ import { landing } from "../../content/landing";
 import { PrimaryButton, Reveal, RiseHeading } from "./primitives";
 
 /** The last window: moon and range above, the argument set on the water, one thing left to do. */
-export function Cta({ showIllustration = true }: { showIllustration?: boolean }) {
+export function Cta() {
   const { cta, chapters } = landing;
   const [lead, accent] = cta.headline.split(" *");
   return (
@@ -26,14 +26,12 @@ export function Cta({ showIllustration = true }: { showIllustration?: boolean })
             index={2}
             className="mt-6 grid items-end gap-6 border-t border-line pt-6 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] md:gap-block"
           >
-            {showIllustration && (
-              <div>
-                <p className="num text-[clamp(1.75rem,3vw,2.75rem)]">{cta.argument.value}</p>
-                <p className="mt-2 text-[15px] text-fg-soft">
-                  {cta.argument.label}. {cta.argumentNote}
-                </p>
-              </div>
-            )}
+            <div>
+              <p className="num text-[clamp(1.75rem,3vw,2.75rem)]">{cta.argument.value}</p>
+              <p className="mt-2 text-[15px] text-fg-soft">
+                {cta.argument.label}. {cta.argumentNote}
+              </p>
+            </div>
             <p className="lead max-w-[420px] text-fg-soft">{cta.sub}</p>
             <PrimaryButton href={cta.primary.href} size="lg">
               {cta.primary.label}
