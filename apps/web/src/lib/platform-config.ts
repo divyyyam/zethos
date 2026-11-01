@@ -41,8 +41,8 @@ export const platformTokens: readonly [PlatformToken, PlatformToken, PlatformTok
   },
   {
     symbol: "WHSK",
-    label: "WHSK",
-    name: "Wrapped HashKey",
+    label: testnet ? "tWHSK" : "WHSK",
+    name: testnet ? "Zethos Test WHSK (no value)" : "Wrapped HashKey",
     address:
       configuredAddress(process.env.NEXT_PUBLIC_WHSK_ADDRESS) ??
       (targetChain.id === 177 ? MAINNET_TOKEN_ADDRESSES.WHSK : undefined),
