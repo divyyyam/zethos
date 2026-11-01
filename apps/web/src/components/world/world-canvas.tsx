@@ -69,6 +69,7 @@ export function WorldCanvas({
       depth: false,
       stencil: false,
       powerPreference: "high-performance",
+      desynchronized: true,
     });
     if (!gl) return;
     const vert = compile(gl, gl.VERTEX_SHADER, VERT);
@@ -81,6 +82,7 @@ export function WorldCanvas({
     if (!gl.getProgramParameter(program, gl.LINK_STATUS)) return;
     // biome-ignore lint/correctness/useHookAtTopLevel: WebGL's useProgram, not a React hook.
     gl.useProgram(program);
+    canvas.style.willChange = "transform";
 
     const buffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
@@ -93,7 +95,7 @@ export function WorldCanvas({
     ) as Record<(typeof UNIFORMS)[number], WebGLUniformLocation | null>;
 
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    let scale = Math.min(window.devicePixelRatio || 1, 1.5);
+    let scale = Math.min(window.devicePixelRatio || 1, 1.25);
     const resize = () => {
       const width = Math.max(1, Math.round(canvas.clientWidth * scale));
       const height = Math.max(1, Math.round(canvas.clientHeight * scale));
@@ -164,13 +166,13 @@ export function WorldCanvas({
       // Adaptive resolution, judged over about a second of frames so one hitch doesn't trigger it.
       if (last) {
         const ms = now - last;
-        slow = ms > 24 ? slow + 1 : Math.max(0, slow - 1);
-        fast = ms < 18 ? fast + 1 : 0;
-        if (slow > 30 && scale > 0.5) {
+        slow = ms > 20 ? slow + 1 : Math.max(0, slow - 1);
+        fast = ms < 15 ? fast + 1 : 0;
+        if (slow > 18 && scale > 0.5) {
           scale = Math.max(0.5, scale * 0.8);
           slow = 0;
           resize();
-        } else if (fast > 360 && scale < Math.min(window.devicePixelRatio || 1, 1.5)) {
+        } else if (fast > 240 && scale < Math.min(window.devicePixelRatio || 1, 1.5)) {
           scale = Math.min(Math.min(window.devicePixelRatio || 1, 1.5), scale * 1.1);
           fast = 0;
           resize();

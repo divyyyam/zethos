@@ -119,16 +119,21 @@ export function AnimatedFavicon() {
     link.rel = "icon";
     link.type = "image/png";
     const start = performance.now();
-    const tick = () => {
-      draw(ctx, ((performance.now() - start) % LOOP_MS) / LOOP_MS);
-      link.href = canvas.toDataURL("image/png");
-      // Keep ours last if the router re-renders head tags on navigation.
-      if (document.head.lastElementChild !== link) document.head.appendChild(link);
+    let lastFaviconUpdate = 0;
+    let rafId = 0;
+    const tick = (now: number) => {
+      if (now - lastFaviconUpdate >= FRAME_MS) {
+        draw(ctx, ((now - start) % LOOP_MS) / LOOP_MS);
+        link.href = canvas.toDataURL("image/png");
+        // Keep ours last if the router re-renders head tags on navigation.
+        if (document.head.lastElementChild !== link) document.head.appendChild(link);
+        lastFaviconUpdate = now;
+      }
+      rafId = requestAnimationFrame(tick);
     };
-    tick();
-    const id = window.setInterval(tick, FRAME_MS);
+    rafId = requestAnimationFrame(tick);
     return () => {
-      window.clearInterval(id);
+      cancelAnimationFrame(rafId);
       link.remove();
     };
   }, []);
