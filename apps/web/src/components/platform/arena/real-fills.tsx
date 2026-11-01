@@ -22,7 +22,7 @@ export function RealFills() {
   });
   if (!status.data || (status.data.mode === "shadow" && !fills.data?.length)) return null;
   return (
-    <section className="p-card mb-6" aria-label="Real vault fills">
+    <section className="p-card p-arena-action-card mb-6" aria-label="Real vault fills">
       <div className="p-card-header">
         <h2>Real vault fills</h2>
         <span className="p-pill">

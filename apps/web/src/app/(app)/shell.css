@@ -289,6 +289,7 @@
   font-size: 12px;
 }
 .d-topbar-middle {
+  container: topbar-middle / inline-size;
   display: flex;
   flex: 1;
   align-items: center;
@@ -320,6 +321,7 @@
 }
 .d-search span {
   flex: 1;
+  min-width: 0;
   overflow: hidden;
   text-align: left;
   text-overflow: ellipsis;
@@ -335,6 +337,26 @@
   color: var(--fg-soft);
   font-family: var(--font-mono);
   font-size: 10.5px;
+  white-space: nowrap;
+}
+.d-search > svg {
+  flex: none;
+}
+@container topbar-middle (max-width: 440px) {
+  .d-search kbd,
+  .d-topbar-middle .d-ticker {
+    display: none;
+  }
+}
+@container topbar-middle (max-width: 220px) {
+  .d-search {
+    flex: 0 0 40px;
+    justify-content: center;
+    padding: 0;
+  }
+  .d-search span {
+    display: none;
+  }
 }
 .d-ticker {
   position: relative;
@@ -672,6 +694,89 @@
   margin: 2px 0 0;
   color: var(--fg-faint);
   font-size: 12.5px;
+}
+
+/* Desk controls use the same bordered, soft surface as the app's search inputs. */
+.d-guided-steps {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+.d-guided-steps .p-button {
+  justify-content: center;
+  min-height: 40px;
+  padding: 10px 12px;
+  font-size: 13px;
+  line-height: 1.4;
+  text-decoration: none;
+}
+.p-metrics-grid.d-desk-metrics {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.d-desk-form {
+  display: grid;
+  grid-template-columns: minmax(160px, 1.2fr) minmax(100px, 0.65fr) minmax(160px, 1fr) auto;
+  align-items: end;
+  gap: 12px;
+}
+.d-desk-form > label {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  color: var(--p-muted);
+  font-size: 13px;
+}
+.d-desk-form .p-search {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  height: 44px;
+  margin: 0;
+  padding: 10px 12px;
+  color: var(--color-ink);
+  font: inherit;
+}
+.d-desk-form > .p-button {
+  height: 44px;
+  white-space: nowrap;
+}
+.d-spread-table th[scope="row"] {
+  color: var(--color-ink);
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: normal;
+}
+.d-spread-table td:nth-child(2) {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.d-spread-table td:last-child {
+  color: var(--p-muted);
+}
+.d-spread-table tfoot {
+  border-top: 1px solid var(--p-line);
+}
+.d-spread-table .d-spread-total {
+  background: var(--color-canvas-soft);
+}
+.d-spread-table .d-spread-total th,
+.d-spread-table .d-spread-total td:nth-child(2) {
+  color: var(--color-ink);
+  font-weight: 600;
+}
+@media (max-width: 1100px) {
+  .d-desk-form {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 640px) {
+  .d-guided-steps {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .p-metrics-grid.d-desk-metrics,
+  .d-desk-form {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 .d-link {
   display: inline-flex;

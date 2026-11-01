@@ -67,18 +67,18 @@ export function DeskPage() {
 
   return (
     <>
-      <section className="p-card mb-6" aria-label="Guided start">
-        <div className="flex flex-wrap gap-4">
-          <button type="button" className="p-text-button" onClick={openWallet}>
+      <section className="d-card mb-6" aria-label="Guided start">
+        <div className="d-guided-steps">
+          <button type="button" className="p-button p-button-secondary" onClick={openWallet}>
             {account.isConnected ? "✓" : "1."} Connect wallet
           </button>
-          <a className="p-text-link" href="#test-the-desk">
+          <a className="p-button p-button-secondary" href="#test-the-desk">
             {verified.data ? "✓" : "2."} Test a quote
           </a>
-          <a className="p-text-link" href="#test-the-desk">
+          <a className="p-button p-button-secondary" href="#test-the-desk">
             {traded ? "✓" : "3."} Make a trade
           </a>
-          <Link className="p-text-link" href="/arena#launch-attack">
+          <Link className="p-button p-button-secondary" href="/arena#launch-attack">
             {attempts.data?.length ? "✓" : "4."} Try an attack
           </Link>
         </div>
@@ -134,7 +134,7 @@ export function DeskPage() {
       )}
 
       {/* Summary KPI Cards */}
-      <section className="p-metrics-grid mb-6" aria-label="Desk mandate highlights">
+      <section className="p-metrics-grid d-desk-metrics mb-6" aria-label="Desk mandate highlights">
         <div className="p-metric p-metric-featured">
           <span>Mandate Pairs</span>
           <strong>{mandateData?.pairs.join(", ") ?? "Unavailable"}</strong>

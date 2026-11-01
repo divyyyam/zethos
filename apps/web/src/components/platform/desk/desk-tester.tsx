@@ -28,6 +28,7 @@ import {
 import { wagmiConfig } from "../../../lib/wagmi";
 import { useWallet } from "../../wallet/wallet-provider";
 import { ExternalLink } from "../primitives";
+import { venueLabel } from "../venue-label";
 
 type Result = {
   quote: SignedQuoteResponse;
@@ -39,11 +40,11 @@ type Result = {
 };
 type Preset = "normal" | "over" | "under";
 const terms = [
-  ["base", "Base spread"],
-  ["vol", "Price movement"],
-  ["inventory", "Inventory balance"],
-  ["toxicity", "Taker risk"],
-  ["degraded", "Reduced price sources"],
+  ["base", "Base spread", "The desk’s standing margin"],
+  ["vol", "Price movement", "Allows for changing market prices"],
+  ["inventory", "Inventory balance", "Balances the vault’s holdings"],
+  ["toxicity", "Taker risk", "Adjusts for the taker’s trading behaviour"],
+  ["degraded", "Reduced price sources", "Allows for fewer healthy venues"],
 ] as const;
 const label = (token: PairStatus["base"]) => token.label ?? token.symbol;
 const pct = (fraction: number) => `${formatNumber(fraction * 100, 4)}%`;
@@ -274,7 +275,7 @@ export function DeskTester({ mandate }: { mandate: Mandate | undefined }) {
       ) : (
         <>
           <form
-            className="flex flex-wrap gap-4 items-end"
+            className="d-desk-form"
             onSubmit={(event) => {
               event.preventDefault();
               void requestQuote();
@@ -284,7 +285,7 @@ export function DeskTester({ mandate }: { mandate: Mandate | undefined }) {
               Pair
               <select
                 aria-label="Desk pair"
-                className="p-button"
+                className="p-search"
                 value={pairName}
                 disabled={busy}
                 onChange={(event) => {
@@ -303,7 +304,7 @@ export function DeskTester({ mandate }: { mandate: Mandate | undefined }) {
               Side
               <select
                 aria-label="Desk side"
-                className="p-button"
+                className="p-search"
                 value={side}
                 disabled={busy}
                 onChange={(event) => {
@@ -319,7 +320,7 @@ export function DeskTester({ mandate }: { mandate: Mandate | undefined }) {
               Amount{sold ? ` (${label(sold)})` : ""}
               <input
                 aria-label="Desk amount"
-                className="p-button"
+                className="p-search"
                 inputMode="decimal"
                 value={amount}
                 disabled={busy}
@@ -376,26 +377,28 @@ export function DeskTester({ mandate }: { mandate: Mandate | undefined }) {
               </span>
               <div>
                 <h3>1. Where the price came from</h3>
-                <table className="p-table">
-                  <thead>
-                    <tr>
-                      <th>Venue</th>
-                      <th>Mid</th>
-                      <th>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {result.quote.breakdown.sources.map((source) => (
-                      <tr key={source.venue}>
-                        <td>{source.venue}</td>
-                        <td>
-                          {source.status === "down" ? "Unavailable" : formatNumber(source.mid, 8)}
-                        </td>
-                        <td>{source.status}</td>
+                <div className="p-table-wrap">
+                  <table className="p-table">
+                    <thead>
+                      <tr>
+                        <th>Venue</th>
+                        <th>Mid</th>
+                        <th>Status</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {result.quote.breakdown.sources.map((source) => (
+                        <tr key={source.venue}>
+                          <td>{venueLabel(source.venue)}</td>
+                          <td>
+                            {source.status === "down" ? "Unavailable" : formatNumber(source.mid, 8)}
+                          </td>
+                          <td>{source.status}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
                 <p>
                   Fused mid: {formatNumber(result.quote.breakdown.mid, 8)}. Pricing reference:{" "}
                   {formatNumber(result.quote.breakdown.ref, 8)}.
@@ -403,22 +406,47 @@ export function DeskTester({ mandate }: { mandate: Mandate | undefined }) {
               </div>
               <div>
                 <h3>2. How the spread was built</h3>
-                {terms
-                  .filter(([key]) => result.quote.breakdown[key] !== 0)
-                  .map(([key, text]) => (
-                    <p key={key}>
-                      {text}: {pct(result.quote.breakdown[key])}
-                    </p>
-                  ))}
-                {result.quote.breakdown.tuner !== 1 && (
-                  <p>
-                    Spread adjustment multiplier: {formatNumber(result.quote.breakdown.tuner, 4)}×
-                  </p>
-                )}
-                <p>
-                  Final half-spread: {pct(result.quote.breakdown.half)}. Your price cost against the
-                  fused mid: {pct(result.quote.vsMidBps / 10000)}.
-                </p>
+                <div className="p-table-wrap">
+                  <table className="p-table d-spread-table" aria-label="Spread breakdown">
+                    <thead>
+                      <tr>
+                        <th scope="col">Term</th>
+                        <th scope="col">Value</th>
+                        <th scope="col">What it means</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {terms
+                        .filter(([key]) => result.quote.breakdown[key] !== 0)
+                        .map(([key, text, meaning]) => (
+                          <tr key={key}>
+                            <th scope="row">{text}</th>
+                            <td>{pct(result.quote.breakdown[key])}</td>
+                            <td>{meaning}</td>
+                          </tr>
+                        ))}
+                      {result.quote.breakdown.tuner !== 1 && (
+                        <tr>
+                          <th scope="row">Spread adjustment</th>
+                          <td>{formatNumber(result.quote.breakdown.tuner, 4)}×</td>
+                          <td>Scales the spread</td>
+                        </tr>
+                      )}
+                    </tbody>
+                    <tfoot>
+                      <tr>
+                        <th scope="row">Final half-spread</th>
+                        <td>{pct(result.quote.breakdown.half)}</td>
+                        <td>Spread after adjustments</td>
+                      </tr>
+                      <tr className="d-spread-total">
+                        <th scope="row">Total price cost</th>
+                        <td>{pct(result.quote.vsMidBps / 10000)}</td>
+                        <td>Compared with the fused mid</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
                 <p>
                   You receive{" "}
                   {formatUnits(
@@ -430,26 +458,28 @@ export function DeskTester({ mandate }: { mandate: Mandate | undefined }) {
               </div>
               <div>
                 <h3>3. What was checked</h3>
-                <table className="p-table">
-                  <thead>
-                    <tr>
-                      <th>Check</th>
-                      <th>Result</th>
-                      <th>Values</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {checks.map((check) => (
-                      <tr key={check.name}>
-                        <td>{check.name}</td>
-                        <td>
-                          {check.pass === null ? "Unavailable" : check.pass ? "Pass" : "Fail"}
-                        </td>
-                        <td>{check.detail}</td>
+                <div className="p-table-wrap">
+                  <table className="p-table">
+                    <thead>
+                      <tr>
+                        <th>Check</th>
+                        <th>Result</th>
+                        <th>Values</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {checks.map((check) => (
+                        <tr key={check.name}>
+                          <td>{check.name}</td>
+                          <td>
+                            {check.pass === null ? "Unavailable" : check.pass ? "Pass" : "Fail"}
+                          </td>
+                          <td>{check.detail}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
               {!fill && (
                 <>

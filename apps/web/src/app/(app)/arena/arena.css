@@ -8,6 +8,10 @@
   padding: 24px;
   min-width: 0;
 }
+[data-platform] .p-arena-action-card {
+  min-width: 0;
+  padding: 24px;
+}
 [data-platform] .p-arena-chart-canvas {
   height: 290px;
   width: 100%;
@@ -200,6 +204,7 @@
     grid-template-columns: minmax(0, 1fr);
   }
   [data-platform] .p-arena-grid > .p-card,
+  [data-platform] .p-arena-action-card,
   [data-platform] .p-defence-panel,
   [data-platform] .p-arena-methodology {
     padding: 18px;

@@ -76,7 +76,11 @@ export function AttackPanel() {
   const count = (outcome: Attempt["outcome"]) =>
     attempts.filter((a) => a.outcome === outcome).length;
   return (
-    <section className="p-card mb-6" id="launch-attack" aria-label="Launch attack">
+    <section
+      className="p-card p-arena-action-card mb-6"
+      id="launch-attack"
+      aria-label="Launch attack"
+    >
       <div className="p-card-header">
         <h2>Launch attack</h2>
         <span className="p-pill">Paper</span>

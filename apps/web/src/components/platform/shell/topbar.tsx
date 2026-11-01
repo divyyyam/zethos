@@ -12,6 +12,7 @@ import { zethos } from "../../../lib/engine/sdk";
 import { platformConfig, shortAddress } from "../../../lib/platform-config";
 import { ConnectWalletButton, useWallet } from "../../wallet/wallet-provider";
 import { StatusDot } from "../primitives";
+import { venueLabel } from "../venue-label";
 import { NAV_ITEMS } from "./nav";
 
 function useDismiss(open: boolean, close: () => void) {
@@ -163,7 +164,7 @@ function HealthMenu() {
                   {pair.sources.map((source) => (
                     <span key={source.venue} className="d-health-venue">
                       <StatusDot tone={source.status === "ok" ? "success" : "warning"} />
-                      {source.venue}
+                      {venueLabel(source.venue)}
                       <b>
                         {source.status === "ok"
                           ? `${Math.round(source.weight * 100)}%`
@@ -318,7 +319,13 @@ export function Topbar({ onMenu, onPalette }: { onMenu: () => void; onPalette: (
       </div>
 
       <div className="d-topbar-middle">
-        <button type="button" className="d-search" data-cursor="hover" onClick={onPalette}>
+        <button
+          type="button"
+          className="d-search"
+          aria-label="Ask or jump to"
+          data-cursor="hover"
+          onClick={onPalette}
+        >
           <Search size={15} aria-hidden />
           <span>Ask or jump to</span>
           <kbd>{mac ? "⌘" : "Ctrl"} K</kbd>
