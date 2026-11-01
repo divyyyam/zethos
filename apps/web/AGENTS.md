@@ -16,6 +16,12 @@ the invariants. The frontend ↔ engine ↔ vault contract is in [`INTEGRATION.m
 - The UI is complete. Work here is wiring, not redesign: connect to the real engine and the
   deployed vault, and keep every existing safety check in `src/lib/engine/` and
   `src/hooks/platform/use-swap-execution.ts`.
+- Do not touch any landing component file in `src/components/landing/` unless the user
+  explicitly requests a landing-page change. Preserve the horizon, world windows, scroll
+  transitions, animations and all landing sections. This also protects `src/components/world/`,
+  `src/app/(marketing)/`, `src/content/landing.ts` and landing styles in `src/app/globals.css`.
+  Engine integration, deployment configuration and data cleanup must not hide, remove, replace
+  or redesign landing sections, or condition their visibility on `NEXT_PUBLIC_ENGINE_URL`.
 - `src/lib/engine/{client,verify-quote,types}.ts` will be extracted into `packages/sdk`. Keep
   them free of React and Next imports.
 - `/agent` uses the landing's design system (`[data-landing]`, serif display, world windows,
