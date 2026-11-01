@@ -434,4 +434,18 @@ describe("live status", () => {
     expect(engine.arenaView().equityUsd).toBe(paperBefore);
     expect(engine.arenaView().byPolicy).toEqual({});
   });
+
+  test("Arena quotes stay on paper while the engine is live, and fill on the paper books", async () => {
+    const { engine } = await readyEngine({ now: NOW, live: vault() });
+    const { response } = await engine.arenaQuote(buy(), "sniper/test", NOW);
+    expect(response.route).toBe("paper");
+    const fill = await engine.paperFill(
+      { quote: response.quote, signature: response.signature },
+      "sniper/test",
+      NOW,
+    );
+    expect(fill).toMatchObject({ paper: true, flow: "attacker" });
+    expect(engine.arenaView().byFlow).toBeDefined();
+    expect(engine.arenaView().byPolicy.v0?.fills).toBe(1);
+  });
 });

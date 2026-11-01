@@ -24,7 +24,7 @@ import {
   retirePolicy,
   startCanary,
 } from "./policy-registry";
-import { quote } from "./quoting";
+import { arenaQuote, quote } from "./quoting";
 import { paperFill } from "./settlement";
 import { EngineState } from "./state";
 import { ingestTrades } from "./tape";
@@ -78,6 +78,10 @@ export class Engine {
     ip?: string,
   ): Promise<{ response: PaperQuote | LiveQuote; saved: Promise<void> }> {
     return quote(this.context, input, client, now, ip);
+  }
+
+  arenaQuote(input: unknown, client: string | undefined, now: number, ip?: string) {
+    return arenaQuote(this.context, input, client, now, ip);
   }
 
   paperFill(input: unknown, client: string | undefined, now: number): Promise<Fill> {

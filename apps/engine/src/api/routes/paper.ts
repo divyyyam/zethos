@@ -13,6 +13,16 @@ export function registerPaperRoutes(app: Hono, { engine, clock }: RouteOptions) 
     return c.json(response);
   });
 
+  app.post("/arena/quote", async (c) => {
+    const { response } = await (await engine()).arenaQuote(
+      await body(c.req.raw),
+      c.req.header(CLIENT_HEADER),
+      clock(),
+      c.req.header("CF-Connecting-IP"),
+    );
+    return c.json(response);
+  });
+
   app.post("/paper/fill", async (c) =>
     c.json(
       await (await engine()).paperFill(await body(c.req.raw), c.req.header(CLIENT_HEADER), clock()),

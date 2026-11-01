@@ -360,6 +360,17 @@ export async function issueQuote(
   return { response, saved: Promise.resolve() };
 }
 
+/** Paper Arena quotes, available in every mode so attacks can run beside real swaps. */
+export function arenaQuote(
+  context: EngineState,
+  input: unknown,
+  client: string | undefined,
+  now: number,
+  ip?: string,
+): Promise<{ response: PaperQuote; saved: Promise<void> }> {
+  return context.exclusive(() => issueQuote(context, input, client, now, ip));
+}
+
 /**
  * Prices a live vault quote with the incumbent's pricing, then applies the mandate's execution
  * checks, so a real fill can't leave the mandate. Canaries stay on paper.
