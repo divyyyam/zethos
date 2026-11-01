@@ -13,7 +13,6 @@ import { QuoteAnatomy } from "../../components/landing/quote-anatomy";
 import { Safety } from "../../components/landing/safety";
 import { LandingWorld } from "../../components/landing/world";
 import { landing } from "../../content/landing";
-import { getStats } from "../../content/stats.mock";
 
 const { meta } = landing;
 
@@ -37,7 +36,6 @@ export const metadata: Metadata = {
 };
 
 export default async function LandingPage() {
-  const stats = await getStats();
   return (
     <LandingShell>
       <Boot />
@@ -45,7 +43,7 @@ export default async function LandingPage() {
       <Nav />
       <main>
         <Hero />
-        <Proof stats={stats} />
+        <Proof />
         <HowItWorks />
         <Compare />
         <QuoteAnatomy />

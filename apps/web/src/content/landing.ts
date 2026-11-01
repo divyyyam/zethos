@@ -1,20 +1,3 @@
-import type { StatKey } from "./stats.mock";
-
-/** How a raw stat number is rendered on its card, e.g. 48000 → "$48K", 1240 → "1,240+". */
-export interface StatFormat {
-  prefix?: string;
-  suffix?: string;
-  decimals: number;
-  /** Divide by 1,000 and append "K". */
-  thousands?: boolean;
-}
-
-export interface StatCardContent {
-  key: StatKey;
-  label: string;
-  format: StatFormat;
-}
-
 export interface Step {
   title: string;
   body: string;
@@ -57,32 +40,11 @@ export const landing = {
     sub: "You set the mandate. Zethos quotes firm, signed swaps from live exchange books, finds where it loses money, and has to beat an unseen attacker before a new strategy goes live.",
     primary: { label: "Launch app", href: "/dashboard" },
     secondary: { label: "Look closer", href: "#how-it-works" },
-    ticker: [
-      { label: "HSK / USDT", value: "0.0820" },
-      { label: "Spread", value: "0.08%" },
-      { label: "Quote valid", value: "30s" },
-    ],
-    tickerNote: "Sample data",
   },
 
   proof: {
     statement:
       "Token projects pay market makers they *can't inspect*. Zethos runs the desk in the open: every price signed, every loss explained, every *strategy change earned*.",
-    cards: [
-      {
-        key: "avgSpreadPct",
-        label: "Avg. spread vs exchange mid",
-        format: { decimals: 2, suffix: "%" },
-      },
-      { key: "medianFillSeconds", label: "Median fill time", format: { decimals: 1, suffix: "s" } },
-      {
-        key: "vaultDepthUsd",
-        label: "Vault depth",
-        format: { decimals: 0, prefix: "$", suffix: "K", thousands: true },
-      },
-      { key: "swapsFilled", label: "Swaps filled", format: { decimals: 0, suffix: "+" } },
-    ] satisfies StatCardContent[],
-    sampleLabel: "Sample figures, not measured results",
     note: "Measured paper results are in the Arena.",
     integrationsLabel: "Built with and priced against",
     integrations: ["HashKey Chain", "HashKey Global", "Binance", "OKX", "Foundry"],
