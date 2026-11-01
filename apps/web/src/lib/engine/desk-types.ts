@@ -112,8 +112,8 @@ export function computeObservedInventoryShares(
   pairs: Array<{
     pair: string;
     mid: number | null;
-    base: { symbol: string; decimals: number; address: string };
-    quote: { symbol: string; decimals: number; address: string };
+    base: { symbol: string; label?: string | undefined; decimals: number; address: string };
+    quote: { symbol: string; label?: string | undefined; decimals: number; address: string };
   }>,
   inventory: Record<string, string>,
 ): ObservedPairInventory[] {

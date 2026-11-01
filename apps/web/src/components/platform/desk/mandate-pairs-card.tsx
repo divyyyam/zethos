@@ -79,8 +79,9 @@ export function MandatePairsCard({
                   <td>
                     {pairStatus ? (
                       <span className="text-xs text-neutral-400">
-                        {pairStatus.base.symbol} ({shortAddress(pairStatus.base.address)}) /{" "}
-                        {pairStatus.quote.symbol}
+                        {pairStatus.base.label ?? pairStatus.base.symbol} (
+                        {shortAddress(pairStatus.base.address)}) /{" "}
+                        {pairStatus.quote.label ?? pairStatus.quote.symbol}
                       </span>
                     ) : (
                       "Unavailable"
