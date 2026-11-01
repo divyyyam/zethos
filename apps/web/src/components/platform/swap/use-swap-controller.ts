@@ -12,8 +12,10 @@ import { useWallet } from "../../wallet/wallet-provider";
 
 export function useSwapController() {
   const [from, setFrom] = useState(tokenBySymbol("USDT"));
-  const [to, setTo] = useState(tokenBySymbol("WHSK"));
-  const [amount, setAmount] = useState("1000");
+  // The testnet vault holds real tWETH and almost no WHSK, with a 50 tUSDT cap per fill.
+  const testnet = platformConfig.chain.id === 133;
+  const [to, setTo] = useState(tokenBySymbol(testnet ? "WETH" : "WHSK"));
+  const [amount, setAmount] = useState(testnet ? "25" : "1000");
   const [debouncedAmount, setDebouncedAmount] = useState(amount);
   const [picker, setPicker] = useState<"from" | "to" | null>(null);
   const [settings, setSettings] = useState(false);
