@@ -157,6 +157,8 @@ export const status = z.object({
   dataSource: z.enum(["live", "replay"]).optional(),
   chainId: z.union([z.literal(177), z.literal(133)]),
   signer: address,
+  /** Separate from the vault signer in live mode. Older shadow engines expose `signer`. */
+  paperSigner: address.optional(),
   operator: address.nullable().optional(),
   verifyingContract: address,
   paused: z.boolean(),

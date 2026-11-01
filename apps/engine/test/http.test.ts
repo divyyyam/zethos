@@ -25,6 +25,7 @@ describe("http", () => {
     expect(await json(await server.request("/health"))).toEqual({ status: "ok" });
     const status = await json(await server.request("/status"));
     expect(status.mode).toBe("shadow");
+    expect(status.paperSigner).toBe(status.signer);
     const mandate = await json(await server.request("/mandate"));
     expect(mandate.pairs).toContain("HSK/USDT");
     expect(mandate.canary).toBeDefined();

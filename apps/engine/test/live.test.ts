@@ -344,6 +344,8 @@ describe("live status", () => {
     expect(status.mode).toBe("live");
     expect(status.verifyingContract).toBe(VAULT);
     expect(status.signer).toBe(signer.address);
+    expect(status.paperSigner).toBe(engine.signerAddress);
+    expect(status.paperSigner).not.toBe(status.signer);
     expect(status.inventory.WETH).toBe(String(10n ** 18n));
     const eth = status.pairs.find((pair) => pair.pair === "ETH/USDT");
     expect(eth?.vaultRoutes?.buy).toEqual({ enabled: true, maxAmountIn: "50000000" });
@@ -436,14 +438,23 @@ describe("live status", () => {
   });
 
   test("Arena quotes stay on paper while the engine is live, and fill on the paper books", async () => {
-    const { engine } = await readyEngine({ now: NOW, live: vault() });
-    const { response } = await engine.arenaQuote(buy(), "sniper/test", NOW);
+    const { engine } = await readyEngine({ live: vault({ readAt: Date.now() }) });
+    const app = createApp({
+      engine: async () => engine,
+      corsOrigins: [],
+      waitUntil: () => {},
+    });
+    const zethos = createZethos({
+      engineUrl: "http://engine.test",
+      chainId: 177,
+      client: "sniper/test",
+      fetch: ((input: string | URL | Request, init?: RequestInit) =>
+        app.request(String(input), init)) as typeof fetch,
+    });
+    const response = await zethos.arenaQuote(buy());
     expect(response.route).toBe("paper");
-    const fill = await engine.paperFill(
-      { quote: response.quote, signature: response.signature },
-      "sniper/test",
-      NOW,
-    );
+    expect((await zethos.verifyQuote(response)).ok).toBe(true);
+    const fill = await zethos.arenaFill(response);
     expect(fill).toMatchObject({ paper: true, flow: "attacker" });
     expect(engine.arenaView().byFlow).toBeDefined();
     expect(engine.arenaView().byPolicy.v0?.fills).toBe(1);

@@ -37,7 +37,7 @@ export interface Verification {
 
 export interface VerifyOptions {
   chainId: number;
-  status: Pick<Status, "signer" | "verifyingContract">;
+  status: Pick<Status, "signer" | "verifyingContract" | "paperSigner">;
   publicClient?: PublicClient | undefined;
   /** Unix seconds. Defaults to the current time. */
   now?: number;
@@ -212,9 +212,12 @@ async function hasExpectedSigner(
   quote: SignedQuote,
   options: VerifyOptions,
 ): Promise<boolean> {
+  const paperSigner =
+    options.status.paperSigner ??
+    (sameAddress(options.status.verifyingContract, zeroAddress) ? options.status.signer : null);
   const expected =
     response.route === "paper"
-      ? { signer: options.status.signer, vault: zeroAddress }
+      ? paperSigner && { signer: paperSigner, vault: zeroAddress }
       : await readVaultSigner(options);
   if (!expected) return false;
   return verifyQuoteSignature({

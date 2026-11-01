@@ -13,6 +13,7 @@ import type {
   Market,
   Pair,
   PairStatus,
+  PaperQuote,
   QuoteIntent,
   QuoteRequest,
   QuoteResponse,
@@ -150,6 +151,25 @@ export function createZethos(options: ZethosOptions) {
       const response = await call("/quote", s.quoteResponse, request);
       sentRequests.set(response, request);
       return response;
+    },
+
+    /** Arena always returns a paper quote, including when the vault is live. */
+    async arenaQuote(input: QuoteRequest | QuoteIntent): Promise<PaperQuote> {
+      const request = isIntent(input)
+        ? resolveQuoteIntent(parseIntent(input), await status())
+        : validateRequest(input);
+      const response = await call("/arena/quote", s.paperQuote, request);
+      sentRequests.set(response, request);
+      return response;
+    },
+
+    /** Verifies against the paper signer locally before paper settlement, in either mode. */
+    async arenaFill(quote: QuoteResponse, request?: QuoteRequest): Promise<Fill> {
+      if (quote.route !== "paper") {
+        throw new ZethosError("unverified_quote", "Only paper quotes can be Arena-filled");
+      }
+      await requireVerified(await status(), quote, request);
+      return call("/paper/fill", s.fill, { quote: quote.quote, signature: quote.signature });
     },
 
     /** `request` defaults to the request this client sent for `quote`. */

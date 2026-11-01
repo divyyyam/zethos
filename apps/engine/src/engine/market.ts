@@ -179,6 +179,7 @@ export function getStatus(context: EngineState) {
     dataSource: context.deps.dataSource ?? "live",
     chainId: context.deps.chainId,
     signer: live ? live.signer.address : context.signerAddress,
+    paperSigner: context.signerAddress,
     operator: context.deps.operator ?? null,
     verifyingContract: live ? live.vault : zeroAddress,
     paused,
