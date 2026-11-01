@@ -5,7 +5,7 @@ import { arenaView } from "./arena";
 import { EngineError } from "./errors";
 import { checkOperatingLoss } from "./mandate";
 import { equityUsdFor, getMarket, pairTokens, prune, refresh } from "./market";
-import { checkpoint, withMarkouts } from "./persistence";
+import { checkpointInBackground, withMarkouts } from "./persistence";
 import { canaryStats, enforceCanaryGuards } from "./policy-registry";
 import { checkRisk } from "./risk";
 import { fillQuote } from "./settlement";
@@ -116,8 +116,7 @@ export function tick(context: EngineState, now: number, gasPrice?: bigint): Prom
       context.state.points = context.state.points.slice(-43200);
       context.deps.emit?.({ type: "arena", arena });
     }
-    await context.deps.store.expireQuotes(Math.floor(now / 1000));
-    await checkpoint(context);
+    checkpointInBackground(context, now);
     prune(context, now);
   });
 }

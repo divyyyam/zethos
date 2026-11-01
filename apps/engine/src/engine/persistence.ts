@@ -101,6 +101,27 @@ export function checkpoint(context: EngineState): Promise<void> {
   return context.deps.store.saveState(structuredClone(context.state));
 }
 
+const BACKGROUND_SAVE_MS = 10_000;
+
+/**
+ * Heartbeat saves. Prices must keep flowing while the database is slow, so this never makes the
+ * heartbeat wait, skips a save if one is running, and retries on a later heartbeat if it fails.
+ */
+export function checkpointInBackground(context: EngineState, now: number): void {
+  if (context.savingState || now - context.savedStateAt < BACKGROUND_SAVE_MS) return;
+  context.savedStateAt = now;
+  context.savingState = context.deps.store
+    .expireQuotes(Math.floor(now / 1000))
+    .then(() => checkpoint(context))
+    .catch((error: unknown) => {
+      context.savedStateAt = 0;
+      console.warn("Engine state save failed, retrying", error);
+    })
+    .finally(() => {
+      context.savingState = null;
+    });
+}
+
 export function withMarkouts(context: EngineState, fill: Fill): Fill {
   return {
     ...fill,

@@ -50,9 +50,9 @@ export class Engine {
   }
 
   syncLive(now: number): Promise<void> {
-    return Promise.all([syncLive(this.context, now), syncLiveFills(this.context, now)]).then(
-      () => undefined,
-    );
+    // Fill reads walk many blocks over RPC, so they never hold up the price heartbeat.
+    void syncLiveFills(this.context, now);
+    return syncLive(this.context, now);
   }
 
   ingest(pair: Pair, results: BookResult[], now: number): void {

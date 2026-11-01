@@ -36,6 +36,8 @@ export class EngineState {
   readonly liveFills = new Map<string, Fill>();
   liveFillsReadAt = 0;
   liveFillsSync: Promise<void> | null = null;
+  savingState: Promise<void> | null = null;
+  savedStateAt = 0;
   readonly openLiveQuotes = new Map<
     string,
     { token: TokenSymbol; amountOut: bigint; expiresAtMs: number }
