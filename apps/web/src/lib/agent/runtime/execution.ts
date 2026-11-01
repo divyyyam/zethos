@@ -205,6 +205,8 @@ export async function runSlice(
         );
         continue;
       }
+      if (error instanceof Error && /rejected|denied|4001/i.test(error.message))
+        return fail("settle", "You cancelled in your wallet, so nothing was filled.");
       // Never retried: a network failure here leaves the outcome unknown, not failed.
       const ambiguous =
         error instanceof ZethosError && (error.code === "network" || error.code === "timeout");
