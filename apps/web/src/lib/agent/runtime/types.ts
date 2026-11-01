@@ -71,7 +71,13 @@ export interface LogLine {
 }
 
 export type Report =
-  | { type: "market"; pairs: PairStatus[]; equityUsd: number | null; riskState: string }
+  | {
+      type: "market";
+      mode: Status["mode"];
+      pairs: PairStatus[];
+      equityUsd: number | null;
+      riskState: string;
+    }
   | {
       type: "explain";
       pair: Pair;
@@ -79,17 +85,22 @@ export type Report =
       vsMidBps: number;
       ttlSec: number;
       breakdown: PriceBreakdown;
+      capacity: string;
     }
   | {
       type: "ladder";
       pair: Pair;
+      capacity: string;
       rungs: { usd: number; costBps: number | null; ttlSec: number | null; note: string | null }[];
     }
   | {
       type: "position";
+      mode: Status["mode"];
       rows: {
         pair: Pair;
+        settlement: "paper" | "onchain";
         baseSymbol: string;
+        quoteSymbol: string;
         net: number;
         quoteFlow: number;
         mid: number | null;
@@ -116,6 +127,7 @@ export interface Mission {
   log: LogLine[];
   /** The most recent priced quote, for "why this price". */
   quote: {
+    route: "paper" | "conduit";
     vsMidBps: number;
     ttlSec: number;
     expiresAt: number;
@@ -153,7 +165,12 @@ export interface AgentDeps {
   /** Live mode only: settles a verified vault quote from the connected wallet. */
   settleLive?: (
     quote: VaultQuote,
-    trade: { pair: Pair; side: "buy" | "sell"; price: number },
+    trade: {
+      pair: Pair;
+      side: "buy" | "sell";
+      price: number;
+      onProgress?: (message: string) => void;
+    },
   ) => Promise<Fill>;
   now?: () => number;
   sleep?: (ms: number, signal: AbortSignal) => Promise<void>;

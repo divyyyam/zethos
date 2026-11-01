@@ -91,9 +91,11 @@ export function MissionStage({
               Discard
             </button>
             <span className="text-sm text-fg-soft">
-              {live
-                ? "Authorizing opens your wallet. Real tokens move on-chain."
-                : "Paper only. No funds move and no wallet prompt."}
+              {mission.dryRun
+                ? "Prices and verifies only. Nothing will be filled."
+                : live
+                  ? "Authorizing opens your wallet. Real tokens move on-chain."
+                  : "Paper only. No funds move and no wallet prompt."}
             </span>
           </div>
         )}

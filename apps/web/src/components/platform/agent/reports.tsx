@@ -83,7 +83,7 @@ export function ReportView({ report, onRun }: { report: Report; onRun: (text: st
             );
           })}
           <div className="border-t border-line pt-3">
-            <p className={LABEL}>Vault, paper</p>
+            <p className={LABEL}>{report.mode === "live" ? "Vault, on-chain" : "Vault, paper"}</p>
             <p className="num mt-2 text-[40px]">
               {report.equityUsd === null ? "Unfunded" : formatUsd(report.equityUsd)}
             </p>
@@ -98,6 +98,7 @@ export function ReportView({ report, onRun }: { report: Report; onRun: (text: st
             A {formatUsd(report.usd)} buy on {report.pair} right now, firm for {report.ttlSec}s. A
             fresh quote, not filled.
           </p>
+          <p className="mt-3 text-fg-soft">{report.capacity}</p>
           <div className="mt-5 border-t border-line pt-4">
             <PriceAnatomy breakdown={report.breakdown} vsMidBps={report.vsMidBps} />
           </div>
@@ -110,6 +111,7 @@ export function ReportView({ report, onRun }: { report: Report; onRun: (text: st
           <p className="text-fg-soft">
             Real signed quotes for {report.pair} at each size, buying. None were filled.
           </p>
+          <p className="mt-3 text-fg-soft">{report.capacity}</p>
           <div className="mt-5">
             {report.rungs.map((rung) => (
               <div
@@ -169,19 +171,19 @@ export function ReportView({ report, onRun }: { report: Report; onRun: (text: st
                     Net
                   </th>
                   <th scope="col" className="pb-2 text-left font-normal">
-                    USDT flow
+                    Quote-token flow
                   </th>
                   <th scope="col" className="pb-2 text-left font-normal">
-                    Fills
+                    Fills / settlement
                   </th>
                   <th scope="col" className="pb-2 text-right font-normal">
-                    Paper P&amp;L
+                    Marked P&amp;L
                   </th>
                 </tr>
               </thead>
               <tbody className="num-sm">
                 {open.map((row) => (
-                  <tr key={row.pair} className="border-t border-line">
+                  <tr key={`${row.pair}-${row.settlement}`} className="border-t border-line">
                     <td className="py-2.5">{row.pair}</td>
                     <td>
                       {row.net > 0 ? "+" : ""}
@@ -189,9 +191,11 @@ export function ReportView({ report, onRun }: { report: Report; onRun: (text: st
                     </td>
                     <td>
                       {row.quoteFlow > 0 ? "+" : ""}
-                      {formatToken(row.quoteFlow)}
+                      {formatToken(row.quoteFlow)} {row.quoteSymbol}
                     </td>
-                    <td>{row.fills}</td>
+                    <td>
+                      {row.fills} · {row.settlement === "paper" ? "Paper" : "On-chain"}
+                    </td>
                     <td className="text-right">
                       {row.pnlUsd === null ? "No price" : formatUsd(row.pnlUsd)}
                     </td>
@@ -201,7 +205,8 @@ export function ReportView({ report, onRun }: { report: Report; onRun: (text: st
             </table>
           </div>
           <p className={`${LABEL} mt-3`}>
-            Marked at the fused mid. Paper only.
+            Marked at the fused mid, separated by settlement. This reflects fills, not wallet
+            balances.
             {report.truncated ? " Covers your latest 100 fills." : ""}
           </p>
         </div>

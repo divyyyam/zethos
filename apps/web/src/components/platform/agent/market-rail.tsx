@@ -146,10 +146,12 @@ function Inventory({ pair, inventory }: { pair: PairStatus; inventory: Record<st
       </div>
       <div className="num-sm mt-3 flex justify-between gap-3 text-sm text-fg-soft">
         <span>
-          {formatToken(base)} {pair.base.symbol}
+          {formatToken(base)} {pair.base.label ?? pair.base.symbol}
         </span>
         <span>{(share * 100).toFixed(1)}%, target 50%</span>
-        <span>{formatToken(quote)} USDT</span>
+        <span>
+          {formatToken(quote)} {pair.quote.label ?? pair.quote.symbol}
+        </span>
       </div>
     </div>
   );
@@ -164,9 +166,7 @@ const FLOW_LABEL: Record<Fill["flow"], string> = {
 
 function Tape({ fills }: { fills: Fill[] }) {
   if (fills.length === 0)
-    return (
-      <p className="text-[15px] text-fg-soft">No paper fills yet. Yours will land here first.</p>
-    );
+    return <p className="text-[15px] text-fg-soft">No fills yet. Yours will land here first.</p>;
   return (
     <ol className="text-sm">
       {fills.slice(0, 10).map((fill) => (
@@ -174,7 +174,9 @@ function Tape({ fills }: { fills: Fill[] }) {
           key={fill.id}
           className="num-sm grid grid-cols-[3.75rem_2.25rem_2.25rem_minmax(0,1fr)_auto_4rem] items-baseline gap-2 border-t border-line py-1.5 first:border-t-0"
         >
-          <span className="font-medium">{FLOW_LABEL[fill.flow]}</span>
+          <span className="font-medium" title={fill.paper ? "Paper fill" : "On-chain fill"}>
+            {FLOW_LABEL[fill.flow]} · {fill.paper ? "Paper" : "On-chain"}
+          </span>
           <span>{fill.side === "buy" ? "Buy" : "Sell"}</span>
           <span className="text-fg-soft">{fill.pair.split("/")[0]}</span>
           <span>{formatPrice(fill.price)}</span>

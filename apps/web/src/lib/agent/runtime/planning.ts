@@ -53,8 +53,8 @@ export function compilePlan(intent: SwapIntent, pair: PairStatus): Plan | string
   return {
     pair: pair.pair,
     side: intent.side,
-    soldSymbol: sold.symbol,
-    boughtSymbol: bought.symbol,
+    soldSymbol: sold.label ?? sold.symbol,
+    boughtSymbol: bought.label ?? bought.symbol,
     soldDecimals: sold.decimals,
     boughtDecimals: bought.decimals,
     tokenIn: sold.address,

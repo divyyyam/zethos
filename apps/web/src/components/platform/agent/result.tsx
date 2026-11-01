@@ -6,6 +6,8 @@ import {
   type Mission,
   missionTotals,
 } from "../../../lib/agent/runtime";
+import { platformConfig } from "../../../lib/platform-config";
+import { ExternalLink } from "../primitives";
 
 export function Result({ mission }: { mission: Mission }) {
   const totals = missionTotals(mission);
@@ -40,6 +42,18 @@ export function Result({ mission }: { mission: Mission }) {
           })}
         </dd>
       </div>
+      {mission.slices
+        .filter((slice) => slice.fill && !slice.fill.paper && slice.fill.txHash)
+        .map((slice) => (
+          <div key={slice.index}>
+            <dt className="text-sm text-fg-soft">Settled transaction</dt>
+            <dd>
+              <ExternalLink href={`${platformConfig.explorer}/tx/${slice.fill?.txHash}`}>
+                View on explorer
+              </ExternalLink>
+            </dd>
+          </div>
+        ))}
     </dl>
   );
 }

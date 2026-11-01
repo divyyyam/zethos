@@ -401,6 +401,7 @@ describe("missions", () => {
     sdk.fills = (async () => [
       {
         id: "f1",
+        paper: true,
         pair: "HSK/USDT",
         side: "buy",
         amountIn: "100000000",

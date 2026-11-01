@@ -27,6 +27,8 @@ export function MissionTicket({ mission }: { mission: Mission }) {
   const filled = totals.filled > 0;
   const planned = Number(plan.amountIn) / 10 ** plan.soldDecimals;
   const quote = mission.quote;
+  const settled = mission.slices.find((slice) => slice.fill)?.fill;
+  const paper = settled ? settled.paper : quote ? quote.route === "paper" : !live;
   const ttlLeft = quote ? Math.max(0, Math.ceil(quote.expiresAt - now / 1000)) : 0;
   const rows: [string, string][] = [
     ["Cost limit", `${plan.maxCostBps} bps from mid`],
@@ -45,7 +47,7 @@ export function MissionTicket({ mission }: { mission: Mission }) {
           string,
         ][])
       : []),
-    ["Settlement", mission.dryRun ? "None, dry run" : live ? "On-chain vault" : "Paper vault"],
+    ["Settlement", mission.dryRun ? "None, dry run" : paper ? "Paper vault" : "On-chain vault"],
     ["Taker", shortAddress(mission.taker)],
   ];
   return (
@@ -132,7 +134,7 @@ export function MissionTicket({ mission }: { mission: Mission }) {
             )}
             {filled && (
               <span className="flex shrink-0 items-center gap-1.5 text-sm font-medium">
-                <Check aria-hidden className="size-4" /> Paper fill
+                <Check aria-hidden className="size-4" /> {paper ? "Paper fill" : "On-chain fill"}
               </span>
             )}
           </div>

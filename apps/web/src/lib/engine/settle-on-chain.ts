@@ -18,7 +18,13 @@ const nonceAbi = parseAbi([
  */
 export async function settleOnChain(
   response: VaultQuote,
-  trade: { pair: Pair; side: "buy" | "sell"; price: number; flow?: "user" | "agent" },
+  trade: {
+    pair: Pair;
+    side: "buy" | "sell";
+    price: number;
+    flow?: "user" | "agent";
+    onProgress?: (message: string) => void;
+  },
 ): Promise<Fill> {
   const vault = platformConfig.vaultAddress;
   if (!vault) throw new Error("The vault address isn’t configured.");
@@ -63,7 +69,9 @@ export async function settleOnChain(
       args: [vault, quote.amountIn],
     });
     assertWallet();
+    trade.onProgress?.("Approve token spending in your wallet…");
     const hash = await wallet.writeContract(approval.request);
+    trade.onProgress?.("Waiting for token approval confirmation…");
     const receipt = await client.waitForTransactionReceipt({ hash, timeout: 120000 });
     if (receipt.status !== "success")
       throw new Error("The token approval didn’t complete. No swap was submitted.");
@@ -83,7 +91,9 @@ export async function settleOnChain(
   );
   assertWallet();
   assertFresh();
+  trade.onProgress?.("Confirm the vault fill in your wallet…");
   const hash = await wallet.writeContract(simulation.request);
+  trade.onProgress?.("Waiting for vault fill confirmation…");
   const receipt = await client.waitForTransactionReceipt({ hash, timeout: 120000 });
   if (receipt.status !== "success")
     throw new Error("The swap reverted, so your tokens didn’t move.");

@@ -100,6 +100,7 @@ export async function runSlice(
         : out / Number(formatUnits(BigInt(request.amountIn), plan.soldDecimals));
     patchMission(context, id, () => ({
       quote: {
+        route: quote.route,
         vsMidBps: quote.vsMidBps,
         ttlSec: quote.breakdown.ttlSec,
         expiresAt: quote.expiresAt,
@@ -192,7 +193,12 @@ export async function runSlice(
     try {
       if (quote.route === "paper") fill = await sdk.paperFill(quote, request);
       else if (context.settleLive)
-        fill = await context.settleLive(quote, { pair: plan.pair, side: plan.side, price });
+        fill = await context.settleLive(quote, {
+          pair: plan.pair,
+          side: plan.side,
+          price,
+          onProgress: (message) => setStage(context, id, "settle", "active", message),
+        });
       else return fail("settle", "This agent can’t settle on-chain.");
     } catch (error) {
       if (error instanceof ZethosError && error.code === "quote_expired" && expiredRetries > 0) {
