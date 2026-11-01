@@ -5,6 +5,7 @@ import { failureMessage, zethos } from "../../../lib/engine/sdk";
 import { formatNumber, formatUsd, shortAddress } from "../../../lib/platform-config";
 import { EmptyState, StatusDot } from "../primitives";
 import { ArenaChart } from "./arena-chart";
+import { AttackPanel } from "./attack-panel";
 import { flowColors, flowNames, TierChip, time } from "./presentation";
 import { useArenaController } from "./use-arena-controller";
 
@@ -75,6 +76,7 @@ export function ArenaPageContent() {
           </button>
         </div>
       </div>
+      <AttackPanel />
       <div
         className={!connected || data.valuationStale ? "p-arena-stale" : ""}
         aria-busy={!connected}
