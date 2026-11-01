@@ -52,6 +52,10 @@ export function AttackPanel() {
         pair,
         signal: controller.signal,
         onAttempt: (attempt) => {
+          queries.setQueryData<Attempt[]>(["arena", "sessionAttempts"], (previous = []) => [
+            ...previous.filter((a) => a.address !== attempt.address || a.index !== attempt.index),
+            attempt,
+          ]);
           setAttempts((previous) => [
             ...previous.filter((a) => a.index !== attempt.index),
             attempt,
