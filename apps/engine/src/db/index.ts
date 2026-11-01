@@ -25,7 +25,8 @@ export interface Fill {
   price: number;
   midAtFill: number | null;
   flow: Flow;
-  paper: true;
+  /** False only for a real fill read from the vault; those carry `txHash`. */
+  paper: boolean;
   txHash: Hex | null;
   markouts?: Record<string, number>;
   gasUsd?: number;

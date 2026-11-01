@@ -10,7 +10,7 @@ import { deskCompliance } from "./compliance";
 import { diagnose } from "./diagnosis";
 import { tick } from "./heartbeat";
 import { decision, decisions, narrate } from "./journal";
-import { syncLive } from "./live";
+import { syncLive, syncLiveFills } from "./live";
 import { getStatus, ingest, prune } from "./market";
 import { pause, reloadParams, setTaker } from "./operator";
 import { fills, init } from "./persistence";
@@ -50,7 +50,9 @@ export class Engine {
   }
 
   syncLive(now: number): Promise<void> {
-    return syncLive(this.context, now);
+    return Promise.all([syncLive(this.context, now), syncLiveFills(this.context, now)]).then(
+      () => undefined,
+    );
   }
 
   ingest(pair: Pair, results: BookResult[], now: number): void {

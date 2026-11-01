@@ -7,6 +7,7 @@ import {
   isAddressEqual,
   type LocalAccount,
   type PublicClient,
+  parseAbiItem,
   zeroAddress,
 } from "viem";
 import { PAIRS, type Pair } from "../config";
@@ -34,7 +35,21 @@ export interface LiveVault {
   vault: Address;
   signer: LocalAccount;
   read: (now: number) => Promise<VaultSnapshot>;
+  /** New `Fill` events since the previous call. */
+  readFills?: () => Promise<VaultFillEvent[]>;
   initial: VaultSnapshot;
+}
+
+export interface VaultFillEvent {
+  taker: Address;
+  tokenIn: Address;
+  tokenOut: Address;
+  amountIn: bigint;
+  amountOut: bigint;
+  nonce: bigint;
+  txHash: Hex;
+  logIndex: number;
+  ts: number;
 }
 
 export interface VaultExpectation {
@@ -181,4 +196,55 @@ export async function checkVault(
   if (onChain !== local)
     reasons.push("vault.quoteDigest() disagrees with the shared EIP-712 types");
   return { reasons, snapshot };
+}
+
+const FILL_EVENT = parseAbiItem(
+  "event Fill(address indexed taker, address indexed tokenIn, address indexed tokenOut, uint256 amountIn, uint256 amountOut, uint256 nonce, uint256 poolOut)",
+);
+// About a day of 2 s blocks. The chain is the record, so a restart simply reads it again.
+const FILL_LOOKBACK_BLOCKS = 43_200n;
+const FILL_CHUNK_BLOCKS = 5_000n;
+const FILL_CHUNKS_PER_READ = 3;
+
+/** Walks forward through `Fill` logs. A failed read throws and retries from the same block. */
+export function vaultFillReader(
+  client: PublicClient,
+  vault: Address,
+): () => Promise<VaultFillEvent[]> {
+  let next: bigint | null = null;
+  return async () => {
+    const head = await client.getBlockNumber();
+    let from: bigint = next ?? (head > FILL_LOOKBACK_BLOCKS ? head - FILL_LOOKBACK_BLOCKS : 0n);
+    const events: VaultFillEvent[] = [];
+    for (let chunk = 0; chunk < FILL_CHUNKS_PER_READ && from <= head; chunk += 1) {
+      const last = from + FILL_CHUNK_BLOCKS - 1n;
+      const to = last < head ? last : head;
+      const logs = await client.getLogs({
+        address: vault,
+        event: FILL_EVENT,
+        fromBlock: from,
+        toBlock: to,
+      });
+      for (const log of logs) {
+        const { taker, tokenIn, tokenOut, amountIn, amountOut, nonce } = log.args;
+        if (!taker || !tokenIn || !tokenOut || amountIn === undefined) continue;
+        if (amountOut === undefined || nonce === undefined) continue;
+        const block = await client.getBlock({ blockNumber: log.blockNumber });
+        events.push({
+          taker,
+          tokenIn,
+          tokenOut,
+          amountIn,
+          amountOut,
+          nonce,
+          txHash: log.transactionHash,
+          logIndex: log.logIndex,
+          ts: Number(block.timestamp) * 1000,
+        });
+      }
+      from = to + 1n;
+      next = from;
+    }
+    return events;
+  };
 }

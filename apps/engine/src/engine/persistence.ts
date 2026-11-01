@@ -6,7 +6,7 @@ import { setArena } from "./arena";
 import { EngineError } from "./errors";
 import { nonceKey } from "./helpers";
 import { decision } from "./journal";
-import { isLiveRecord, reserveOpenQuote } from "./live";
+import { isLiveRecord, liveFillsFor, reserveOpenQuote, syncLiveFills } from "./live";
 import { getMarket, pairTokens } from "./market";
 import type { EngineState } from "./state";
 import { accountFill, observeQuote } from "./toxicity";
@@ -128,5 +128,9 @@ export async function fills(
     ...(taker ? { taker: taker as Address } : {}),
     limit,
   });
-  return fills.map((fill) => withMarkouts(context, fill));
+  const paper = fills.map((fill) => withMarkouts(context, fill));
+  if (epoch !== undefined || !context.deps.live) return paper;
+  // A wallet asks right after its receipt, so look at the chain rather than wait for the heartbeat.
+  await syncLiveFills(context, Date.now(), 3000);
+  return [...liveFillsFor(context, taker), ...paper].sort((a, b) => b.ts - a.ts).slice(0, limit);
 }

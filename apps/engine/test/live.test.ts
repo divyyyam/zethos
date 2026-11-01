@@ -8,6 +8,7 @@ import { defaultParams, loadConfig } from "../src/config";
 import { memoryStore } from "../src/db/memory";
 import type { Engine } from "../src/engine";
 import { checkVault, type LiveVault, routeKey, type VaultSnapshot } from "../src/live";
+import { defaultMandate } from "../src/policy/mandate";
 import { contractQuote } from "../src/quotes";
 import { bookAround, MIDS, readyEngine, TAKER, tokens } from "./helpers";
 
@@ -380,5 +381,57 @@ describe("live status", () => {
     expect(status.verifyingContract).toBe(zeroAddress);
     expect(status.liveBlocked).toEqual(reasons);
     expect(engine.decisions(10, "live_blocked")[0]?.inputs.reasons).toBe(reasons[0]);
+  });
+
+  test("a live quote cannot leave the mandate", async () => {
+    const { engine } = await readyEngine({
+      now: NOW,
+      live: vault(),
+      mandate: {
+        ...defaultMandate,
+        service: {
+          ...defaultMandate.service,
+          maxHalfSpreadBps: [{ maxNotionalUsd: 50_000, maxBps: 0.01 }],
+        },
+      },
+    });
+    feed(engine, NOW);
+    await expectCode(engine.quote(buy(), "web", NOW), "mandate_breach");
+  });
+
+  test("real fills come from vault events and stay off the paper books", async () => {
+    const txHash = `0x${"ab".repeat(32)}` as const;
+    const events = [
+      {
+        taker: TAKER,
+        tokenIn: USDT,
+        tokenOut: WETH,
+        amountIn: 30_000_000n,
+        amountOut: 10_000_000_000_000_000n,
+        nonce: 7n,
+        txHash,
+        logIndex: 2,
+        ts: NOW,
+      },
+    ];
+    const { engine } = await readyEngine({
+      now: NOW,
+      live: { ...vault(), readFills: async () => events.splice(0) },
+    });
+    feed(engine, NOW);
+    const paperBefore = engine.arenaView().equityUsd;
+
+    const fills = await engine.fills(TAKER, 20);
+    expect(fills).toHaveLength(1);
+    expect(fills[0]).toMatchObject({
+      paper: false,
+      txHash,
+      pair: "ETH/USDT",
+      side: "buy",
+      price: 3000,
+    });
+    expect(await engine.fills("0x000000000000000000000000000000000000dEaD", 20)).toHaveLength(0);
+    expect(engine.arenaView().equityUsd).toBe(paperBefore);
+    expect(engine.arenaView().byPolicy).toEqual({});
   });
 });

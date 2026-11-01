@@ -9,7 +9,7 @@ import { memoryStore } from "../db/memory";
 import { neonStore } from "../db/neon";
 import { Engine, EngineError, type Frame } from "../engine";
 import { pollBooks, pollTrades } from "../feeds";
-import { checkVault, type LiveVault, vaultReader } from "../live";
+import { checkVault, type LiveVault, vaultFillReader, vaultReader } from "../live";
 import { Assistant } from "../llm";
 import { paperSigner } from "../quotes";
 import { loadTokens } from "../tokens";
@@ -162,7 +162,13 @@ export class Market extends DurableObject<Env> {
         Date.now(),
       );
       if (snapshot && reasons.length === 0)
-        live = { vault: config.live.vault, signer: quoteSigner, read, initial: snapshot };
+        live = {
+          vault: config.live.vault,
+          signer: quoteSigner,
+          read,
+          readFills: vaultFillReader(client, config.live.vault),
+          initial: snapshot,
+        };
       else {
         liveBlocked = reasons;
         console.error(`ENGINE_MODE=live refused, staying in shadow: ${reasons.join("; ")}`);

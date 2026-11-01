@@ -27,9 +27,11 @@ export CORS_ORIGIN="${CORS_ORIGIN:-http://localhost:3000}"
 export SESSION_SECRET="${SESSION_SECRET:-$(openssl rand -hex 32)}"
 QUOTE_SIGNER_KEY="$(decrypt zethos-signer)"
 EXECUTOR_KEY="$(decrypt zethos-executor)"
-PAPER_SIGNER_KEY="${PAPER_SIGNER_KEY:-}"
-export QUOTE_SIGNER_KEY EXECUTOR_KEY PAPER_SIGNER_KEY
+export QUOTE_SIGNER_KEY EXECUTOR_KEY
 
 # Lets the vars above reach the Worker without a .dev.vars file.
 export CLOUDFLARE_INCLUDE_PROCESS_ENV=true
-exec bunx wrangler dev --port "${PORT:-8787}"
+# Keeps PAPER_SIGNER_KEY, ADMIN_TOKEN and any Neon URL from the local env files.
+env_files=()
+for file in .dev.vars .env.neon; do [ -f "$file" ] && env_files+=(--env-file "$file"); done
+exec bunx wrangler dev --port "${PORT:-8787}" "${env_files[@]}"

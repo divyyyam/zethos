@@ -32,6 +32,10 @@ export class EngineState {
   readonly cooldowns = new Map<string, number>();
   modeledGasUsd = 0;
   snapshot: VaultSnapshot | null = null;
+  /** Real fills read from the vault's events. Never part of the paper ledger or the Arena. */
+  readonly liveFills = new Map<string, Fill>();
+  liveFillsReadAt = 0;
+  liveFillsSync: Promise<void> | null = null;
   readonly openLiveQuotes = new Map<
     string,
     { token: TokenSymbol; amountOut: bigint; expiresAtMs: number }

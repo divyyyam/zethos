@@ -1,8 +1,9 @@
-import type { QuoteRecord } from "../db";
-import type { VaultSnapshot } from "../live";
-import type { Inventory, TokenSymbol } from "../tokens";
+import type { Fill, QuoteRecord } from "../db";
+import type { VaultFillEvent, VaultSnapshot } from "../live";
+import { type Inventory, type TokenSymbol, units } from "../tokens";
 import { EngineError } from "./errors";
 import { nonceKey } from "./helpers";
+import { route } from "./market";
 import type { EngineState } from "./state";
 
 // Heartbeats refresh on this cadence. A quote refuses to trust anything older than the limit.
@@ -71,4 +72,70 @@ export function reserveOpenQuote(context: EngineState, record: QuoteRecord, toke
 export function isLiveRecord(record: QuoteRecord): boolean {
   const breakdown = record.breakdown as { settlement?: unknown } | null;
   return breakdown?.settlement === LIVE_SETTLEMENT;
+}
+
+/** Reads new vault fills, at most once per `maxAgeMs`. Concurrent callers share one read. */
+export async function syncLiveFills(
+  context: EngineState,
+  now: number,
+  maxAgeMs = SYNC_INTERVAL_MS,
+): Promise<void> {
+  const reader = context.deps.live?.readFills;
+  if (!reader) return;
+  if (context.liveFillsSync) return context.liveFillsSync;
+  if (now - context.liveFillsReadAt < maxAgeMs) return;
+  context.liveFillsSync = reader()
+    .then((events) => {
+      context.liveFillsReadAt = now;
+      for (const event of events) recordLiveFill(context, event);
+      if (events.length > 0 && context.snapshot)
+        context.snapshot = { ...context.snapshot, readAt: 0 };
+    })
+    .catch((error: unknown) => {
+      console.warn("Vault fill read failed", error);
+    })
+    .finally(() => {
+      context.liveFillsSync = null;
+    });
+  return context.liveFillsSync;
+}
+
+function recordLiveFill(context: EngineState, event: VaultFillEvent): void {
+  const id = `onchain-${event.txHash}-${event.logIndex}`;
+  if (context.liveFills.has(id)) return;
+  let path: ReturnType<typeof route>;
+  try {
+    path = route(context, event.tokenIn, event.tokenOut);
+  } catch {
+    return;
+  }
+  const { pair, side, base, quote } = path;
+  const baseRaw = side === "buy" ? event.amountOut : event.amountIn;
+  const quoteRaw = side === "buy" ? event.amountIn : event.amountOut;
+  context.openLiveQuotes.delete(`${event.taker.toLowerCase()}:${event.nonce}`);
+  context.liveFills.set(id, {
+    id,
+    quoteId: `onchain-${event.nonce}`,
+    policyId: context.policyId,
+    ts: event.ts,
+    taker: event.taker,
+    pair,
+    side,
+    tokenIn: event.tokenIn,
+    tokenOut: event.tokenOut,
+    amountIn: event.amountIn.toString(),
+    amountOut: event.amountOut.toString(),
+    price: units(quoteRaw, quote.decimals) / units(baseRaw, base.decimals),
+    midAtFill: null,
+    flow: "user",
+    paper: false,
+    txHash: event.txHash,
+  });
+}
+
+export function liveFillsFor(context: EngineState, taker: string | undefined): Fill[] {
+  const wanted = taker?.toLowerCase();
+  return [...context.liveFills.values()].filter(
+    (fill) => !wanted || fill.taker.toLowerCase() === wanted,
+  );
 }
