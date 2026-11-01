@@ -46,6 +46,11 @@ export interface ExecutionInput {
   book: Book;
   sourceMids: number[];
   outstanding?: { pair: Pair; side: Side; amountIn: string; amountOut: string }[];
+  /**
+   * Live vault quotes only. A person has to confirm in a wallet, the vault's own small inventory
+   * sets capacity, and its balances needn't sit inside the paper desk's band.
+   */
+  live?: { minNotionalUsd: number; maxTtlSec: number };
 }
 
 export function enforceExecution(
@@ -61,8 +66,10 @@ export function enforceExecution(
   };
   if (input.tier === "blocked") throw new EngineError("taker_restricted", 403);
   const tier = params.toxicity.tiers[input.tier];
-  const maxTtl = Math.min(120, params.quote.maxTtlSec, params.quote.ttlSec, tier.ttlSec);
-  if (quote.ttlSec > maxTtl || quote.ttlSec < params.quote.minTtlSec)
+  const maxTtl =
+    input.live?.maxTtlSec ??
+    Math.min(120, params.quote.maxTtlSec, params.quote.ttlSec, tier.ttlSec);
+  if (quote.ttlSec > maxTtl || (!input.live && quote.ttlSec < params.quote.minTtlSec))
     invalid("Policy TTL exceeds execution limits");
   if (quote.halfSpread < params.spread.min || quote.halfSpread > params.spread.max)
     invalid("Policy spread exceeds execution limits");
@@ -80,10 +87,11 @@ export function enforceExecution(
   const notional =
     side === "buy" ? units(rawIn, quoteToken.decimals) : units(rawIn, base.decimals) * mid;
   if (!Number.isFinite(notional) || notional <= 0) throw new EngineError("invalid_request", 400);
-  if (notional < params.quote.minNotionalUsd) throw new EngineError("invalid_request", 400);
+  const minNotional = input.live?.minNotionalUsd ?? params.quote.minNotionalUsd;
+  if (notional < minNotional) throw new EngineError("invalid_request", 400);
   if (notional > params.quote.maxNotionalUsd[pair] * tier.sizeCap)
     throw new EngineError("vault_capacity", 422, "Amount is above the per-swap limit");
-  if (notional < mandate.service.minQuoteNotionalUsd)
+  if (!input.live && notional < mandate.service.minQuoteNotionalUsd)
     throw new MandateBreach(
       "minimum_notional",
       notional,
@@ -147,7 +155,7 @@ export function enforceExecution(
   // USDT is shared, so a fill also changes the inventory share of the other pair.
   // Buys monotonically lower shares; sells raise them. These two extreme subsets cover
   // every possible combination of outstanding executions without netting away liabilities.
-  for (const affected of params.pairs) {
+  for (const affected of input.live ? [] : params.pairs) {
     const affectedMid = input.mids[affected];
     if (!affectedMid || !Number.isFinite(affectedMid))
       throw new EngineError("pair_halted", 503, "Fresh prices are required for inventory limits");

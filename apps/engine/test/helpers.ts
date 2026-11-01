@@ -40,6 +40,7 @@ export async function readyEngine(
     now?: number;
     live?: LiveVault;
     liveBlocked?: string[];
+    mandate?: unknown;
   } = {},
 ): Promise<{ engine: Engine; frames: Frame[]; store: Store; now: number }> {
   const params = options.params ?? defaultParams;
@@ -53,6 +54,7 @@ export async function readyEngine(
     store,
     signer: privateKeyToAccount(SIGNER_KEY),
     ...(options.live ? { live: options.live } : {}),
+    ...(options.mandate ? { mandate: options.mandate } : {}),
     ...(options.liveBlocked ? { liveBlocked: options.liveBlocked } : {}),
     emit: (frame) => frames.push(frame),
   });

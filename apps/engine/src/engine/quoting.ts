@@ -361,17 +361,17 @@ export async function issueQuote(
 }
 
 /**
- * Prices a live vault quote. Live mode stays off in shadow deployments and is limited to chain 133.
- * It does not pass through the policy and mandate layers yet; do that before enabling it elsewhere.
+ * Prices a live vault quote with the incumbent's pricing, then applies the mandate's execution
+ * checks, so a real fill can't leave the mandate. Canaries stay on paper.
  */
-function priceRequest(
+async function priceRequest(
   context: EngineState,
   request: QuoteRequest,
   inventoryOf: () => Inventory,
   now: number,
-  ip?: string,
-  limits: { minNotionalUsd?: number; minTtlSec?: number; maxTtlSec?: number } = {},
-): PricedRequest {
+  ip: string | undefined,
+  limits: { minNotionalUsd: number; minTtlSec: number; maxTtlSec: number },
+): Promise<PricedRequest> {
   const { pair, side, base, quote } = route(context, request.tokenIn, request.tokenOut);
   refresh(context, pair, now);
   const { market, mid, book } = tradable(context, pair);
@@ -427,6 +427,41 @@ function priceRequest(
     params.spread,
     params.inventory.targetShare,
   );
+
+  try {
+    enforceExecution(
+      {
+        pair,
+        side,
+        amountIn: request.amountIn,
+        tier: tierName,
+        params,
+        mandate: context.mandate,
+        tokens: context.deps.tokens,
+        inventory,
+        mids: Object.fromEntries(
+          params.pairs.map((enabled) => [enabled, getMarket(context, enabled).fused.mid]),
+        ),
+        book,
+        sourceMids: market.fused.sources
+          .filter((source) => source.status === "ok")
+          .map((source) => source.mid),
+        live: { minNotionalUsd: limits.minNotionalUsd, maxTtlSec: limits.maxTtlSec },
+      },
+      {
+        kind: "quote",
+        price: priced.price,
+        ref,
+        halfSpread: priced.half,
+        sigmaT: priced.sigmaT,
+        ttlSec,
+        terms: { ...priced.terms },
+      },
+    );
+  } catch (error) {
+    if (error instanceof MandateBreach) await recordMandateBreach(context, error, now);
+    throw error;
+  }
 
   const out = amountOut(side, amountIn, priced.price, base.decimals, quote.decimals);
   const tokenOut = side === "buy" ? base : quote;
@@ -489,7 +524,7 @@ export async function issueLiveQuote(
   if (BigInt(request.amountIn) > vaultRoute.maxAmountIn)
     throw new EngineError("vault_capacity", 422, "Amount is above this route's limit");
 
-  const { pair, side, tokenOut, signed, spotOut, vsMidBps, breakdown } = priceRequest(
+  const { pair, side, tokenOut, signed, spotOut, vsMidBps, breakdown } = await priceRequest(
     context,
     request,
     () => availableInventory(context, snapshot, now),
