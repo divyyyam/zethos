@@ -17,7 +17,12 @@ import {
 import { sampleSeries } from "../../../content/platform.mock";
 import { useEngineStatus } from "../../../hooks/platform/use-platform";
 import { failureMessage, zethos } from "../../../lib/engine/sdk";
-import { formatNumber, formatUsd, platformConfig } from "../../../lib/platform-config";
+import {
+  formatNumber,
+  formatUsd,
+  platformConfig,
+  tokenBySymbol,
+} from "../../../lib/platform-config";
 import { EmptyState, ExternalLink, StatusDot } from "../primitives";
 
 const chartTime = (ts: number) =>
@@ -45,6 +50,7 @@ export function StatsPageContent() {
     },
   });
   const market = status.data?.pairs.find((p) => p.pair === pair);
+  const quoteLabel = market?.quote.label ?? tokenBySymbol("USDT").label;
   const series = sample
     ? sampleSeries(pair === "HSK/USDT" ? "WHSK/USDT" : "WETH/USDT").map((p) => ({
         t: p.t,
@@ -94,7 +100,7 @@ export function StatsPageContent() {
       <section className="p-metrics-grid" aria-label="Observed market data">
         <div className="p-metric p-metric-featured">
           <span>Fused exchange mid</span>
-          <strong>{market?.mid ? `${formatNumber(market.mid, 5)} USDT` : "—"}</strong>
+          <strong>{market?.mid ? `${formatNumber(market.mid, 5)} ${quoteLabel}` : "—"}</strong>
           <small>{market?.health ?? "Waiting for feeds"}</small>
         </div>
         <div className="p-metric">
@@ -173,7 +179,7 @@ export function StatsPageContent() {
                 />
                 <Tooltip
                   labelFormatter={(label) => chartTime(Number(label))}
-                  formatter={(value) => `${formatNumber(Number(value), 5)} USDT`}
+                  formatter={(value) => `${formatNumber(Number(value), 5)} ${quoteLabel}`}
                 />
                 {market?.sources.map((source, index) => (
                   <Line
@@ -225,7 +231,11 @@ export function StatsPageContent() {
             <div className="p-signal-row" key={source.venue}>
               <span style={{ width: 120 }}>{source.venue}</span>
               <span>{source.status}</span>
-              <span>{source.mid ? `${formatNumber(source.mid, 5)} USDT` : "—"}</span>
+              <span>
+                {source.status !== "down" && source.mid
+                  ? `${formatNumber(source.mid, 5)} ${quoteLabel}`
+                  : "—"}
+              </span>
               <strong>{formatNumber(source.weight * 100, 0)}%</strong>
             </div>
           ))}

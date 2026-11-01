@@ -58,6 +58,7 @@ export function Sidebar({
                 <span className="d-hide-collapsed">{group.title}</span>
               </p>
               {group.items.map(({ href, label, icon: Icon, key }) => {
+                if (href === "/operator" && status.data?.operator === null) return null;
                 const active = pathname === href;
                 const badge = href === "/agent" ? running + waiting : 0;
                 return (

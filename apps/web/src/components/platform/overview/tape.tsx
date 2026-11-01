@@ -2,7 +2,8 @@
 import type { Fill } from "@zethos/sdk";
 import { useMemo, useState } from "react";
 import { formatPrice } from "../../../lib/agent/runtime";
-import { formatNumber, shortAddress } from "../../../lib/platform-config";
+import { formatNumber, platformConfig, shortAddress } from "../../../lib/platform-config";
+import { ExternalLink } from "../primitives";
 import { clock, FLOW_COLOR, FLOW_LABEL, FLOWS, type FlowName } from "./model";
 
 export function Tape({ fills }: { fills: Fill[] }) {
@@ -19,7 +20,7 @@ export function Tape({ fills }: { fills: Fill[] }) {
       <header className="d-card-head">
         <div>
           <h2 id="tape-title">Fill tape</h2>
-          <p>Every paper fill, by who it came from</p>
+          <p>Recorded fills, labelled by settlement</p>
         </div>
       </header>
       <fieldset className="d-filter" aria-label="Filter by flow">
@@ -60,7 +61,9 @@ export function Tape({ fills }: { fills: Fill[] }) {
                   onClick={() => setOpen(expanded ? null : fill.id)}
                 >
                   <i style={{ background: FLOW_COLOR[fill.flow] }} aria-hidden />
-                  <span>{FLOW_LABEL[fill.flow]}</span>
+                  <span>
+                    {FLOW_LABEL[fill.flow]} · {fill.paper ? "Paper" : "On-chain"}
+                  </span>
                   <span>
                     {fill.side === "buy" ? "Buy" : "Sell"} {fill.pair.split("/")[0]}
                   </span>
@@ -69,6 +72,16 @@ export function Tape({ fills }: { fills: Fill[] }) {
                 </button>
                 {expanded && (
                   <dl>
+                    {fill.txHash && !fill.paper && (
+                      <div>
+                        <dt>Transaction</dt>
+                        <dd>
+                          <ExternalLink href={`${platformConfig.explorer}/tx/${fill.txHash}`}>
+                            View on explorer
+                          </ExternalLink>
+                        </dd>
+                      </div>
+                    )}
                     <div>
                       <dt>Taker</dt>
                       <dd>{shortAddress(fill.taker)}</dd>

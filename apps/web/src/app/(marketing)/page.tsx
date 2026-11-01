@@ -36,6 +36,7 @@ export const metadata: Metadata = {
 };
 
 export default async function LandingPage() {
+  const preview = !process.env.NEXT_PUBLIC_ENGINE_URL;
   return (
     <LandingShell>
       <Boot />
@@ -44,12 +45,27 @@ export default async function LandingPage() {
       <main>
         <Hero />
         <Proof />
-        <HowItWorks />
-        <Compare />
-        <QuoteAnatomy />
+        {preview ? (
+          <>
+            <HowItWorks />
+            <Compare />
+            <QuoteAnatomy />
+          </>
+        ) : (
+          <section id="how-it-works" className="relative sect py-section">
+            <h2 className="t-title">Inspect a real signed price</h2>
+            <p className="lead mt-4">
+              Open Desk to see the current venues, spread terms, vault limits and local signature
+              checks for your own quote.
+            </p>
+            <a className="mt-6 inline-block underline" href="/desk#test-the-desk">
+              Test the desk
+            </a>
+          </section>
+        )}
         <Features />
         <Safety />
-        <Cta />
+        <Cta showIllustration={preview} />
       </main>
       <Footer />
     </LandingShell>

@@ -32,13 +32,13 @@ export const landing = {
     label: "Primary navigation",
     wordmark: "zethos",
     homeLabel: "Zethos home",
-    cta: { label: "Launch app", href: "/dashboard" },
+    cta: { label: "Launch app", href: "/desk" },
   },
 
   hero: {
     headline: { lead: "A trading desk for your token,", accent: "that earns every change." },
     sub: "You set the mandate. Zethos quotes firm, signed swaps from live exchange books, finds where it loses money, and has to beat an unseen attacker before a new strategy goes live.",
-    primary: { label: "Launch app", href: "/dashboard" },
+    primary: { label: "Launch app", href: "/desk" },
     secondary: { label: "Look closer", href: "#how-it-works" },
   },
 
@@ -70,7 +70,7 @@ export const landing = {
       },
       {
         title: "Verified, then settled.",
-        body: "The vault contract checks the signature, expiry, nonce and caps, then settles both legs atomically. In this demo, settlement is paper.",
+        body: "The vault contract checks the signature, expiry, nonce and caps, then settles both legs atomically. Open Desk to inspect the engine’s current settlement mode.",
       },
     ] satisfies Step[],
   },
@@ -198,21 +198,21 @@ export const landing = {
   cta: {
     headline: "Give your token a desk *you can inspect.*",
     sub: "Firm exchange prices for every swap, and a strategy that has to earn every change.",
-    primary: { label: "Launch app", href: "/dashboard" },
+    primary: { label: "Launch app", href: "/desk" },
     argument: { value: "+28,228 HSK", label: "on the same 25,000 USDT swap" },
     argumentNote: "Illustrative, from the example above.",
   },
 
   footer: {
     navLabel: "Footer navigation",
-    status: "Paper settlement: prices and signatures are real, no funds move",
+    status: "Open Desk to inspect settlement mode. Arena fills stay paper.",
     backToTop: "Back to top",
     statement: "A desk that *earns every change.*",
     columns: [
       {
         title: "Product",
         links: [
-          { label: "Launch app", href: "/dashboard" },
+          { label: "Launch app", href: "/desk" },
           { label: "Desk", href: "/desk" },
           { label: "Research", href: "/research" },
           { label: "Arena", href: "/arena" },

@@ -25,18 +25,18 @@ export function Inventory({
         return (
           <div key={pair.pair}>
             <p>
-              {pair.base.symbol} <b>{(share * 100).toFixed(1)}%</b>
+              {pair.base.label ?? pair.base.symbol} <b>{(share * 100).toFixed(1)}%</b>
             </p>
             <div
               className="d-balance"
               role="img"
-              aria-label={`${pair.base.symbol} is ${(share * 100).toFixed(1)} percent of its side, target 50.`}
+              aria-label={`${pair.base.label ?? pair.base.symbol} is ${(share * 100).toFixed(1)} percent of its side, target 50.`}
             >
               <span style={{ width: `${share * 100}%` }} />
               <i aria-hidden />
             </div>
             <small>
-              {formatToken(base)} {pair.base.symbol}, worth {formatUsd(value)}
+              {formatToken(base)} {pair.base.label ?? pair.base.symbol}, worth {formatUsd(value)}
             </small>
           </div>
         );

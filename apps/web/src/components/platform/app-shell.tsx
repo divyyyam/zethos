@@ -75,12 +75,13 @@ export function AppShell({ children }: { children: ReactNode }) {
       else if (Date.now() - leader < 900) {
         const page = NAV_ITEMS.find((item) => item.key === event.key);
         leader = 0;
-        if (page) router.push(page.href);
+        if (page && (page.href !== "/operator" || status.data?.operator !== null))
+          router.push(page.href);
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [router, toggleSidebar]);
+  }, [router, toggleSidebar, status.data?.operator]);
 
   return (
     <MotionConfig reducedMotion="user">
@@ -113,11 +114,15 @@ export function AppShell({ children }: { children: ReactNode }) {
           </main>
           <footer className="d-footer">
             <span>
-              {status.data?.mode === "shadow"
-                ? `Shadow mode: ${status.data.dataSource === "replay" ? "replayed" : "live"} exchange prices, paper settlement. No funds move.`
-                : platformConfig.chain.testnet
-                  ? `${platformConfig.chain.name}: real settlement with test tokens that have no market value.`
-                  : platformConfig.chain.name}
+              {!status.data
+                ? status.isError
+                  ? "Engine status unavailable."
+                  : "Checking settlement mode…"
+                : status.data.mode === "shadow"
+                  ? `Shadow mode: ${status.data.dataSource === "replay" ? "replayed" : "live"} exchange prices, paper settlement. No funds move.`
+                  : platformConfig.chain.testnet
+                    ? `${platformConfig.chain.name}: real settlement with test tokens that have no market value.`
+                    : platformConfig.chain.name}
             </span>
             {platformConfig.vaultAddress && (
               <a

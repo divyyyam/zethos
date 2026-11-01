@@ -79,7 +79,9 @@ export function CommandPalette({
   const items = useMemo(() => {
     const query = text.trim().toLowerCase();
     const parsed = parseIntent(text);
-    const pages: Item[] = NAV_ITEMS.map((page) => ({
+    const pages: Item[] = NAV_ITEMS.filter(
+      (page) => page.href !== "/operator" || status.data?.operator !== null,
+    ).map((page) => ({
       id: page.href,
       group: "Go to",
       label: page.label,

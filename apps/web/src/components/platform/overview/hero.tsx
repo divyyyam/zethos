@@ -44,7 +44,8 @@ export function Hero({
         : data.riskState === "degraded"
           ? "Quoting, with a price source down."
           : "The vault is quoting.";
-  const equity = arena?.equityUsd ?? data?.equityUsd ?? null;
+  const live = data?.mode === "live";
+  const equity = live ? data.equityUsd : (arena?.equityUsd ?? null);
   return (
     <section ref={box} className="d-hero" aria-label="Summary">
       <WorldCanvas state={world} className="d-hero-canvas" />
@@ -67,11 +68,12 @@ export function Hero({
           />
         </div>
         <div className="d-hero-figure">
-          <span>Paper equity</span>
+          <span>{live ? "Vault equity" : data?.mode === "shadow" ? "Paper equity" : "Equity"}</span>
           <strong className="num">
             {equity === null ? "—" : <Rolling value={equity} format={formatUsd} />}
           </strong>
-          {arena && (
+          {live && <small>On-chain inventory valued at exchange mids</small>}
+          {!live && arena && (
             <small>
               {signedUsd(arena.pnl.total)} this epoch · {plural(arena.fills, "fill")}
             </small>
