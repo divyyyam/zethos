@@ -719,7 +719,8 @@
   align-items: end;
   gap: 12px;
 }
-.d-desk-form > label {
+.d-desk-form > label,
+.d-desk-form > .p-select-field {
   display: grid;
   gap: 8px;
   min-width: 0;
@@ -739,6 +740,114 @@
 .d-desk-form > .p-button {
   height: 44px;
   white-space: nowrap;
+}
+.d-quote {
+  display: grid;
+  gap: 10px;
+  margin-top: 4px;
+}
+.d-quote-ticket {
+  display: grid;
+  gap: 14px;
+  padding: 16px 18px;
+  border: 1px solid var(--p-line);
+  border-radius: 14px;
+  background: var(--color-canvas-soft);
+  scroll-margin: 96px 0 24px;
+}
+.d-quote-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+}
+.d-quote-expiry {
+  color: var(--p-muted);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.d-quote-expiry[data-urgent="true"] {
+  color: var(--p-error);
+}
+.d-quote-terms {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, auto));
+  justify-content: space-between;
+  gap: 12px 24px;
+  margin: 0;
+}
+.d-quote-terms dt {
+  color: var(--p-muted);
+  font-size: 12.5px;
+}
+.d-quote-terms dd {
+  margin: 3px 0 0;
+  color: var(--color-ink);
+  font-size: 15px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+.d-quote-terms dd[data-failed="true"] {
+  color: var(--p-error);
+}
+.d-quote-cta {
+  width: 100%;
+  height: 46px;
+}
+.d-quote-settled {
+  display: grid;
+  gap: 6px;
+  font-size: 14px;
+}
+.d-quote-settled p {
+  margin: 0;
+}
+.d-quote-detail {
+  border: 1px solid var(--p-line);
+  border-radius: 12px;
+}
+.d-quote-detail > summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  cursor: pointer;
+  list-style: none;
+}
+.d-quote-detail > summary::-webkit-details-marker {
+  display: none;
+}
+.d-quote-detail > summary::after {
+  content: "";
+  width: 7px;
+  height: 7px;
+  margin: -3px 3px 0 0;
+  border-right: 1.5px solid var(--p-muted);
+  border-bottom: 1.5px solid var(--p-muted);
+  transform: rotate(45deg);
+  transition: transform 0.18s;
+}
+.d-quote-detail[open] > summary::after {
+  margin-top: 3px;
+  transform: rotate(-135deg);
+}
+[data-platform] main .d-quote-detail h3 {
+  margin: 0;
+  color: var(--color-ink);
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+.d-quote-detail > summary > span {
+  margin-left: auto;
+  color: var(--p-muted);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.d-quote-detail > :not(summary) {
+  margin: 0 14px 12px;
 }
 .d-spread-table th[scope="row"] {
   color: var(--color-ink);
@@ -1615,5 +1724,10 @@ button.d-tile {
   .d-sidebar {
     transition: none;
     animation: none;
+  }
+}
+@media (max-width: 900px) {
+  .d-quote-terms {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

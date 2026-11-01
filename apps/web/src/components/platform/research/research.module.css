@@ -50,17 +50,6 @@
   color: var(--p-muted);
 }
 
-.filter select {
-  padding: 7px 30px 7px 10px;
-  border: 1px solid var(--p-line);
-  border-radius: 10px;
-  background-color: var(--p-surface);
-  color: var(--color-ink);
-  font: inherit;
-  font-size: 13px;
-  cursor: pointer;
-}
-
 .page .table th,
 .page .table td {
   padding: 13px 14px;

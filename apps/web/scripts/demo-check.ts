@@ -197,13 +197,14 @@ try {
   });
   await step("A4: normal signed quote and local verification", async () => {
     await desk().getByRole("button", { name: "Normal trade", exact: true }).click();
-    await desk().getByText("Verified against the on-chain vault signer", { exact: true }).waitFor();
     for (const heading of [
       "1. Where the price came from",
       "2. How the spread was built",
       "3. What was checked",
     ])
       await desk().getByRole("heading", { name: heading, exact: true }).waitFor();
+    await desk().getByRole("heading", { name: "3. What was checked", exact: true }).click();
+    await desk().getByText("Verified against the on-chain vault signer", { exact: true }).waitFor();
   });
   await step("A5: settlement reaches a send and is cancelled", async () => {
     const before = await sendCount();

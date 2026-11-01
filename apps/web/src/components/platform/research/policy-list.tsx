@@ -6,6 +6,7 @@ import {
   type PolicyLifecycleStatus,
   type PolicySummary,
 } from "../../../lib/engine/policies";
+import { Select } from "../select";
 import styles from "./research.module.css";
 
 const STATUS_BADGE_CLASSES: Record<PolicyLifecycleStatus, string> = {
@@ -52,18 +53,16 @@ export function PolicyList({
 
         <div className={styles.filter}>
           <Filter size={14} aria-hidden />
-          <select
+          <Select
+            compact
+            ariaLabel="Filter policies by status"
             value={statusFilter}
-            onChange={(e) => onFilterChange(e.target.value)}
-            aria-label="Filter policies by status"
-          >
-            <option value="all">All statuses</option>
-            {POLICY_STATUSES.map((status) => (
-              <option key={status} value={status}>
-                {status}
-              </option>
-            ))}
-          </select>
+            options={[
+              { value: "all", label: "All statuses" },
+              ...POLICY_STATUSES.map((status) => ({ value: status as string, label: status })),
+            ]}
+            onChange={onFilterChange}
+          />
         </div>
       </div>
 

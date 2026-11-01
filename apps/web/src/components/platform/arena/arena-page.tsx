@@ -4,6 +4,7 @@ import { Activity, RefreshCw, ShieldCheck } from "lucide-react";
 import { failureMessage, zethos } from "../../../lib/engine/sdk";
 import { formatNumber, formatUsd, shortAddress } from "../../../lib/platform-config";
 import { EmptyState, StatusDot } from "../primitives";
+import { Select } from "../select";
 import { ArenaChart } from "./arena-chart";
 import { AttackPanel } from "./attack-panel";
 import { flowColors, flowNames, TierChip, time } from "./presentation";
@@ -265,17 +266,19 @@ export function ArenaPageContent() {
           <section className="p-card p-arena-decisions">
             <div className="p-card-header">
               <h2>Decision journal</h2>
-              <label className="sr-only" htmlFor="decision-type">
-                Decision type
-              </label>
-              <select id="decision-type" value={filter} onChange={(e) => setFilter(e.target.value)}>
-                <option value="">All types</option>
-                {Array.from(new Set(decisions.data?.map((d) => d.type))).map((type) => (
-                  <option key={type} value={type}>
-                    {type.replaceAll("_", " ")}
-                  </option>
-                ))}
-              </select>
+              <Select
+                compact
+                ariaLabel="Decision type"
+                value={filter}
+                options={[
+                  { value: "", label: "All types" },
+                  ...Array.from(new Set(decisions.data?.map((d) => d.type))).map((type) => ({
+                    value: type as string,
+                    label: type.replaceAll("_", " "),
+                  })),
+                ]}
+                onChange={setFilter}
+              />
             </div>
             <div className="p-arena-scroll">
               {decisions.data

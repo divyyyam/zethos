@@ -7,6 +7,13 @@ import { useEngineStatus } from "../../../hooks/platform/use-platform";
 import { type AttackMode, type Attempt, runAttack } from "../../../lib/arena/attack";
 import { failureMessage } from "../../../lib/engine/sdk";
 import { formatNumber, platformConfig, shortAddress } from "../../../lib/platform-config";
+import { Select } from "../select";
+
+const modes = [
+  { value: "naive", label: "Naive" },
+  { value: "sniper", label: "Sniper" },
+  { value: "rotating", label: "Rotating" },
+] as const;
 
 export function AttackPanel() {
   const status = useEngineStatus();
@@ -89,37 +96,30 @@ export function AttackPanel() {
         Try the desk for 60 seconds, at most 30 quotes per minute. These simulated fills use local
         identities and move no tokens.
       </p>
-      <div className="flex flex-wrap gap-3 my-4">
-        <label>
-          Mode{" "}
-          <select
-            aria-label="Attack mode"
-            className="p-button"
+      <div className="p-attack-controls">
+        <div className="p-select-field">
+          <span>Mode</span>
+          <Select
+            ariaLabel="Attack mode"
             disabled={running}
             value={mode}
-            onChange={(e) => setMode(e.target.value as AttackMode)}
-          >
-            <option value="naive">Naive</option>
-            <option value="sniper">Sniper</option>
-            <option value="rotating">Rotating</option>
-          </select>
-        </label>
-        <label>
-          Pair{" "}
-          <select
-            aria-label="Attack pair"
-            className="p-button"
+            options={modes}
+            onChange={setMode}
+          />
+        </div>
+        <div className="p-select-field">
+          <span>Pair</span>
+          <Select
+            ariaLabel="Attack pair"
             disabled={running}
             value={pair}
-            onChange={(e) => setPair(e.target.value as Pair)}
-          >
-            {status.data?.pairs.map((p) => (
-              <option key={p.pair} value={p.pair}>
-                {p.base.label ?? p.base.symbol} / {p.quote.label ?? p.quote.symbol}
-              </option>
-            ))}
-          </select>
-        </label>
+            options={(status.data?.pairs ?? []).map((p) => ({
+              value: p.pair,
+              label: `${p.base.label ?? p.base.symbol} / ${p.quote.label ?? p.quote.symbol}`,
+            }))}
+            onChange={setPair}
+          />
+        </div>
         <button
           type="button"
           className="p-button p-button-primary"

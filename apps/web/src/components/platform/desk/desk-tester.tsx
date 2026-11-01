@@ -28,6 +28,7 @@ import {
 import { wagmiConfig } from "../../../lib/wagmi";
 import { useWallet } from "../../wallet/wallet-provider";
 import { ExternalLink } from "../primitives";
+import { Select } from "../select";
 import { venueLabel } from "../venue-label";
 
 type Result = {
@@ -46,8 +47,22 @@ const terms = [
   ["toxicity", "Taker risk", "Adjusts for the taker’s trading behaviour"],
   ["degraded", "Reduced price sources", "Allows for fewer healthy venues"],
 ] as const;
+const sides = [
+  { value: "buy", label: "Buy" },
+  { value: "sell", label: "Sell" },
+] as const;
 const label = (token: PairStatus["base"]) => token.label ?? token.symbol;
 const pct = (fraction: number) => `${formatNumber(fraction * 100, 4)}%`;
+
+function ticketOf({ quote, pair, side }: Result) {
+  const input = side === "buy" ? pair.quote : pair.base;
+  const output = side === "buy" ? pair.base : pair.quote;
+  const amountIn = formatUnits(BigInt(quote.quote.amountIn), input.decimals);
+  const amountOut = formatUnits(BigInt(quote.quote.amountOut), output.decimals);
+  const price =
+    side === "buy" ? Number(amountIn) / Number(amountOut) : Number(amountOut) / Number(amountIn);
+  return { input, output, amountIn, amountOut, price };
+}
 
 function Balance({ token }: { token: PairStatus["base"] }) {
   const balance = useTokenBalance({
@@ -76,6 +91,7 @@ export function DeskTester({ mandate }: { mandate: Mandate | undefined }) {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const running = useRef(false);
+  const ticketRef = useRef<HTMLDivElement>(null);
   const [now, setNow] = useState(() => Date.now());
   const pair = status.data?.pairs.find((p) => p.pair === pairName);
   const sold = pair && (side === "buy" ? pair.quote : pair.base);
@@ -87,6 +103,12 @@ export function DeskTester({ mandate }: { mandate: Mandate | undefined }) {
     const timer = setInterval(() => setNow(Date.now()), 250);
     return () => clearInterval(timer);
   }, [result]);
+  const quoteId = result?.quote.id;
+  useEffect(() => {
+    if (!quoteId) return;
+    const calm = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    ticketRef.current?.scrollIntoView({ block: "nearest", behavior: calm ? "auto" : "smooth" });
+  }, [quoteId]);
   const reset = () => {
     setResult(null);
     setFill(null);
@@ -174,25 +196,13 @@ export function DeskTester({ mandate }: { mandate: Mandate | undefined }) {
         throw new Error(
           `Local verification failed: ${verification.reasons.join(", ")}. Get a new quote.`,
         );
-      const input = Number(
-        formatUnits(
-          BigInt(quote.quote.amountIn),
-          result.side === "buy" ? result.pair.quote.decimals : result.pair.base.decimals,
-        ),
-      );
-      const output = Number(
-        formatUnits(
-          BigInt(quote.quote.amountOut),
-          result.side === "buy" ? result.pair.base.decimals : result.pair.quote.decimals,
-        ),
-      );
       const settled =
         quote.route === "paper"
           ? await zethos.paperFill(quote, request)
           : await settleOnChain(quote, {
               pair: result.pair.pair,
               side: result.side,
-              price: result.side === "buy" ? input / output : output / input,
+              price: ticketOf(result).price,
               flow: "user",
             });
       setFill(settled);
@@ -264,6 +274,18 @@ export function DeskTester({ mandate }: { mandate: Mandate | undefined }) {
     );
   }
 
+  const ticket = result && ticketOf(result);
+  const passedChecks = checks.filter((check) => check.pass === true).length;
+  const failedChecks = checks.filter((check) => check.pass === false).length;
+  const checkSummary = failedChecks
+    ? `${failedChecks} of ${checks.length} failed`
+    : `${passedChecks} of ${checks.length} passed`;
+  const errorAlert = (
+    <p role="alert" className="p-form-error">
+      {error}
+    </p>
+  );
+
   return (
     <section className="d-card mb-6" id="test-the-desk" aria-label="Test the desk">
       <div className="d-card-head">
@@ -281,41 +303,35 @@ export function DeskTester({ mandate }: { mandate: Mandate | undefined }) {
               void requestQuote();
             }}
           >
-            <label>
-              Pair
-              <select
-                aria-label="Desk pair"
-                className="p-search"
+            <div className="p-select-field">
+              <span>Pair</span>
+              <Select
+                ariaLabel="Desk pair"
                 value={pairName}
                 disabled={busy}
-                onChange={(event) => {
-                  setPairName(event.target.value as Pair);
+                options={(status.data?.pairs ?? []).map((p) => ({
+                  value: p.pair,
+                  label: `${label(p.base)} / ${label(p.quote)}`,
+                }))}
+                onChange={(next) => {
+                  setPairName(next);
                   reset();
                 }}
-              >
-                {status.data?.pairs.map((p) => (
-                  <option key={p.pair} value={p.pair}>
-                    {label(p.base)} / {label(p.quote)}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              Side
-              <select
-                aria-label="Desk side"
-                className="p-search"
+              />
+            </div>
+            <div className="p-select-field">
+              <span>Side</span>
+              <Select
+                ariaLabel="Desk side"
                 value={side}
                 disabled={busy}
-                onChange={(event) => {
-                  setSide(event.target.value as "buy" | "sell");
+                options={sides}
+                onChange={(next) => {
+                  setSide(next);
                   reset();
                 }}
-              >
-                <option value="buy">Buy</option>
-                <option value="sell">Sell</option>
-              </select>
-            </label>
+              />
+            </div>
             <label>
               Amount{sold ? ` (${label(sold)})` : ""}
               <input
@@ -353,11 +369,7 @@ export function DeskTester({ mandate }: { mandate: Mandate | undefined }) {
               </button>
             ))}
           </div>
-          {error && (
-            <p role="alert" className="p-form-error">
-              {error}
-            </p>
-          )}
+          {error && !result && errorAlert}
           {wallet.isConnected && wallet.chainId !== platformConfig.chain.id && (
             <p role="alert">
               Wrong network.{" "}
@@ -366,17 +378,95 @@ export function DeskTester({ mandate }: { mandate: Mandate | undefined }) {
               </button>
             </p>
           )}
-          {result && (
-            <div className="flex flex-col gap-4" aria-live="polite">
-              <span className="p-pill">
-                {result.quote.route === "paper"
-                  ? "Paper quote · no tokens move"
-                  : result.status.mode === "live"
-                    ? `Live vault quote${result.status.chainId === 133 ? " · testnet" : ""}`
-                    : "Vault quote"}
-              </span>
-              <div>
-                <h3>1. Where the price came from</h3>
+          {result && ticket && (
+            <div className="d-quote" key={result.quote.id} aria-live="polite">
+              <div className="d-quote-ticket" ref={ticketRef}>
+                <div className="d-quote-head">
+                  <span className="p-pill">
+                    {result.quote.route === "paper"
+                      ? "Paper quote · no tokens move"
+                      : result.status.mode === "live"
+                        ? `Live vault quote${result.status.chainId === 133 ? " · testnet" : ""}`
+                        : "Vault quote"}
+                  </span>
+                  {!fill && (
+                    <span role="status" className="d-quote-expiry" data-urgent={remaining < 10}>
+                      {remaining > 0
+                        ? `Quote expires in ${remaining}s`
+                        : "Quote expired. Get a new signed quote."}
+                    </span>
+                  )}
+                </div>
+                <dl className="d-quote-terms">
+                  <div>
+                    <dt>You pay</dt>
+                    <dd title={ticket.amountIn}>
+                      {formatNumber(Number(ticket.amountIn), 6)} {label(ticket.input)}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>You receive</dt>
+                    <dd title={ticket.amountOut}>
+                      {formatNumber(Number(ticket.amountOut), 6)} {label(ticket.output)}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Price</dt>
+                    <dd>
+                      {formatNumber(ticket.price, 8)} {label(result.pair.quote)}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Cost against mid</dt>
+                    <dd>{pct(result.quote.vsMidBps / 10000)}</dd>
+                  </div>
+                  <div>
+                    <dt>Checks</dt>
+                    <dd data-failed={failedChecks > 0}>{checkSummary}</dd>
+                  </div>
+                </dl>
+                {error && errorAlert}
+                {!fill && (
+                  <button
+                    type="button"
+                    className="p-button p-button-primary d-quote-cta"
+                    disabled={
+                      busy ||
+                      remaining < 5 ||
+                      !result.verification.ok ||
+                      checks.some((c) => c.pass === false)
+                    }
+                    onClick={() => void settle()}
+                  >
+                    {busy
+                      ? "Waiting for settlement…"
+                      : result.quote.route === "paper"
+                        ? "Fill paper quote"
+                        : "Settle from wallet"}
+                  </button>
+                )}
+                {fill && (
+                  <div role="status" className="d-quote-settled">
+                    <p>
+                      {fill.paper
+                        ? "Paper fill complete. No tokens moved."
+                        : "Swap settled on-chain."}
+                    </p>
+                    {fill.txHash && (
+                      <ExternalLink href={`${platformConfig.explorer}/tx/${fill.txHash}`}>
+                        View transaction
+                      </ExternalLink>
+                    )}
+                    <Balance token={result.pair.base} />
+                    <Balance token={result.pair.quote} />
+                  </div>
+                )}
+              </div>
+              <details className="d-quote-detail">
+                <summary>
+                  <h3>1. Where the price came from</h3>
+                  <span>Fused mid {formatNumber(result.quote.breakdown.mid, 8)}</span>
+                </summary>
                 <div className="p-table-wrap">
                   <table className="p-table">
                     <thead>
@@ -403,9 +493,12 @@ export function DeskTester({ mandate }: { mandate: Mandate | undefined }) {
                   Fused mid: {formatNumber(result.quote.breakdown.mid, 8)}. Pricing reference:{" "}
                   {formatNumber(result.quote.breakdown.ref, 8)}.
                 </p>
-              </div>
-              <div>
-                <h3>2. How the spread was built</h3>
+              </details>
+              <details className="d-quote-detail">
+                <summary>
+                  <h3>2. How the spread was built</h3>
+                  <span>Half-spread {pct(result.quote.breakdown.half)}</span>
+                </summary>
                 <div className="p-table-wrap">
                   <table className="p-table d-spread-table" aria-label="Spread breakdown">
                     <thead>
@@ -447,17 +540,12 @@ export function DeskTester({ mandate }: { mandate: Mandate | undefined }) {
                     </tfoot>
                   </table>
                 </div>
-                <p>
-                  You receive{" "}
-                  {formatUnits(
-                    BigInt(result.quote.quote.amountOut),
-                    result.side === "buy" ? result.pair.base.decimals : result.pair.quote.decimals,
-                  )}{" "}
-                  {label(result.side === "buy" ? result.pair.base : result.pair.quote)}.
-                </p>
-              </div>
-              <div>
-                <h3>3. What was checked</h3>
+              </details>
+              <details className="d-quote-detail" open={failedChecks > 0}>
+                <summary>
+                  <h3>3. What was checked</h3>
+                  <span>{checkSummary}</span>
+                </summary>
                 <div className="p-table-wrap">
                   <table className="p-table">
                     <thead>
@@ -480,49 +568,7 @@ export function DeskTester({ mandate }: { mandate: Mandate | undefined }) {
                     </tbody>
                   </table>
                 </div>
-              </div>
-              {!fill && (
-                <>
-                  <p role="status">
-                    {remaining > 0
-                      ? `Quote expires in ${remaining}s`
-                      : "Quote expired. Get a new signed quote."}
-                  </p>
-                  <button
-                    type="button"
-                    className="p-button p-button-primary"
-                    disabled={
-                      busy ||
-                      remaining < 5 ||
-                      !result.verification.ok ||
-                      checks.some((c) => c.pass === false)
-                    }
-                    onClick={() => void settle()}
-                  >
-                    {busy
-                      ? "Waiting for settlement…"
-                      : result.quote.route === "paper"
-                        ? "Fill paper quote"
-                        : "Settle from wallet"}
-                  </button>
-                </>
-              )}
-              {fill && (
-                <div role="status">
-                  <p>
-                    {fill.paper
-                      ? "Paper fill complete. No tokens moved."
-                      : "Swap settled on-chain."}
-                  </p>
-                  {fill.txHash && (
-                    <ExternalLink href={`${platformConfig.explorer}/tx/${fill.txHash}`}>
-                      View transaction
-                    </ExternalLink>
-                  )}
-                  <Balance token={result.pair.base} />
-                  <Balance token={result.pair.quote} />
-                </div>
-              )}
+              </details>
             </div>
           )}
         </>
