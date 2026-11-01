@@ -2,7 +2,6 @@
 
 import {
   type DeskCompliance,
-  formatPct,
   formatUsdOrUnavailable,
   type Mandate,
 } from "../../../lib/engine/desk-types";
@@ -16,13 +15,12 @@ export function ServiceCapsCard({
 }) {
   const buckets = mandate?.service.maxHalfSpreadBps ?? [];
   const minQuoteNotionalUsd = mandate?.service.minQuoteNotionalUsd;
-  const uptimeTargetPct = mandate?.service.uptimeTargetPct;
 
   return (
     <div className="d-card">
       <div className="d-card-head">
-        <h2>Service Spread & Uptime Targets</h2>
-        <p>Mandate service commitments: maximum half-spreads by size and uptime target</p>
+        <h2>Service Spread Targets</h2>
+        <p>Mandate service commitments: maximum half-spreads by size</p>
       </div>
 
       <div className="p-metrics-grid mb-4">
@@ -30,18 +28,6 @@ export function ServiceCapsCard({
           <span>Minimum Quote Size</span>
           <strong>{formatUsdOrUnavailable(minQuoteNotionalUsd)}</strong>
           <small>Required quote floor</small>
-        </div>
-        <div className="p-metric">
-          <span>Uptime Target</span>
-          <strong>{formatPct(uptimeTargetPct)}</strong>
-          <small>Configured service target</small>
-        </div>
-        <div className="p-metric">
-          <span>Observed Uptime</span>
-          <strong>Unavailable</strong>
-          <small title="Tape capture rate measures external flow ingest, not desk uptime">
-            Distinct from tape capture rate
-          </small>
         </div>
       </div>
 
@@ -112,7 +98,7 @@ export function ServiceCapsCard({
       </div>
       <p className="text-xs text-neutral-400 mt-3">
         * Measured from every signed quote this epoch: price against the fused mid at quote time,
-        the same measure the execution layer enforces. Uptime is not measured yet.
+        the same measure the execution layer enforces.
       </p>
     </div>
   );

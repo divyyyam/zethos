@@ -1,11 +1,7 @@
 "use client";
 
 import { RefreshCw } from "lucide-react";
-import {
-  formatFractionAsPct,
-  formatPct,
-  formatUsdOrUnavailable,
-} from "../../../lib/engine/desk-types";
+import { formatFractionAsPct, formatUsdOrUnavailable } from "../../../lib/engine/desk-types";
 import { failureMessage } from "../../../lib/engine/sdk";
 import { StatusDot } from "../primitives";
 import { ActivePoliciesCard } from "./active-policies-card";
@@ -84,11 +80,6 @@ export function DeskPage() {
               : "Unavailable"}
           </strong>
           <small>Target 50.0% base share</small>
-        </div>
-        <div className="p-metric">
-          <span>Uptime Commitment</span>
-          <strong>{formatPct(mandateData?.service.uptimeTargetPct)}</strong>
-          <small>Service level target</small>
         </div>
         <div className="p-metric">
           <span>Operating-Loss Limit</span>
