@@ -4,7 +4,7 @@ import * as schema from "./schema";
 
 // Writes run inside the engine's single queue, so one hung connection would stall every quote.
 const DB_TIMEOUT_MS = 8000;
-neonConfig.fetchFunction = (input: RequestInfo | URL, init?: RequestInit) =>
+neonConfig.fetchFunction = (input: Parameters<typeof fetch>[0], init?: RequestInit) =>
   fetch(input, { ...init, signal: AbortSignal.timeout(DB_TIMEOUT_MS) });
 
 export function createDb(databaseUrl: string) {
