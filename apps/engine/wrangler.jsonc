@@ -15,5 +15,37 @@
     "CHAIN_ID": "177",
     "HSK_RPC_URL": "https://mainnet.hsk.xyz",
     "CORS_ORIGIN": "http://localhost:3000"
+  },
+  "env": {
+    // Hosted live mode on HSK testnet: `wrangler deploy --env testnet`. Keys and tokens are secrets.
+    "testnet": {
+      "durable_objects": {
+        "bindings": [{ "name": "MARKET", "class_name": "Market" }]
+      },
+      "vars": {
+        "ENGINE_MODE": "live",
+        "CHAIN_ID": "133",
+        "HSK_RPC_URL": "https://testnet.hsk.xyz",
+        "CORS_ORIGIN": "https://zethos-jade.vercel.app,http://localhost:3000",
+        "VAULT_ADDRESS": "0x8deB013d7A8f5f5C6C2d8fb12506fab506721d01",
+        "OPERATOR_ADDRESS": "0x369b982250D63D805849520d15f437B914BB2fe3",
+        "USDT_ADDRESS": "0x1095085CAf22cEEa130f73a99234dd2C9216fb72",
+        "WHSK_ADDRESS": "0x60786f25Ae5dEef658dd1Da2F62dd6e7c7674716",
+        "WETH_ADDRESS": "0x6ab12f10d4f0ef5B3faae774abb724A958f5BD80"
+      }
+    },
+    // Hosted paper trading on HSK mainnet: `wrangler deploy --env mainnet`. It shares nothing with
+    // testnet, including keys and database. Tokens come from MAINNET_TOKEN_ADDRESSES.
+    "mainnet": {
+      "durable_objects": {
+        "bindings": [{ "name": "MARKET", "class_name": "Market" }]
+      },
+      "vars": {
+        "ENGINE_MODE": "shadow",
+        "CHAIN_ID": "177",
+        "HSK_RPC_URL": "https://mainnet.hsk.xyz",
+        "CORS_ORIGIN": "http://localhost:3000"
+      }
+    }
   }
 }
