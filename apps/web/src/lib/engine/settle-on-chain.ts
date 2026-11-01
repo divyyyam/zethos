@@ -18,7 +18,7 @@ const nonceAbi = parseAbi([
  */
 export async function settleOnChain(
   response: VaultQuote,
-  trade: { pair: Pair; side: "buy" | "sell"; price: number },
+  trade: { pair: Pair; side: "buy" | "sell"; price: number; flow?: "user" | "agent" },
 ): Promise<Fill> {
   const vault = platformConfig.vaultAddress;
   if (!vault) throw new Error("The vault address isn’t configured.");
@@ -101,7 +101,7 @@ export async function settleOnChain(
     amountOut: response.quote.amountOut,
     price: trade.price,
     midAtFill: response.breakdown.mid,
-    flow: "agent",
+    flow: trade.flow ?? "agent",
     paper: false,
     txHash: hash,
   };

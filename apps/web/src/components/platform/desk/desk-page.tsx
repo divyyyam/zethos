@@ -5,6 +5,7 @@ import { formatFractionAsPct, formatUsdOrUnavailable } from "../../../lib/engine
 import { failureMessage } from "../../../lib/engine/sdk";
 import { StatusDot } from "../primitives";
 import { ActivePoliciesCard } from "./active-policies-card";
+import { DeskTester } from "./desk-tester";
 import { InventoryBandCard } from "./inventory-band-card";
 import { LossCapCard } from "./loss-cap-card";
 import { MandatePairsCard } from "./mandate-pairs-card";
@@ -87,6 +88,8 @@ export function DeskPage() {
           <small>Max adverse epoch loss</small>
         </div>
       </section>
+
+      <DeskTester mandate={mandateData} />
 
       {/* Detailed Mandate Cards */}
       <div className="flex flex-col gap-6">
