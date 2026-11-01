@@ -7,6 +7,7 @@ import { EmptyState, StatusDot } from "../primitives";
 import { ArenaChart } from "./arena-chart";
 import { AttackPanel } from "./attack-panel";
 import { flowColors, flowNames, TierChip, time } from "./presentation";
+import { RealFills } from "./real-fills";
 import { useArenaController } from "./use-arena-controller";
 
 export function ArenaPageContent() {
@@ -57,8 +58,11 @@ export function ArenaPageContent() {
     <>
       <div className="p-page-heading">
         <div>
-          <h1>Paper Arena</h1>
-          <p>Exchange prices, simulated settlement, observable decisions.</p>
+          <h1>Arena</h1>
+          <p>
+            Arena tests how the desk responds to trading behaviour using real market prices. Attacks
+            settle on paper so no tokens move.
+          </p>
         </div>
         <div className="p-page-tools">
           <span className="p-pill p-pill-neutral">Paper · epoch {data.epoch}</span>
@@ -77,6 +81,11 @@ export function ArenaPageContent() {
         </div>
       </div>
       <AttackPanel />
+      <RealFills />
+      <p className="p-card-footnote">
+        Paper profit and loss by flow appears about five minutes after each fill, once markouts
+        finish.
+      </p>
       <div
         className={!connected || data.valuationStale ? "p-arena-stale" : ""}
         aria-busy={!connected}
