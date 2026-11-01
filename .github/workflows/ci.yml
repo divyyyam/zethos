@@ -21,8 +21,8 @@
 #       - uses: foundry-rs/foundry-toolchain@v1
 #         with:
 #           version: v1.8.6
-#       # postinstall installs the exact OpenZeppelin release with Foundry Soldeer.
 #       - run: bun install
+#       - run: bun run contracts:install
 #       - run: bunx turbo run build
 #       # contracts:test excludes test/fork/*; fork tests are explicitly opt-in.
 #       - run: bunx turbo run test

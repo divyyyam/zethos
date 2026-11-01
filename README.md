@@ -130,6 +130,15 @@ cp apps/engine/.dev.vars.example apps/engine/.dev.vars
 bun run dev                     # web on :3000, engine on :8787
 ```
 
+`bun install` installs JavaScript dependencies only. Before contract work or root Turbo
+commands (`dev`, `build`, and checks), install Foundry and run `bun run contracts:install` to
+fetch the Solidity dependencies through Soldeer.
+
+For Vercel, set the project's Root Directory to `apps/web` and enable access to files outside
+that directory. The committed `apps/web/vercel.json` installs from the workspace root and builds
+shared, SDK and web in order, using the committed ABI in `packages/shared/src/generated.ts`.
+Regenerate and commit that file with `bun run codegen` whenever the contracts change.
+
 Use **Launch attack** in the browser against either engine mode. The CLI bots below are for a
 shadow engine; they refuse live mode (paper only, public endpoints, no keys):
 

@@ -20,8 +20,7 @@
     "contracts:test": "turbo run test --filter=contracts",
     "contracts:fork": "turbo run test:fork --filter=contracts",
     "deploy:testnet": "bun run --cwd packages/contracts deploy:testnet",
-    "deploy:mainnet": "bun run --cwd packages/contracts deploy:mainnet",
-    "postinstall": "bun run contracts:install"
+    "deploy:mainnet": "bun run --cwd packages/contracts deploy:mainnet"
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.3",
