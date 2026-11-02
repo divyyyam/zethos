@@ -434,14 +434,6 @@
   align-items: center;
   gap: 8px;
 }
-.d-paper {
-  padding: 3px 9px;
-  border-radius: 8px;
-  background: var(--color-butter);
-  color: #5d4410;
-  font-size: 12px;
-  font-weight: 500;
-}
 .d-chip {
   display: flex;
   align-items: center;
@@ -1615,9 +1607,6 @@ button.d-tile {
 @media (max-width: 1360px) {
   .d-ticker-spark,
   .d-network-name {
-    display: none;
-  }
-  .d-paper {
     display: none;
   }
 }

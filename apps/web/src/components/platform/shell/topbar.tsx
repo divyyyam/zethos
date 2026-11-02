@@ -336,7 +336,6 @@ export function Topbar({ onMenu, onPalette }: { onMenu: () => void; onPalette: (
       </div>
 
       <div className="d-topbar-right">
-        {status.data?.mode === "shadow" && <span className="d-paper">Paper</span>}
         <HealthMenu />
         <ActivityMenu />
         <button
