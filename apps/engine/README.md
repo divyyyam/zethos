@@ -1,7 +1,6 @@
 # Zethos engine
 
 Hono on **Cloudflare Workers**, with Postgres on **Neon** via Drizzle. Read the
-[demo plan](../../docs/demo-plan.md) for the demo rules and the
 [web instructions](../web/AGENTS.md) before frontend work. The wire contract is binding for the engine and
 `@zethos/sdk`; `test/sdk.test.ts` runs the real SDK against the real app to enforce it.
 
@@ -82,8 +81,8 @@ controls. `apps/sniper` attacks shadow engines through the public SDK; the brows
 `arenaQuote`/`arenaFill` and supports either mode.
 
 Live vault settlement and fill watching are implemented for HSK testnet. The web client verifies
-the quote locally, then the taker's wallet approves and fills on-chain. On-chain arbitrage and
-confirmed pool adapters remain deferred; no pool depth or savings are invented. The
+the quote locally, then the taker's wallet approves and fills on-chain. The engine does no on-chain
+arbitrage and configures no pool adapters, and no pool depth or savings are invented. The
 [MCP server](../mcp/README.md) consumes the public SDK over stdio or Streamable HTTP.
 
 Uptime is not measured. A live mode label describes settlement capability, not uptime or a
@@ -97,7 +96,7 @@ promise that every pair is currently tradable.
 `/operator/pause`, `/operator/resume`, `/operator/taker-tier`, `/operator/labels`,
 `/operator/arena-reset`. `/fills` optionally filters by epoch. Stream frames are `price`,
 `fill` (including markout updates), `arena`, `risk`, `decision`, `takerTier` and `params`.
-Errors: `{ error, message? }` with the codes in `docs/engine.md` §15.
+Errors: `{ error, message? }`.
 
 Quotes are persisted before returning their signatures. Paper settlement writes are serialized
 across awaits and commit the fill, used nonce, quote status and simulated inventory in one database
@@ -205,7 +204,7 @@ several). On testnet set `CHAIN_ID=133` and the three token address vars.
 ## Live mode (HSK testnet)
 
 `ENGINE_MODE=live` signs real quotes for the deployed vault. It needs `VAULT_ADDRESS`,
-`OPERATOR_ADDRESS`, `QUOTE_SIGNER_KEY` and `EXECUTOR_KEY`, and it's limited to `CHAIN_ID=133` for now.
+`OPERATOR_ADDRESS`, `QUOTE_SIGNER_KEY` and `EXECUTOR_KEY`, and it's limited to `CHAIN_ID=133`.
 
 At boot the engine checks the vault's bytecode, `owner()`, `quoteSigner()`, `executor()`, `maxTtl()`,
 and that `quoteDigest()` matches the shared EIP-712 types. Any mismatch keeps it in shadow mode, journals
@@ -227,14 +226,11 @@ The fill watcher reads vault `Fill` events. `GET /fills` without an epoch merges
 Arena equity, profit/loss and by-flow totals remain paper. Per-flow profit/loss needs completed
 five-minute markouts. Missing observations stay missing.
 
-The demo uses tUSDT, tWETH and tWHSK on chain 133. Read labels, decimals, available inventory,
-route enablement and per-fill caps from the configured engine; addresses are owner-provided.
-Mainnet live mode is not enabled. Do not lift the `CHAIN_ID=133` guard for a demo.
+Live mode uses tUSDT, tWETH and tWHSK on chain 133. Read labels, decimals, available inventory,
+route enablement and per-fill caps from the configured engine. The mainnet engine runs in shadow
+mode, and the `CHAIN_ID=133` guard stays in place.
 
-The owner configures new live instances. The existing local demo engine is already running on
-port 8787; leave it running and use its public endpoints for checks.
-
-## Browser demo flows
+## Browser flows
 
 - **Desk:** request a signed quote, inspect price and safety checks, exercise real refusal presets,
   then explicitly settle from the wallet when the route is live.
@@ -243,6 +239,6 @@ port 8787; leave it running and use its public endpoints for checks.
 - **Arena:** launch paper attacks without a wallet. A client header beginning `sniper/` attributes
   fills to attacker flow; real vault fills are displayed separately.
 
-For existing local demo servers, use `bun run --cwd apps/web demo:check` from the repo root.
-It declines all wallet sends and fails on unmet checks. Do not restart the live engine on 8787
-or open its secrets to run it. The full user flow is documented in the [root guide](../../README.md#demo-modes-and-user-flows).
+For running local servers, use `bun run --cwd apps/web browser:check` from the repo root. It
+declines all wallet sends and fails on unmet checks. See the [root guide](../../README.md#test-it-on-testnet)
+for the full user flow.

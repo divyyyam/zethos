@@ -4,26 +4,48 @@
 proposes prices; this contract decides whether a trade is allowed. See the
 [root guide](../../README.md) for how it fits into the product.
 
-**Status: not audited. Deployed on HSK testnet and, with no inventory, on [mainnet](https://hsk.blockscout.com/address/0x1e6c7fBCd245A1a4FA8aBaDf57dF1ECf2E1A2aAF).** See [Before mainnet](#before-mainnet).
+**Status: deployed and verified on HashKey Chain mainnet and testnet. Not independently audited.**
+See [Deployment status](#deployment-status). I recommend testing against testnet first.
 
-## Testnet deployment
+## Deployments
 
-Chain `133`, on `https://testnet-explorer.hskchain.net`. **tUSDT, tWETH and tWHSK** are test
-assets with no market value. Mainnet live settlement is not enabled in the engine.
+| Role | Mainnet (chain `177`) | Testnet (chain `133`) |
+|------|-----------------------|-----------------------|
+| `ZethosVault` | [`0x1e6c7fBCd245A1a4FA8aBaDf57dF1ECf2E1A2aAF`](https://hsk.blockscout.com/address/0x1e6c7fBCd245A1a4FA8aBaDf57dF1ECf2E1A2aAF) | [`0x8deB013d7A8f5f5C6C2d8fb12506fab506721d01`](https://testnet-explorer.hskchain.net/address/0x8deB013d7A8f5f5C6C2d8fb12506fab506721d01) |
+| Source verification | Full match | Partial match |
+| Owner | `0xBC569666b84A0B0aD99142c39C1A4d9cCAFB0996` | `0x369b982250D63D805849520d15f437B914BB2fe3` |
+| Quote signer | `0x67892FFC34d33906ebE31f565cCb4f5d61fEFDe8` | `0x530b3D90cfB3e713b60140645528cB4CCcc6a972` |
+| Executor | `0x962784AD07B15382d4bce03e6B9b2c0daA3f8B33` | `0x042208fF20630C91ddC7C10C77DE64224b0F2299` |
+| Deploy transaction | [`0x4d52…a6d4`](https://hsk.blockscout.com/tx/0x4d528badf7ffcf92e79146ac15e185661555940826a57e40f6f23a9690cea6d4) | [`0xa88d…0250`](https://testnet-explorer.hskchain.net/tx/0xa88df321f36cd1d3df7c0314ee483f47b15107b580ece6f2e6cc3e44f7be0250) |
+| Inventory | None | Test tokens |
 
-| Contract | Address / evidence |
-|----------|--------------------|
-| `ZethosVault` | _owner: add confirmed address and explorer link_ |
-| `tUSDT` (6 decimals) | _owner: add confirmed address_ |
-| `tWETH` (18 decimals) | _owner: add confirmed address_ |
-| `tWHSK` | _owner: add confirmed address and decimals_ |
-| Confirmed fill | _owner: add transaction explorer link_ |
-| Source verification | _owner: add current explorer verification evidence_ |
+| Token | Mainnet | Testnet |
+|-------|---------|---------|
+| USD stablecoin (6 decimals) | USDT `0xF1B50eD67A9e2CC94Ad3c477779E2d4cBfFf9029` | tUSDT `0x1095085CAf22cEEa130f73a99234dd2C9216fb72` |
+| Wrapped HSK (18 decimals) | WHSK `0xB210D2120d57b758EE163cFfb43e73728c471Cf1` | tWHSK `0x60786f25Ae5dEef658dd1Da2F62dd6e7c7674716` |
+| Wrapped ETH (18 decimals) | WETH `0xefd4bC9afD210517803f293ABABd701CaeeCdfd0` | tWETH `0x6ab12f10d4f0ef5B3faae774abb724A958f5BD80` |
 
-Read deployed token metadata and route caps from chain and `/status`. Do not assume the native
-wrapped-token predeploy is the tWHSK used by the demo. `DeployTestTokens.s.sol` creates tUSDT and
-tWETH only; the owner must provide the separate tWHSK configuration used for the recorded demo.
-Uptime is not measured; neither a deployment nor a mode label proves availability.
+tUSDT, tWETH and tWHSK have no market value. Read token metadata and route caps from chain and
+`/status`, not from this page. The testnet tWHSK is a separate token, not the chain's wrapped-native
+predeploy, and its source is not verified on the explorer. `DeployTestTokens.s.sol` creates tUSDT and tWETH.
+
+## On-chain test results
+
+Run on the testnet vault on 2026-11-01. Each link opens the transaction on the explorer.
+
+| Test | Result | Transaction |
+|------|--------|-------------|
+| Valid quote fills | Vault +20 tUSDT and -0.008 tWETH, taker the reverse | [`0x4821…5e15`](https://testnet-explorer.hskchain.net/tx/0x4821d2721148c60564721d6475f8c6b963a3eda5139626e902c5be98cb7c5e15) |
+| Replay of the same quote | Reverted `NonceUsed` | [`0x68d9…9825`](https://testnet-explorer.hskchain.net/tx/0x68d90adc4cab9a957d1c55a529b4bd49900f26b689dbdd851624fdb375629825) |
+| Expired quote | Reverted `QuoteExpired` | [`0x9967…dad2`](https://testnet-explorer.hskchain.net/tx/0x9967c71734266f4e9f0cd2c54374bf741134fd93a639881009f39e9718ecdad2) |
+| Above the route cap | Reverted `SizeCapExceeded` | [`0x5612…ebf3`](https://testnet-explorer.hskchain.net/tx/0x5612bed0045565d13e93d6ef43a2492809d1a5285387e34f8e06cac27632ebf3) |
+| Signed by a non-signer | Reverted `InvalidSignature` | [`0xb385…a394`](https://testnet-explorer.hskchain.net/tx/0xb3856d3aa31c63980de065e9c13f76c485d7d7539b29ed60df34545057dca394) |
+| Executor pauses | `paused` is true | [`0x5446…710c`](https://testnet-explorer.hskchain.net/tx/0x544634e799bc237b3e30a08c00b1e53b01eda305246e0a795adc20d22e26710c) |
+| Fill while paused | Reverted `EnforcedPause` | [`0x5131…dae4`](https://testnet-explorer.hskchain.net/tx/0x51313ee5cbfb1b92d2186790659004fbf04a6350cad73a525bfe4b07e8dedae4) |
+| Executor tries to unpause | Reverted `OwnableUnauthorizedAccount` | [`0xac66…2a3f`](https://testnet-explorer.hskchain.net/tx/0xac66869f0b5d8bafe9a2b28e6fc90faf880ce3ed5c0028f34f37cb9e33982a3f) |
+| Owner unpauses | `paused` is false | [`0x61a6…1222`](https://testnet-explorer.hskchain.net/tx/0x61a66490098040a36a75ddba30476fcc3c10cea4f1803d6f88f9d8e90cb21222) |
+| Owner withdraws | Vault -1 tUSDT, owner +1 tUSDT | [`0x850a…3d25`](https://testnet-explorer.hskchain.net/tx/0x850a9e8a05f247aa60ace71276f1f80927a6c22356003ae7b3a447051bc93d25) |
+| Non-owner tries to withdraw | Reverted `OwnableUnauthorizedAccount` | [`0xcd21…63fb`](https://testnet-explorer.hskchain.net/tx/0xcd215d8a68280fd4a5703e1a47e074086a34e0e577219ddee98d7a172b7a63fb) |
 
 ## Layout
 
@@ -104,18 +126,16 @@ all, once per nonce, only for that taker, only before expiry.
   and today no venue with real depth exists to compare against.
 - **Only plain ERC-20 tokens.** Tokens that deliver less than the signed input are refused. Tokens
   that rebase, or can block transfers, aren't suitable for routes.
-- **No native HSK.** The vault trades ERC-20 assets: tWHSK in the testnet demo, with its
-  configured address and decimals. Native wrapping is not a substitute for that test token.
+- **No native HSK.** The vault trades ERC-20 assets only: WHSK on mainnet and tWHSK on testnet.
 - **Admin power is total.** The owner can withdraw everything at any time. Inventory belongs to the
   operator; third-party liquidity is out of scope.
 
-Deliberately not built, because the testnet goal doesn't need them:
+Deliberately not included:
 
-- **`arbSwap`.** The HSKSwap router has not been confirmed on-chain, `SwapRouter` and
-  `SwapRouter02` have different swap structs, and testnet has no pool liquidity to arbitrage. Add
-  its interface and the function once the router is confirmed.
-- **Pool protection on testnet.** Deploy with no pools (`pool = address(0)`), which matches reality.
-- **A rolling volume limit, fork tests and an audit.** See [Before mainnet](#before-mainnet).
+- **`arbSwap`.** The vault settles quotes only and does no pool arbitrage.
+- **Pool protection on the deployed routes.** Routes set `pool = address(0)`, since no venue with
+  real depth exists to compare against.
+- **A rolling volume limit.** Per-fill caps and small inventory limit exposure instead.
 
 ## Commands
 
@@ -140,13 +160,12 @@ bun run --cwd packages/contracts deploy:testnet
 bun run codegen
 ```
 
-Then deposit inventory, set `NEXT_PUBLIC_VAULT_ADDRESS` for the web app and verify the source.
+Then deposit inventory, set `NEXT_PUBLIC_VAULT_ADDRESS` for the web app and verify the source. On
+mainnet, `bun run deploy:mainnet:check` simulates the deployment and sends nothing.
 
-## Testnet rehearsal
+## Testing on testnet
 
-Live mode uses real on-chain fills on HSK testnet (chain `133`) with tokens labelled tUSDT,
-tWETH and tWHSK. The contract is unaudited. Deployment, minting, funding and use of a real wallet
-are owner operations; automation for this demo must not broadcast, deploy or run migrations.
+Live mode uses real on-chain fills on chain `133` with tokens labelled tUSDT, tWETH and tWHSK.
 
 1. **Desk:** inspect the mandate and signed price, test refusals, then approve and fill from a real
    wallet. The result links to the explorer and refreshes both token balances.
@@ -155,21 +174,20 @@ are owner operations; automation for this demo must not broadcast, deploy or run
 3. **Arena:** attack paper inventory with local identities, no wallet and no token transfers.
    Separate real-vault rows come from watched `Fill` events; paper totals exclude them.
 
-The browser stand-in check is `bun run --cwd apps/web demo:check` from the repo root. It declines
+The browser stand-in check is `bun run --cwd apps/web browser:check` from the repo root. It declines
 every `eth_sendTransaction`, blocks network broadcast methods and exits non-zero on a failed step.
 It cannot verify successful settlement or changed balances; the owner records those with a real
 wallet. The code's EVM target is `cancun`, using solc 0.8.24.
 
-## Before mainnet
+## Deployment status
 
-- [x] `forge build` and `forge test` pass against real OpenZeppelin 5.7, forge-std and solc 0.8.24.
-- [x] `forge fmt --check` passes.
-- [ ] Token addresses and decimals confirmed on-chain. `constants.ts` marks them unconfirmed.
-- [ ] Independent audit.
-- [ ] Decide whether a rolling volume limit is needed for the signer-key risk above.
-- [ ] Owner is a hardware wallet or multisig. Signer and executor are separate hot keys.
-- [ ] Full flow rehearsed on testnet: deposit, fill, pause, unpause, withdraw, key rotation.
-- [x] Engine live mode and real fill watching are implemented for testnet.
-- [ ] Mainnet live settlement remains disabled by `CHAIN_ID=133`; any mainnet enablement is
-  separate owner work after the checks above, outside this demo.
-- [ ] Monitoring and a pause runbook in place. Start with small caps and small inventory.
+| Item | State |
+|------|-------|
+| Build and tests | `forge build`, `forge test` and `forge fmt --check` pass on OpenZeppelin 5.7, forge-std and solc 0.8.24 |
+| Mainnet vault | Deployed and fully verified, with no inventory |
+| Mainnet tokens | Address, symbol and decimals confirmed on chain `177` |
+| Mainnet caps | About $50 per fill on each of the 4 routes |
+| Testnet vault | Deployed, verified and funded. Fill, pause, unpause and withdrawal confirmed on-chain |
+| Engine settlement | On-chain on chain `133`. The engine's `CHAIN_ID=133` guard keeps mainnet on paper |
+| Roles | Separate owner, signer and executor keys on each network, in encrypted keystores |
+| Independent audit | Not performed |

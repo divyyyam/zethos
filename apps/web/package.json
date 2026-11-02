@@ -9,7 +9,7 @@
     "start": "next start --port 3000",
     "lint": "biome check .",
     "test": "bun test test",
-    "demo:check": "bun run scripts/demo-check.ts",
+    "browser:check": "bun run scripts/demo-check.ts",
     "typecheck": "next typegen && tsc --noEmit"
   },
   "dependencies": {

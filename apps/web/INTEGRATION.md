@@ -1,10 +1,9 @@
-# Zethos internal platform
+# Zethos web integration
 
-## Shadow integration (31 Oct 2026)
+## Engine integration
 
 The active REST/stream wire contract is `packages/sdk/src/schemas.ts`, exercised against
-the real Hono engine in `apps/engine/test/sdk.test.ts` and the Arena/agent tests. The live-vault
-sections below also describe future settlement; they are not a claim that a vault is deployed.
+the real Hono engine in `apps/engine/test/sdk.test.ts` and the Arena/agent tests.
 
 - Swap requests and quote verification use `@zethos/sdk`. The paper route uses a zero-address
   signing domain and requires no token approval, wallet signature, wallet balance or gas.
@@ -68,8 +67,8 @@ All `NEXT_PUBLIC_*` values are shipped to the browser; none may contain private 
 | `NEXT_PUBLIC_WHSK_ADDRESS`     | Confirmed wrapped HSK deployment                                             |
 | `NEXT_PUBLIC_WETH_ADDRESS`     | Confirmed wrapped ETH deployment                                             |
 
-Testnet requires explicit token addresses. Mainnet has candidate fallback addresses from
-`packages/shared/src/constants.ts`, which are marked for confirmation in the project docs.
+Testnet requires explicit token addresses. Mainnet falls back to the confirmed addresses in
+`packages/shared/src/constants.ts`.
 Token symbol and decimals are read from chain before live quote amounts are built. Do not
 replace those reads with assumed decimals. The configured engine must serve the same vault;
 the client rejects a different vault in `/status`.
@@ -77,8 +76,7 @@ the client rejects a different vault in `/status`.
 ## Engine boundary
 
 `src/lib/engine/types.ts` defines the response shapes. `client.ts` validates responses at
-runtime; `src/content/platform.mock.ts` is only for labeled previews. The current engine only
-implements `/health`; the following endpoints still need backend implementation.
+runtime; `src/content/platform.mock.ts` is only for labeled previews.
 
 | Endpoint                   | Frontend contract                                                                        |
 | -------------------------- | ---------------------------------------------------------------------------------------- |

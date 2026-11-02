@@ -1,0 +1,156 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1120 720" width="1120" height="720" role="img" aria-labelledby="t d">
+  <title id="t">Zethos architecture</title>
+  <desc id="d">Exchange prices enter the engine, which prices a request through feed fusion, a policy, the mandate layer and an EIP-712 signer. Clients verify the signed quote, the wallet fills it on ZethosVault on HashKey Chain, and the vault reports fills back. An offline research loop reads the loss diagnosis and submits qualified strategies to the engine.</desc>
+  <style>
+    :root {
+      --bg: #ffffff; --ink: #1c1646; --sub: #57536f; --line: #6a6585; --edge: #d6d3e4; --lane: #f7f6fb;
+      --engine: #e6e2f8; --engine-s: #5b4f9e;
+      --record: #f0eff5; --record-s: #a5a2b8;
+      --market: #dcecf7; --market-s: #3a7ca5;
+      --research: #fbeed5; --research-s: #b9832a;
+      --client: #dcecf7; --client-s: #3a7ca5;
+      --chain: #d9f0e3; --chain-s: #2e8b63;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0d1117; --ink: #f0eefa; --sub: #aeaac6; --line: #9a96b5; --edge: #39364d; --lane: #16141f;
+        --engine: #2b2556; --engine-s: #8a7ee0;
+        --record: #22212d; --record-s: #5c5a70;
+        --market: #15303f; --market-s: #4f9fcf;
+        --research: #3a2c10; --research-s: #d6a24a;
+        --client: #15303f; --client-s: #4f9fcf;
+        --chain: #123326; --chain-s: #48b98a;
+      }
+    }
+    text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; fill: var(--ink); text-anchor: middle; }
+    .bg { fill: var(--bg); }
+    .h { font-size: 18px; font-weight: 600; }
+    .s { font-size: 14px; fill: var(--sub); }
+    .lane { font-size: 13px; font-weight: 600; letter-spacing: 1.2px; fill: var(--sub); text-anchor: start; }
+    .lab { font-size: 14px; fill: var(--sub); text-anchor: start; }
+    .n { font-size: 13px; font-weight: 700; fill: var(--ink); }
+    .dot { fill: var(--lane); stroke: var(--line); stroke-width: 1.5; }
+    .a { stroke: var(--line); stroke-width: 2; fill: none; marker-end: url(#m); }
+    .tip { fill: var(--line); }
+    .c { fill: var(--lane); stroke: var(--edge); stroke-width: 1.5; }
+    .e { fill: var(--engine); stroke: var(--engine-s); stroke-width: 1.5; }
+    .r { fill: var(--record); stroke: var(--record-s); stroke-width: 1.5; }
+    .k { fill: var(--market); stroke: var(--market-s); stroke-width: 1.5; }
+    .q { fill: var(--research); stroke: var(--research-s); stroke-width: 1.5; }
+    .v { fill: var(--chain); stroke: var(--chain-s); stroke-width: 1.5; }
+  </style>
+  <defs>
+    <marker id="m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5.5" markerHeight="5.5" orient="auto">
+      <path class="tip" d="M0 0 L10 5 L0 10 Z"/>
+    </marker>
+  </defs>
+
+  <rect class="bg" width="1120" height="720" rx="14"/>
+
+  <!-- Top lane: market data -->
+  <text class="lane" x="50" y="36">MARKET DATA</text>
+  <rect class="k" x="50" y="50" width="225" height="88" rx="10"/>
+  <text class="h" x="162" y="80">Exchanges</text>
+  <text class="s" x="162" y="102">HashKey Global · Gate</text>
+  <text class="s" x="162" y="121">KuCoin · MEXC · OKX · Binance</text>
+
+  <!-- Top lane: research -->
+  <rect class="c" x="300" y="14" width="790" height="140" rx="12" stroke-dasharray="6 5"/>
+  <text class="lane" x="315" y="36">RESEARCH LOOP · OFFLINE, NEVER IN THE PRICING PATH</text>
+  <rect class="q" x="315" y="50" width="225" height="88" rx="10"/>
+  <text class="h" x="427" y="80">Qualification</text>
+  <text class="s" x="427" y="102">Accepts or rejects</text>
+  <text class="s" x="427" y="121">with a reason per rule</text>
+  <rect class="q" x="580" y="50" width="225" height="88" rx="10"/>
+  <text class="h" x="692" y="80">Evaluator</text>
+  <text class="s" x="692" y="102">Development, attack and</text>
+  <text class="s" x="692" y="121">held-out scenarios</text>
+  <rect class="q" x="845" y="50" width="225" height="88" rx="10"/>
+  <text class="h" x="957" y="80">Research agent</text>
+  <text class="s" x="957" y="102">Gemini writes a strategy</text>
+  <text class="s" x="957" y="121">as validated data, not code</text>
+  <path class="a" d="M845 94 H807"/>
+  <path class="a" d="M580 94 H542"/>
+
+  <!-- Engine -->
+  <rect class="c" x="30" y="212" width="1060" height="290" rx="12"/>
+  <text class="lane" x="470" y="238">ENGINE · CLOUDFLARE WORKERS + DURABLE OBJECT</text>
+
+  <rect class="e" x="50" y="252" width="225" height="96" rx="10"/>
+  <text class="h" x="162" y="284">Feed fusion</text>
+  <text class="s" x="162" y="306">Weighted book, volatility,</text>
+  <text class="s" x="162" y="325">halts on failed feeds</text>
+  <rect class="e" x="315" y="252" width="225" height="96" rx="10"/>
+  <text class="h" x="427" y="284">Policy</text>
+  <text class="s" x="427" y="306">Incumbent or canary,</text>
+  <text class="s" x="427" y="325">taker scoring, spread terms</text>
+  <rect class="e" x="580" y="252" width="225" height="96" rx="10"/>
+  <text class="h" x="692" y="284">Mandate layer</text>
+  <text class="s" x="692" y="306">Founder's limits, enforced</text>
+  <text class="s" x="692" y="325">outside the strategy</text>
+  <rect class="e" x="845" y="252" width="225" height="96" rx="10"/>
+  <text class="h" x="957" y="284">EIP-712 signer</text>
+  <text class="s" x="957" y="306">Firm, expiring,</text>
+  <text class="s" x="957" y="325">single-use quote</text>
+  <path class="a" d="M275 300 H313"/>
+  <path class="a" d="M540 300 H578"/>
+  <path class="a" d="M805 300 H843"/>
+
+  <rect class="r" x="50" y="396" width="225" height="88" rx="10"/>
+  <text class="h" x="162" y="426">Loss diagnosis</text>
+  <text class="s" x="162" y="448">Each loss attributed to a</text>
+  <text class="s" x="162" y="467">cause, in dollars</text>
+  <rect class="r" x="315" y="396" width="225" height="88" rx="10"/>
+  <text class="h" x="427" y="426">Strategy registry</text>
+  <text class="s" x="427" y="448">Spec hash bound to</text>
+  <text class="s" x="427" y="467">its evaluation report</text>
+  <rect class="r" x="580" y="396" width="225" height="88" rx="10"/>
+  <text class="h" x="692" y="426">Decision journal</text>
+  <text class="s" x="692" y="448">Every decision, with its</text>
+  <text class="s" x="692" y="467">inputs and reason</text>
+  <rect class="r" x="845" y="396" width="225" height="88" rx="10"/>
+  <text class="h" x="957" y="426">Neon Postgres</text>
+  <text class="s" x="957" y="448">Quotes, fills, inventory</text>
+  <text class="s" x="957" y="467">and checkpoints</text>
+  <path class="a" d="M427 396 V350"/>
+  <path class="a" d="M692 348 V394"/>
+  <path class="a" d="M957 348 V394"/>
+
+  <!-- Between top lane and engine -->
+  <path class="a" d="M162 138 V250"/>
+  <circle class="dot" cx="162" cy="176" r="12"/><text class="n" x="162" y="181">1</text>
+  <text class="lab" x="182" y="181">Prices, every 2 s</text>
+  <path class="a" d="M427 138 V250"/>
+  <circle class="dot" cx="427" cy="183" r="12"/><text class="n" x="427" y="188">7</text>
+  <text class="lab" x="447" y="188">Qualified spec + report</text>
+  <path class="a" d="M957 212 V140"/>
+  <circle class="dot" cx="957" cy="183" r="12"/><text class="n" x="957" y="188">6</text>
+  <text class="lab" x="977" y="188">Diagnosis</text>
+
+  <!-- Bottom lane -->
+  <rect class="k" x="50" y="592" width="490" height="96" rx="10"/>
+  <text class="h" x="295" y="624">Clients</text>
+  <text class="s" x="295" y="646">Web app · TypeScript SDK · MCP server</text>
+  <text class="s" x="295" y="665">Every quote is verified locally before use</text>
+  <rect class="k" x="580" y="592" width="225" height="96" rx="10"/>
+  <text class="h" x="692" y="624">Taker wallet</text>
+  <text class="s" x="692" y="646">The user approves and</text>
+  <text class="s" x="692" y="665">sends the fill</text>
+  <rect class="v" x="845" y="592" width="225" height="96" rx="10"/>
+  <text class="h" x="957" y="624">ZethosVault</text>
+  <text class="s" x="957" y="646">HashKey Chain: re-checks,</text>
+  <text class="s" x="957" y="665">settles both legs or reverts</text>
+  <path class="a" d="M540 640 H578"/>
+  <path class="a" d="M805 640 H843"/>
+  <circle class="dot" cx="824" cy="610" r="12"/><text class="n" x="824" y="615">4</text>
+
+  <path class="a" d="M125 592 V504"/>
+  <circle class="dot" cx="125" cy="547" r="12"/><text class="n" x="125" y="552">2</text>
+  <text class="lab" x="145" y="552">Quote request</text>
+  <path class="a" d="M400 502 V590"/>
+  <circle class="dot" cx="400" cy="547" r="12"/><text class="n" x="400" y="552">3</text>
+  <text class="lab" x="420" y="552">Signed quote, live stream</text>
+  <path class="a" d="M957 592 V504"/>
+  <circle class="dot" cx="957" cy="547" r="12"/><text class="n" x="957" y="552">5</text>
+  <text class="lab" x="977" y="552">Fill events</text>
+</svg>

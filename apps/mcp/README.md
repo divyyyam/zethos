@@ -28,7 +28,7 @@ absolute repository path and Bun executable if necessary:
   "mcpServers": {
     "zethos": {
       "command": "bun",
-      "args": ["run", "--cwd", "D:/hacks/zethos/apps/mcp", "start"],
+      "args": ["run", "--cwd", "/path/to/zethos/apps/mcp", "start"],
       "env": {
         "ZETHOS_ENGINE_URL": "http://localhost:8787",
         "ZETHOS_CHAIN_ID": "177",
@@ -123,8 +123,7 @@ Live mode returns ordered `{ to, data, value, account }` transactions and an app
 a settlement claim. The live signer is read from the vault through the SDK. Unsigned call
 preparation also reserves budget since the server cannot observe whether a wallet broadcasts
 it later. The app link opens the swap page; importing an MCP-cached quote into the web wallet
-is not implemented. The current engine deliberately refuses live mode until its deployment
-work is complete; this branch is covered using a real signed fixture and mocked RPC.
+is not implemented. This branch is covered using a real signed fixture and mocked RPC.
 
 ## Configuration
 
@@ -142,7 +141,7 @@ work is complete; this branch is covered using a real signed fixture and mocked 
 | `MCP_ALLOWED_ORIGINS`       | Comma-separated exact origins; no browser origins by default    |
 | `HSK_RPC_URL`               | Optional; required for live verification/simulation             |
 
-## Validation and rehearsal
+## Validation
 
 ```powershell
 bun run --cwd apps/mcp test
@@ -157,7 +156,6 @@ is not performance evidence. Tests also cover genuine EIP-712 verification, expi
 per-swap/daily budgets, concurrent requests, unknown submissions, restart receipts, HTTP
 access checks, and unsigned live calldata without broadcasting.
 
-For the demo, run the engine and web app, open `/arena`, connect the desktop client and ask
-for a quote. Approve one paper swap and confirm its fill appears as `agent`. Then ask for
-the latest decision's explanation. A credentialed Claude Desktop session and a sustained
-deployed rehearsal still need to be run on the owner's machine.
+To try it end to end, run the engine and web app, open `/arena`, connect the desktop client and
+ask for a quote. Approve one paper swap and confirm its fill appears as `agent`. Then ask for the
+latest decision's explanation.

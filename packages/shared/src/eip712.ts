@@ -1,6 +1,6 @@
 import type { Address, TypedData, TypedDataDomain } from "viem";
 
-// docs/onchain.md section 6. Zethos is the explicit project/domain name from the scaffold request.
+// The EIP-712 domain name is Zethos. packages/contracts pins these types in Eip712Compatibility.t.sol.
 export const quoteTypes = {
   Quote: [
     { name: "taker", type: "address" },
