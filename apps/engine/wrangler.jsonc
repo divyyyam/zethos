@@ -44,7 +44,8 @@
         "ENGINE_MODE": "shadow",
         "CHAIN_ID": "177",
         "HSK_RPC_URL": "https://mainnet.hsk.xyz",
-        "CORS_ORIGIN": "http://localhost:3000"
+        "CORS_ORIGIN": "https://zethos-mainnet.vercel.app,http://localhost:3000",
+        "OPERATOR_ADDRESS": "0xBC569666b84A0B0aD99142c39C1A4d9cCAFB0996"
       }
     }
   }
