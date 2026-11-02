@@ -2,11 +2,9 @@
 
 import { ArrowUpRight } from "lucide-react";
 import { motion, useTransform } from "motion/react";
-import Link, { useLinkStatus } from "next/link";
+import Link from "next/link";
 import { type ElementType, Fragment, type ReactNode, useRef } from "react";
-import { createPortal } from "react-dom";
 import { useReducedMotionPref } from "../../hooks/use-media-query";
-import { LogoMark } from "./logo-mark";
 import { Magnetic } from "./magnetic";
 import { useScrollRange } from "./scroll";
 
@@ -18,18 +16,6 @@ export function Rich({ text }: { text: string }) {
     // biome-ignore lint/suspicious/noArrayIndexKey: static copy
     <Fragment key={i}>{i % 2 ? <em>{part}</em> : part}</Fragment>
   ));
-}
-
-/** Covers the page as soon as a route link is clicked, so a slow first load never reads as a dead button. */
-function RouteCurtain() {
-  const { pending } = useLinkStatus();
-  if (!pending) return null;
-  return createPortal(
-    <div aria-hidden className="route-curtain">
-      <LogoMark className="size-14 text-[#14113a]" motion="live" />
-    </div>,
-    document.body,
-  );
 }
 
 /** The one primary action: a pill whose arrow rolls out and back in on hover. */
@@ -55,7 +41,6 @@ export function PrimaryButton({
         data-cursor="hover"
         className={`group inline-flex items-center rounded-full bg-fg font-medium text-inverse transition-transform duration-500 ease-expo active:scale-[0.97] ${sizing}`}
       >
-        <RouteCurtain />
         <span>{children}</span>
         <span
           className={`relative flex items-center justify-center overflow-hidden rounded-full bg-inverse text-fg ${dot}`}

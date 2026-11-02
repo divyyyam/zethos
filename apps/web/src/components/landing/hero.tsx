@@ -52,7 +52,7 @@ export function Hero() {
         />
         <dl
           className="intro-fade ink-light absolute inset-x-inset bottom-inset flex flex-wrap items-end gap-x-block gap-y-3 "
-          style={{ "--delay": "2s" } as CSSProperties}
+          style={{ "--delay": "0.65s" } as CSSProperties}
         >
           {hero.ticker.map((item) => (
             <div key={item.label}>

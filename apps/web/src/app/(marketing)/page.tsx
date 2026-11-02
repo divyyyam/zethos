@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { Boot } from "../../components/landing/boot";
 import { Compare } from "../../components/landing/compare";
 import { Cta } from "../../components/landing/cta";
 import { Features } from "../../components/landing/features";
@@ -40,7 +39,6 @@ export default async function LandingPage() {
   const stats = await getStats();
   return (
     <LandingShell>
-      <Boot />
       <LandingWorld />
       <Nav />
       <main>

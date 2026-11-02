@@ -74,7 +74,7 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* Tailwind v4 dark: follows prefers-color-scheme by default (docs/ui.md section 3). */
+/* Tailwind v4 dark: follows prefers-color-scheme by default. */
 body {
   margin: 0;
   background: #fafafa;
@@ -277,47 +277,6 @@ body:has([data-landing]) {
   opacity: 1;
 }
 
-/* Boot curtain: pure CSS, so it plays before hydration and can never strand a no-JS visitor. */
-@property --boot {
-  syntax: "<integer>";
-  inherits: false;
-  initial-value: 0;
-}
-@keyframes boot-count {
-  to {
-    --boot: 100;
-  }
-}
-@keyframes boot-lift {
-  to {
-    clip-path: inset(0 0 100% 0);
-    visibility: hidden;
-  }
-}
-@keyframes boot-fade {
-  to {
-    opacity: 0;
-    translate: 0 -24px;
-  }
-}
-.boot {
-  position: fixed;
-  inset: 0;
-  z-index: 100;
-  display: none;
-  place-items: center;
-  background: #ffffff;
-  color: #14113a;
-  clip-path: inset(0);
-  pointer-events: none;
-}
-.boot-count {
-  counter-reset: boot var(--boot);
-}
-.boot-count::after {
-  content: counter(boot);
-}
-
 @keyframes line-rise {
   from {
     translate: 0 108%;
@@ -395,23 +354,13 @@ body:has([data-landing]) {
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  .boot {
-    display: grid;
-    animation: boot-lift 0.9s var(--ease-expo) 1.25s forwards;
-  }
-  .boot-count {
-    animation: boot-count 1.15s cubic-bezier(0.5, 0, 0.2, 1) forwards;
-  }
-  .boot-inner {
-    animation: boot-fade 0.4s ease-in 1.15s forwards;
-  }
   .hero-line {
     animation: line-rise 1.3s var(--ease-expo) both;
-    animation-delay: calc(1.35s + var(--i, 0) * 110ms);
+    animation-delay: calc(var(--i, 0) * 110ms);
   }
   .intro-fade {
     animation: fade-up 1s var(--ease-soft) both;
-    animation-delay: var(--delay, 1.8s);
+    animation-delay: var(--delay, 0.45s);
   }
 }
 
@@ -577,22 +526,3 @@ body:has([data-landing]) {
   }
 }
 
-/* Route curtain: the same white and logo as the boot curtain, held back a beat so fast navigations
-   never flash it. */
-@keyframes route-curtain-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-.route-curtain {
-  position: fixed;
-  inset: 0;
-  z-index: 100;
-  display: grid;
-  place-items: center;
-  background: #ffffff;
-  animation: route-curtain-in 0.25s ease-out 0.08s both;
-}
