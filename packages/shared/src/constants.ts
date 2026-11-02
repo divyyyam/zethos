@@ -2,7 +2,7 @@ import type { Address } from "viem";
 
 export const CHAIN_IDS = { mainnet: 177, testnet: 133 } as const;
 
-// TODO: Confirm these MAINNET addresses on-chain before use (docs/engine.md section 4.3).
+// Confirmed on chain 177 on 2026-11-02: symbol, decimals, name and Blockscout reputation.
 // Read each token's decimals() at startup; never hard-code them.
 export const MAINNET_TOKEN_ADDRESSES = {
   USDT: "0xF1B50eD67A9e2CC94Ad3c477779E2d4cBfFf9029",
@@ -29,7 +29,8 @@ export const HSKSWAP_ADDRESSES = {
   pools: Record<string, Address | undefined>;
 };
 
-// Only chains with an actual deployment. Mainnet stays absent until the owner decides to deploy there.
+// Only chains with an actual deployment. The mainnet vault is verified and holds no inventory.
 export const VAULT_ADDRESSES = {
+  [CHAIN_IDS.mainnet]: "0x1e6c7fBCd245A1a4FA8aBaDf57dF1ECf2E1A2aAF",
   [CHAIN_IDS.testnet]: "0x8deB013d7A8f5f5C6C2d8fb12506fab506721d01",
 } as const satisfies Partial<Record<number, Address>>;

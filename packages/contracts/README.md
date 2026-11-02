@@ -4,7 +4,7 @@
 proposes prices; this contract decides whether a trade is allowed. See the
 [root guide](../../README.md) for how it fits into the product.
 
-**Status: not audited. Deployed on HSK testnet only.** See [Before mainnet](#before-mainnet).
+**Status: not audited. Deployed on HSK testnet and, with no inventory, on [mainnet](https://hsk.blockscout.com/address/0x1e6c7fBCd245A1a4FA8aBaDf57dF1ECf2E1A2aAF).** See [Before mainnet](#before-mainnet).
 
 ## Testnet deployment
 

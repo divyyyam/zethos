@@ -10,6 +10,7 @@ Built for the **HashKey Chain Horizon Hackathon India · AI Agent Trading track*
 | Engine (Cloudflare Workers) | _added at deploy_ |
 | ZethosVault on HSK testnet (chain 133) | _owner: add vault address and explorer link_ |
 | Test tokens: tUSDT, tWETH, tWHSK | _owner: add confirmed addresses_ |
+| ZethosVault on HashKey Chain mainnet (chain 177) | [`0x1e6c7fBCd245A1a4FA8aBaDf57dF1ECf2E1A2aAF`](https://hsk.blockscout.com/address/0x1e6c7fBCd245A1a4FA8aBaDf57dF1ECf2E1A2aAF), verified, unaudited, holds no inventory |
 | Mainnet live settlement (chain 177) | Not enabled; the engine live-mode guard requires chain 133 |
 | Demo video | _added at submission_ |
 
