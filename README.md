@@ -115,7 +115,7 @@ Open the [testnet app](https://zethos-jade.vercel.app) and connect a wallet on c
 
 What you can do with it:
 
-- **Founders:** set a mandate, test it with real quotes, see each loss explained, and review strategies before they run.
+- **Founders:** review the mandate, test it with real quotes, see each loss explained, and review strategies before they run.
 - **Traders:** swap at exchange-based prices, or type a trade in plain English with a hard cost limit.
 - **Vault owners:** pause and resume quoting, track P&L, and read every decision.
 - **Developers and AI agents:** integrate through the SDK or MCP server, and verify every quote locally.
